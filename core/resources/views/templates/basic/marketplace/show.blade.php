@@ -1,0 +1,503 @@
+@extends($activeTemplate . 'layouts.frontend')
+@section('content')
+<section class="py-5">
+    <div class="container">
+        <div class="row">
+            <!-- Main Content -->
+            <div class="col-lg-8">
+                <!-- Listing Header -->
+                <div class="listing-header mb-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <span class="badge bg-secondary mb-2">
+                                {{ ucfirst(str_replace('_', ' ', $listing->business_type)) }}
+                            </span>
+                            @if($listing->is_verified)
+                                <span class="badge bg-success mb-2">
+                                    <i class="las la-check-circle"></i> @lang('Verified')
+                                </span>
+                            @endif
+                            @if($listing->is_featured)
+                                <span class="badge bg-warning mb-2">
+                                    <i class="las la-star"></i> @lang('Featured')
+                                </span>
+                            @endif
+                        </div>
+                        <div class="d-flex gap-2">
+                            @auth
+                                <form action="{{ route('user.watchlist.toggle', $listing->id) }}" method="POST" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                        <i class="las la-heart{{ $isWatching ? ' text-danger' : '' }}"></i>
+                                        {{ $isWatching ? __('Watching') : __('Watch') }}
+                                    </button>
+                                </form>
+                            @endauth
+                            <button class="btn btn-outline-secondary btn-sm" onclick="shareUrl()">
+                                <i class="las la-share"></i> @lang('Share')
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <h1 class="h2 mb-2">{{ $listing->title }}</h1>
+                    @if($listing->tagline)
+                        <p class="lead text-muted">{{ $listing->tagline }}</p>
+                    @endif
+                    
+                    <div class="listing-meta text-muted small">
+                        <span><i class="las la-eye"></i> {{ number_format($listing->view_count) }} @lang('views')</span>
+                        <span class="mx-2">|</span>
+                        <span><i class="las la-heart"></i> {{ number_format($listing->watchlist_count) }} @lang('watchers')</span>
+                        <span class="mx-2">|</span>
+                        <span>@lang('Listed') {{ $listing->created_at->diffForHumans() }}</span>
+                    </div>
+                </div>
+                
+                <!-- Images -->
+                @if($listing->images->count() > 0)
+                <div class="listing-images mb-4">
+                    <div class="main-image mb-3">
+                        <img src="{{ getImage(getFilePath('listing') . '/' . $listing->images->first()->image) }}" 
+                             alt="{{ $listing->title }}" class="img-fluid rounded w-100" id="mainImage">
+                    </div>
+                    @if($listing->images->count() > 1)
+                    <div class="thumbnail-images d-flex gap-2 flex-wrap">
+                        @foreach($listing->images as $image)
+                            <img src="{{ getImage(getFilePath('listing') . '/' . $image->image) }}" 
+                                 alt="{{ $listing->title }}" 
+                                 class="img-thumbnail thumbnail-item" 
+                                 style="width: 80px; height: 60px; object-fit: cover; cursor: pointer;"
+                                 onclick="document.getElementById('mainImage').src = this.src">
+                        @endforeach
+                    </div>
+                    @endif
+                </div>
+                @endif
+                
+                <!-- Description -->
+                <div class="listing-description card mb-4">
+                    <div class="card-body">
+                        <h4 class="card-title">@lang('Description')</h4>
+                        <div class="description-content">
+                            {!! nl2br(e($listing->description)) !!}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Business Details -->
+                <div class="business-details card mb-4">
+                    <div class="card-body">
+                        <h4 class="card-title">@lang('Business Details')</h4>
+                        <div class="row g-3">
+                            @if($listing->business_type === 'domain')
+                                @if($listing->domain_name)
+                                    <div class="col-md-6">
+                                        <strong>@lang('Domain'):</strong> {{ $listing->domain_name }}
+                                    </div>
+                                @endif
+                                @if($listing->domain_registrar)
+                                    <div class="col-md-6">
+                                        <strong>@lang('Registrar'):</strong> {{ $listing->domain_registrar }}
+                                    </div>
+                                @endif
+                                @if($listing->domain_expiry)
+                                    <div class="col-md-6">
+                                        <strong>@lang('Expires'):</strong> {{ $listing->domain_expiry->format('M d, Y') }}
+                                    </div>
+                                @endif
+                                @if($listing->domain_age_years)
+                                    <div class="col-md-6">
+                                        <strong>@lang('Age'):</strong> {{ $listing->domain_age_years }} @lang('years')
+                                    </div>
+                                @endif
+                            @elseif($listing->business_type === 'website')
+                                @if($listing->url)
+                                    <div class="col-md-6">
+                                        <strong>@lang('URL'):</strong> 
+                                        <a href="{{ $listing->url }}" target="_blank" rel="nofollow">{{ $listing->url }}</a>
+                                    </div>
+                                @endif
+                                @if($listing->niche)
+                                    <div class="col-md-6">
+                                        <strong>@lang('Niche'):</strong> {{ $listing->niche }}
+                                    </div>
+                                @endif
+                                @if($listing->tech_stack)
+                                    <div class="col-md-6">
+                                        <strong>@lang('Tech Stack'):</strong> {{ $listing->tech_stack }}
+                                    </div>
+                                @endif
+                            @elseif($listing->business_type === 'social_media_account')
+                                @if($listing->platform)
+                                    <div class="col-md-6">
+                                        <strong>@lang('Platform'):</strong> {{ ucfirst($listing->platform) }}
+                                    </div>
+                                @endif
+                                @if($listing->niche)
+                                    <div class="col-md-6">
+                                        <strong>@lang('Niche'):</strong> {{ $listing->niche }}
+                                    </div>
+                                @endif
+                                @if($listing->followers_count)
+                                    <div class="col-md-6">
+                                        <strong>@lang('Followers'):</strong> {{ number_format($listing->followers_count) }}
+                                    </div>
+                                @endif
+                                @if($listing->engagement_rate)
+                                    <div class="col-md-6">
+                                        <strong>@lang('Engagement Rate'):</strong> {{ $listing->engagement_rate }}%
+                                    </div>
+                                @endif
+                            @elseif(in_array($listing->business_type, ['mobile_app', 'desktop_app']))
+                                @if($listing->app_store_url)
+                                    <div class="col-md-6">
+                                        <strong>@lang('App Store'):</strong> 
+                                        <a href="{{ $listing->app_store_url }}" target="_blank">@lang('View')</a>
+                                    </div>
+                                @endif
+                                @if($listing->play_store_url)
+                                    <div class="col-md-6">
+                                        <strong>@lang('Play Store'):</strong> 
+                                        <a href="{{ $listing->play_store_url }}" target="_blank">@lang('View')</a>
+                                    </div>
+                                @endif
+                                @if($listing->downloads_count)
+                                    <div class="col-md-6">
+                                        <strong>@lang('Downloads'):</strong> {{ number_format($listing->downloads_count) }}
+                                    </div>
+                                @endif
+                                @if($listing->app_rating)
+                                    <div class="col-md-6">
+                                        <strong>@lang('Rating'):</strong> {{ $listing->app_rating }}/5
+                                    </div>
+                                @endif
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Financials -->
+                @if($listing->monthly_revenue > 0 || $listing->monthly_profit > 0)
+                <div class="financials card mb-4">
+                    <div class="card-body">
+                        <h4 class="card-title">@lang('Financials')</h4>
+                        <div class="row g-3">
+                            @if($listing->monthly_revenue > 0)
+                                <div class="col-md-3 col-6">
+                                    <div class="stat-card text-center p-3 bg-light rounded">
+                                        <small class="text-muted d-block">@lang('Monthly Revenue')</small>
+                                        <strong class="fs-5">{{ showAmount($listing->monthly_revenue) }}</strong>
+                                    </div>
+                                </div>
+                            @endif
+                            @if($listing->monthly_profit > 0)
+                                <div class="col-md-3 col-6">
+                                    <div class="stat-card text-center p-3 bg-light rounded">
+                                        <small class="text-muted d-block">@lang('Monthly Profit')</small>
+                                        <strong class="fs-5">{{ showAmount($listing->monthly_profit) }}</strong>
+                                    </div>
+                                </div>
+                            @endif
+                            @if($listing->yearly_revenue > 0)
+                                <div class="col-md-3 col-6">
+                                    <div class="stat-card text-center p-3 bg-light rounded">
+                                        <small class="text-muted d-block">@lang('Yearly Revenue')</small>
+                                        <strong class="fs-5">{{ showAmount($listing->yearly_revenue) }}</strong>
+                                    </div>
+                                </div>
+                            @endif
+                            @if($listing->yearly_profit > 0)
+                                <div class="col-md-3 col-6">
+                                    <div class="stat-card text-center p-3 bg-light rounded">
+                                        <small class="text-muted d-block">@lang('Yearly Profit')</small>
+                                        <strong class="fs-5">{{ showAmount($listing->yearly_profit) }}</strong>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endif
+                
+                <!-- Traffic -->
+                @if($listing->monthly_visitors > 0 || $listing->monthly_page_views > 0)
+                <div class="traffic card mb-4">
+                    <div class="card-body">
+                        <h4 class="card-title">@lang('Traffic')</h4>
+                        <div class="row g-3">
+                            @if($listing->monthly_visitors > 0)
+                                <div class="col-md-4 col-6">
+                                    <div class="stat-card text-center p-3 bg-light rounded">
+                                        <small class="text-muted d-block">@lang('Monthly Visitors')</small>
+                                        <strong class="fs-5">{{ number_format($listing->monthly_visitors) }}</strong>
+                                    </div>
+                                </div>
+                            @endif
+                            @if($listing->monthly_page_views > 0)
+                                <div class="col-md-4 col-6">
+                                    <div class="stat-card text-center p-3 bg-light rounded">
+                                        <small class="text-muted d-block">@lang('Page Views')</small>
+                                        <strong class="fs-5">{{ number_format($listing->monthly_page_views) }}</strong>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endif
+                
+                <!-- Q&A Section -->
+                <div class="qa-section card mb-4">
+                    <div class="card-body">
+                        <h4 class="card-title">@lang('Questions & Answers')</h4>
+                        
+                        @if($listing->questions->count() > 0)
+                            <div class="questions-list mb-4">
+                                @foreach($listing->questions as $question)
+                                    <div class="question-item border-bottom pb-3 mb-3">
+                                        <div class="question">
+                                            <strong><i class="las la-question-circle text--base"></i> {{ $question->question }}</strong>
+                                            <small class="text-muted d-block">
+                                                @lang('Asked by') {{ $question->asker->username ?? 'Anonymous' }} 
+                                                {{ $question->created_at->diffForHumans() }}
+                                            </small>
+                                        </div>
+                                        @if($question->answer)
+                                            <div class="answer mt-2 ps-4">
+                                                <i class="las la-reply text-muted"></i> {{ $question->answer }}
+                                                <small class="text-muted d-block">
+                                                    @lang('Answered') {{ $question->answered_at->diffForHumans() }}
+                                                </small>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-muted">@lang('No questions yet. Be the first to ask!')</p>
+                        @endif
+                        
+                        @auth
+                            @if(auth()->id() !== $listing->user_id && $listing->status == \App\Constants\Status::LISTING_ACTIVE)
+                                <form action="{{ route('marketplace.listing.question', $listing->id) }}" method="POST">
+                                    @csrf
+                                    <div class="mb-3">
+                                        <textarea name="question" class="form-control" rows="2" 
+                                                  placeholder="@lang('Ask the seller a question...')" required></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn--base btn-sm">
+                                        <i class="las la-paper-plane"></i> @lang('Ask Question')
+                                    </button>
+                                </form>
+                            @endif
+                        @else
+                            <p class="text-muted">
+                                <a href="{{ route('user.login') }}">@lang('Login')</a> @lang('to ask a question')
+                            </p>
+                        @endauth
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- Price Card -->
+                <div class="price-card card shadow-sm mb-4 sticky-top" style="top: 20px;">
+                    <div class="card-body">
+                        @if($listing->sale_type === 'auction')
+                            <div class="auction-info">
+                                <div class="current-bid mb-3">
+                                    <small class="text-muted d-block">@lang('Current Bid')</small>
+                                    <span class="fs-2 fw-bold text--base">
+                                        {{ $listing->current_bid > 0 ? showAmount($listing->current_bid) : showAmount($listing->starting_bid) }}
+                                    </span>
+                                </div>
+                                
+                                <div class="auction-timer mb-3 p-3 bg-light rounded">
+                                    <small class="text-muted d-block">@lang('Time Remaining')</small>
+                                    @if($listing->auction_end && $listing->auction_end->isFuture())
+                                        <span class="fs-5 text-danger" id="countdownTimer">
+                                            {{ $listing->auction_end->diffForHumans() }}
+                                        </span>
+                                    @else
+                                        <span class="fs-5 text-muted">@lang('Auction Ended')</span>
+                                    @endif
+                                </div>
+                                
+                                <div class="bid-stats mb-3">
+                                    <span class="me-3"><i class="las la-gavel"></i> {{ $listing->total_bids }} @lang('bids')</span>
+                                    @if($listing->reserve_price > 0)
+                                        @if($listing->hasReserveBeenMet())
+                                            <span class="text-success"><i class="las la-check"></i> @lang('Reserve Met')</span>
+                                        @else
+                                            <span class="text-warning"><i class="las la-times"></i> @lang('Reserve Not Met')</span>
+                                        @endif
+                                    @endif
+                                </div>
+                                
+                                @if($listing->status == \App\Constants\Status::LISTING_ACTIVE && $listing->auction_end && $listing->auction_end->isFuture())
+                                    @auth
+                                        @if(auth()->id() !== $listing->user_id)
+                                            <form action="{{ route('user.bid.place', $listing->id) }}" method="POST">
+                                                @csrf
+                                                <div class="mb-3">
+                                                    <label class="form-label">@lang('Your Bid') (@lang('Min'): {{ showAmount($listing->minimum_bid) }})</label>
+                                                    <input type="number" name="amount" class="form-control form-control-lg" 
+                                                           min="{{ $listing->minimum_bid }}" step="0.01" required
+                                                           placeholder="{{ showAmount($listing->minimum_bid, currencyFormat: false) }}">
+                                                </div>
+                                                <button type="submit" class="btn btn--base btn-lg w-100 mb-2">
+                                                    <i class="las la-gavel"></i> @lang('Place Bid')
+                                                </button>
+                                            </form>
+                                            
+                                            @if($listing->buy_now_price > 0)
+                                                <form action="{{ route('user.bid.buy.now', $listing->id) }}" method="POST">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-outline-success btn-lg w-100" 
+                                                            onclick="return confirm('@lang('Buy now for') {{ showAmount($listing->buy_now_price) }}?')">
+                                                        <i class="las la-shopping-cart"></i> @lang('Buy Now') - {{ showAmount($listing->buy_now_price) }}
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        @else
+                                            <div class="alert alert-info">@lang('This is your listing')</div>
+                                        @endif
+                                    @else
+                                        <a href="{{ route('user.login') }}" class="btn btn--base btn-lg w-100">
+                                            @lang('Login to Bid')
+                                        </a>
+                                    @endauth
+                                @endif
+                            </div>
+                        @else
+                            <div class="fixed-price-info">
+                                <div class="asking-price mb-3">
+                                    <small class="text-muted d-block">@lang('Asking Price')</small>
+                                    <span class="fs-2 fw-bold text--base">{{ showAmount($listing->asking_price) }}</span>
+                                </div>
+                                
+                                @if($listing->status == \App\Constants\Status::LISTING_ACTIVE)
+                                    @auth
+                                        @if(auth()->id() !== $listing->user_id)
+                                            <form action="{{ route('user.offer.make', $listing->id) }}" method="POST" class="mb-3">
+                                                @csrf
+                                                <div class="mb-3">
+                                                    <label class="form-label">@lang('Your Offer')</label>
+                                                    <input type="number" name="amount" class="form-control form-control-lg" 
+                                                           min="1" step="0.01" required
+                                                           placeholder="@lang('Enter your offer')">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">@lang('Message') (@lang('optional'))</label>
+                                                    <textarea name="message" class="form-control" rows="2" 
+                                                              placeholder="@lang('Add a message to the seller')"></textarea>
+                                                </div>
+                                                <button type="submit" class="btn btn--base btn-lg w-100">
+                                                    <i class="las la-paper-plane"></i> @lang('Make Offer')
+                                                </button>
+                                            </form>
+                                        @else
+                                            <div class="alert alert-info">@lang('This is your listing')</div>
+                                        @endif
+                                    @else
+                                        <a href="{{ route('user.login') }}" class="btn btn--base btn-lg w-100">
+                                            @lang('Login to Make Offer')
+                                        </a>
+                                    @endauth
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                </div>
+                
+                <!-- Seller Card -->
+                <div class="seller-card card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">@lang('About the Seller')</h5>
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="avatar bg-secondary rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                 style="width: 60px; height: 60px;">
+                                <span class="text-white fs-4">{{ strtoupper(substr($seller->username, 0, 1)) }}</span>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">
+                                    <a href="{{ route('marketplace.seller', $seller->username) }}">{{ $seller->fullname }}</a>
+                                </h6>
+                                <small class="text-muted">{{ '@' . $seller->username }}</small>
+                                @if($seller->is_verified_seller)
+                                    <span class="badge bg-success">
+                                        <i class="las la-check-circle"></i> @lang('Verified')
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+                        
+                        <div class="seller-stats">
+                            <div class="row g-2 text-center">
+                                <div class="col-4">
+                                    <div class="p-2 bg-light rounded">
+                                        <strong>{{ $sellerStats['total_sales'] }}</strong>
+                                        <small class="d-block text-muted">@lang('Sales')</small>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="p-2 bg-light rounded">
+                                        <strong>{{ number_format($sellerStats['avg_rating'], 1) }}</strong>
+                                        <small class="d-block text-muted">@lang('Rating')</small>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="p-2 bg-light rounded">
+                                        <strong>{{ $sellerStats['active_listings'] }}</strong>
+                                        <small class="d-block text-muted">@lang('Active')</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="las la-calendar"></i> @lang('Member since') {{ $sellerStats['member_since'] }}
+                            </small>
+                        </div>
+                        
+                        <a href="{{ route('marketplace.seller', $seller->username) }}" class="btn btn-outline-secondary w-100 mt-3">
+                            @lang('View Profile')
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Similar Listings -->
+        @if($similarListings->count() > 0)
+        <div class="similar-listings mt-5">
+            <h3 class="mb-4">@lang('Similar Listings')</h3>
+            <div class="row g-4">
+                @foreach($similarListings as $similar)
+                    @include($activeTemplate . 'partials.listing_card', ['listing' => $similar])
+                @endforeach
+            </div>
+        </div>
+        @endif
+    </div>
+</section>
+@endsection
+
+@push('script')
+<script>
+    function shareUrl() {
+        if (navigator.share) {
+            navigator.share({
+                title: '{{ $listing->title }}',
+                url: window.location.href
+            });
+        } else {
+            navigator.clipboard.writeText(window.location.href);
+            alert('@lang("Link copied to clipboard!")');
+        }
+    }
+</script>
+@endpush
+
