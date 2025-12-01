@@ -41,40 +41,67 @@ echo "<hr>";
 echo "<h2>Finding Composer</h2>";
 
 $composerPaths = [
-    'composer', // Global composer
     '/usr/local/bin/composer',
     '/usr/bin/composer',
     '/opt/cpanel/composer/bin/composer', // cPanel composer
+    '/usr/local/cpanel/3rdparty/bin/composer', // Another cPanel location
     __DIR__ . '/composer.phar', // Local composer.phar
 ];
 
 $composerCmd = null;
 
-foreach ($composerPaths as $path) {
-    if ($path === 'composer') {
-        // Try to execute composer directly
-        $test = @shell_exec("which composer 2>&1");
-        if ($test && strpos($test, 'composer') !== false && strpos($test, 'not found') === false) {
-            $composerCmd = 'composer';
-            echo "✅ Found composer in PATH<br>";
-            break;
+// First, try to test if 'composer' command actually works
+$testOutput = @shell_exec("composer --version 2>&1");
+if ($testOutput && strpos($testOutput, 'Composer version') !== false) {
+    $composerCmd = 'composer';
+    echo "✅ Found working composer command<br>";
+} else {
+    // Try specific paths
+    foreach ($composerPaths as $path) {
+        if (file_exists($path) && is_executable($path)) {
+            // Test if it actually works
+            $testOutput = @shell_exec(escapeshellarg($path) . " --version 2>&1");
+            if ($testOutput && strpos($testOutput, 'Composer version') !== false) {
+                $composerCmd = $path;
+                echo "✅ Found composer at: " . htmlspecialchars($path) . "<br>";
+                break;
+            }
         }
-    } elseif (file_exists($path)) {
-        $composerCmd = $path;
-        echo "✅ Found composer at: " . htmlspecialchars($path) . "<br>";
-        break;
     }
 }
 
 if (!$composerCmd) {
-    echo "<p style='color: red;'>❌ Composer not found!</p>";
-    echo "<h3>Options:</h3>";
-    echo "<ol>";
-    echo "<li><strong>Upload vendor directory manually:</strong> Upload the entire <code>core/vendor</code> folder from your local machine</li>";
-    echo "<li><strong>Install Composer:</strong> Download composer.phar to the root directory, then refresh this page</li>";
-    echo "<li><strong>Use SSH/Terminal:</strong> If you have SSH access, run: <code>cd core && composer install --no-dev</code></li>";
-    echo "</ol>";
-    exit;
+    echo "<p style='color: red;'>❌ Composer not found or not executable!</p>";
+    
+    // Try to download composer.phar
+    echo "<h3>Attempting to download composer.phar...</h3>";
+    $composerPharPath = __DIR__ . '/composer.phar';
+    
+    if (!file_exists($composerPharPath)) {
+        echo "<p>Downloading composer.phar...</p>";
+        $composerPhar = @file_get_contents('https://getcomposer.org/composer-stable.phar');
+        
+        if ($composerPhar && file_put_contents($composerPharPath, $composerPhar)) {
+            chmod($composerPharPath, 0755);
+            $composerCmd = 'php ' . escapeshellarg($composerPharPath);
+            echo "<p style='color: green;'>✅ Successfully downloaded composer.phar!</p>";
+        } else {
+            echo "<p style='color: red;'>❌ Failed to download composer.phar</p>";
+        }
+    } else {
+        $composerCmd = 'php ' . escapeshellarg($composerPharPath);
+        echo "<p style='color: green;'>✅ Found existing composer.phar!</p>";
+    }
+    
+    if (!$composerCmd) {
+        echo "<h3>Manual Options:</h3>";
+        echo "<ol>";
+        echo "<li><strong>Upload vendor directory manually:</strong> Upload the entire <code>core/vendor</code> folder from your local machine (MOST RELIABLE)</li>";
+        echo "<li><strong>Download composer.phar manually:</strong> Download from <a href='https://getcomposer.org/download/' target='_blank'>getcomposer.org</a> and upload to root directory</li>";
+        echo "<li><strong>Use SSH/Terminal:</strong> If you have SSH access, run: <code>cd core && composer install --no-dev</code></li>";
+        echo "</ol>";
+        exit;
+    }
 }
 
 echo "<hr>";
@@ -98,7 +125,8 @@ echo "<p><strong>Command:</strong> <code>" . htmlspecialchars($composerCmd) . " 
 echo "<p>Working directory: <code>" . htmlspecialchars($corePath) . "</code></p>";
 
 // Change to core directory and run composer
-$command = "cd " . escapeshellarg($corePath) . " && " . escapeshellarg($composerCmd) . " install --no-dev --optimize-autoloader 2>&1";
+// Use full path and ensure we're in the right directory
+$command = "cd " . escapeshellarg($corePath) . " && " . $composerCmd . " install --no-dev --optimize-autoloader 2>&1";
 
 echo "<div style='background: #000; color: #0f0; padding: 10px; font-family: monospace; max-height: 400px; overflow-y: auto;'>";
 echo "<strong>Output:</strong><br>";
@@ -121,25 +149,62 @@ if (is_resource($process)) {
     $error = '';
     
     // Read stdout
-    while (!feof($pipes[1])) {
-        $line = fgets($pipes[1]);
-        if ($line !== false) {
-            echo htmlspecialchars($line) . "<br>";
-            flush();
-            ob_flush();
-            $output .= $line;
-        }
-    }
+    stream_set_blocking($pipes[1], false);
+    stream_set_blocking($pipes[2], false);
     
-    // Read stderr
-    while (!feof($pipes[2])) {
-        $line = fgets($pipes[2]);
-        if ($line !== false) {
-            echo "<span style='color: #f00;'>" . htmlspecialchars($line) . "</span><br>";
-            flush();
-            ob_flush();
-            $error .= $line;
+    $startTime = time();
+    $timeout = 300; // 5 minutes
+    
+    while (true) {
+        // Check timeout
+        if (time() - $startTime > $timeout) {
+            echo "<br><span style='color: red;'>⏱️ Timeout reached. Process may still be running...</span><br>";
+            break;
         }
+        
+        // Check if process is still running
+        $status = proc_get_status($process);
+        if (!$status['running']) {
+            // Read remaining output
+            while (!feof($pipes[1])) {
+                $line = fgets($pipes[1]);
+                if ($line !== false) {
+                    echo htmlspecialchars($line) . "<br>";
+                    $output .= $line;
+                }
+            }
+            while (!feof($pipes[2])) {
+                $line = fgets($pipes[2]);
+                if ($line !== false) {
+                    echo "<span style='color: #f00;'>" . htmlspecialchars($line) . "</span><br>";
+                    $error .= $line;
+                }
+            }
+            break;
+        }
+        
+        // Read available output
+        $read = [$pipes[1], $pipes[2]];
+        $write = null;
+        $except = null;
+        
+        if (stream_select($read, $write, $except, 1) > 0) {
+            foreach ($read as $pipe) {
+                $line = fgets($pipe);
+                if ($line !== false) {
+                    if ($pipe === $pipes[1]) {
+                        echo htmlspecialchars($line) . "<br>";
+                        $output .= $line;
+                    } else {
+                        echo "<span style='color: #f00;'>" . htmlspecialchars($line) . "</span><br>";
+                        $error .= $line;
+                    }
+                    @flush();
+                }
+            }
+        }
+        
+        usleep(100000); // 0.1 second
     }
     
     // Close pipes
