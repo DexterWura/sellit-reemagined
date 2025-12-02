@@ -100,7 +100,7 @@
                                             <div class="input-group input-group-lg">
                                                 <span class="input-group-text bg-light"><i class="las la-globe"></i></span>
                                                 <input type="text" name="domain_name" id="domainNameInput" class="form-control" 
-                                                       value="{{ old('domain_name') }}" placeholder="https://example.com" required>
+                                                       value="{{ old('domain_name') }}" placeholder="https://example.com">
                                             </div>
                                             <small class="text-muted d-block mt-1">
                                                 <i class="las la-info-circle"></i> 
@@ -230,7 +230,7 @@
                                             <div class="input-group input-group-lg">
                                                 <span class="input-group-text bg-light"><i class="las la-link"></i></span>
                                                 <input type="url" name="website_url" id="websiteUrlInput" class="form-control" 
-                                                       value="{{ old('website_url') }}" placeholder="https://example.com" required>
+                                                       value="{{ old('website_url') }}" placeholder="https://example.com">
                                             </div>
                                             <small class="text-muted d-block mt-1">
                                                 <i class="las la-info-circle"></i> 
@@ -858,11 +858,22 @@ $(document).ready(function() {
         const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
         const requireWebsiteVerification = {{ \App\Models\MarketplaceSetting::requireWebsiteVerification() ? 'true' : 'false' }};
         
+        // Remove required attribute from all business-specific fields first
+        $('#domainNameInput').removeAttr('required');
+        $('#websiteUrlInput').removeAttr('required');
+        
         // Hide all business fields
         $('.business-fields').addClass('d-none');
         
-        // Show relevant fields
+        // Show relevant fields and add required attribute
         $(`.${type}-fields`).removeClass('d-none');
+        
+        // Add required attribute to the active field
+        if (type === 'domain') {
+            $('#domainNameInput').attr('required', 'required');
+        } else if (type === 'website') {
+            $('#websiteUrlInput').attr('required', 'required');
+        }
         
         // If domain is selected and verification is required, ensure verification section is ready
         if (type === 'domain' && requireDomainVerification) {
@@ -927,6 +938,12 @@ $(document).ready(function() {
     // Initialize business type if pre-selected
     const preselectedType = $('input[name="business_type"]:checked').val();
     if (preselectedType) {
+        // Set required attribute for pre-selected type
+        if (preselectedType === 'domain') {
+            $('#domainNameInput').attr('required', 'required');
+        } else if (preselectedType === 'website') {
+            $('#websiteUrlInput').attr('required', 'required');
+        }
         $('input[name="business_type"]:checked').trigger('change');
     }
     
