@@ -1315,58 +1315,49 @@ $(document).ready(function() {
     
     // Validate verification before form submission
     $('#listingForm').on('submit', function(e) {
-        try {
-            const businessType = $('input[name="business_type"]:checked').val();
-            const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
-            const requireWebsiteVerification = {{ \App\Models\MarketplaceSetting::requireWebsiteVerification() ? 'true' : 'false' }};
-            
-            // Only check verification if it's required AND the business type needs it
-            // If verification is not required, skip the check entirely
-            if (businessType === 'domain' && requireDomainVerification) {
-                // Only check if the verification field exists (meaning verification section was shown)
-                if ($('#domainVerified').length > 0) {
-                    const domainVerified = $('#domainVerified').val();
-                    if (domainVerified !== '1') {
-                        e.preventDefault();
-                        notify('error', '@lang("You must verify domain ownership before submitting the listing")');
-                        showStep(2); // Go back to step 2
-                        return false;
-                    }
+        const businessType = $('input[name="business_type"]:checked').val();
+        const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
+        const requireWebsiteVerification = {{ \App\Models\MarketplaceSetting::requireWebsiteVerification() ? 'true' : 'false' }};
+        
+        // Only check verification if it's required AND the business type needs it
+        // If verification is not required, skip the check entirely
+        if (businessType === 'domain' && requireDomainVerification) {
+            // Only check if the verification field exists (meaning verification section was shown)
+            if ($('#domainVerified').length > 0) {
+                const domainVerified = $('#domainVerified').val();
+                if (domainVerified !== '1') {
+                    e.preventDefault();
+                    notify('error', '@lang("You must verify domain ownership before submitting the listing")');
+                    showStep(2); // Go back to step 2
+                    return false;
                 }
-                // If field doesn't exist, verification is not required, so allow submission
             }
-            
-            if (businessType === 'website' && requireWebsiteVerification) {
-                // Only check if the verification field exists (meaning verification section was shown)
-                if ($('#websiteVerified').length > 0) {
-                    const websiteVerified = $('#websiteVerified').val();
-                    if (websiteVerified !== '1') {
-                        e.preventDefault();
-                        notify('error', '@lang("You must verify website ownership before submitting the listing")');
-                        showStep(2); // Go back to step 2
-                        return false;
-                    }
-                }
-                // If field doesn't exist, verification is not required, so allow submission
-            }
-            
-            // If we get here, allow form submission
-            // Show loading state (but don't disable button until after form starts submitting)
-            const submitBtn = $(this).find('button[type="submit"]');
-            if (submitBtn.length) {
-                // Use setTimeout to allow form to submit first
-                setTimeout(function() {
-                    submitBtn.prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i>@lang("Submitting...")');
-                }, 100);
-            }
-            
-            // Allow form to submit normally - don't prevent default
-            return true;
-        } catch (error) {
-            console.error('Form submission error:', error);
-            // Don't prevent submission on error, let it proceed
-            return true;
+            // If field doesn't exist, verification is not required, so allow submission
         }
+        
+        if (businessType === 'website' && requireWebsiteVerification) {
+            // Only check if the verification field exists (meaning verification section was shown)
+            if ($('#websiteVerified').length > 0) {
+                const websiteVerified = $('#websiteVerified').val();
+                if (websiteVerified !== '1') {
+                    e.preventDefault();
+                    notify('error', '@lang("You must verify website ownership before submitting the listing")');
+                    showStep(2); // Go back to step 2
+                    return false;
+                }
+            }
+            // If field doesn't exist, verification is not required, so allow submission
+        }
+        
+        // If we get here, allow form submission
+        // Show loading state on button
+        const submitBtn = $(this).find('button[type="submit"]');
+        if (submitBtn.length && !submitBtn.prop('disabled')) {
+            submitBtn.prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i>@lang("Submitting...")');
+        }
+        
+        // Allow form to submit normally - don't prevent default
+        // Form will submit naturally
     });
     
     // Image upload preview
