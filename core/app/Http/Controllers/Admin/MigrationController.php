@@ -431,6 +431,12 @@ class MigrationController extends Controller
     {
         $files = $this->getMigrationFiles();
         $dbStatus = $this->getMigrationStatus();
+        
+        // Check if tracking table exists
+        if (!Schema::hasTable('migration_tracking')) {
+            return [];
+        }
+        
         $tracking = MigrationTracking::all()->keyBy('migration_name');
         
         $modified = [];
@@ -486,6 +492,11 @@ class MigrationController extends Controller
      */
     private function updateMigrationTracking()
     {
+        // Check if tracking table exists
+        if (!Schema::hasTable('migration_tracking')) {
+            return;
+        }
+        
         $files = $this->getMigrationFiles();
         $dbStatus = $this->getMigrationStatus();
         
@@ -528,6 +539,11 @@ class MigrationController extends Controller
      */
     private function updateSingleMigrationTracking($migrationName)
     {
+        // Check if tracking table exists
+        if (!Schema::hasTable('migration_tracking')) {
+            return;
+        }
+        
         $file = $this->findMigrationFile($migrationName);
         
         if (!$file) {
