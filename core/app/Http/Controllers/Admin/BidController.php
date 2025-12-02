@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Bid;
 use App\Models\Listing;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class BidController extends Controller
 {
@@ -84,90 +86,122 @@ class BidController extends Controller
 
     public function processAuctionEnd($listingId)
     {
-        $listing = Listing::activeAuctions()
-            ->where('auction_end', '<=', now())
-            ->findOrFail($listingId);
+        try {
+            // Lock listing to prevent concurrent processing
+            $listing = Listing::lockForUpdate()
+                ->activeAuctions()
+                ->where('auction_end', '<=', now())
+                ->findOrFail($listingId);
 
-        $winningBid = Bid::where('listing_id', $listing->id)
-            ->where('status', Status::BID_WINNING)
-            ->with('user')
-            ->first();
+            // Check if already processed
+            if ($listing->status === Status::LISTING_SOLD || $listing->status === Status::LISTING_EXPIRED) {
+                $notify[] = ['error', 'This auction has already been processed'];
+                return back()->withNotify($notify);
+            }
 
-        if (!$winningBid) {
-            // No bids - mark as expired
-            $listing->status = Status::LISTING_EXPIRED;
-            $listing->save();
+            DB::beginTransaction();
+            
+            try {
+                $winningBid = Bid::where('listing_id', $listing->id)
+                    ->where('status', Status::BID_WINNING)
+                    ->with('user')
+                    ->first();
 
-            notify($listing->user, 'AUCTION_ENDED_NO_BIDS', [
-                'listing_title' => $listing->title,
-            ]);
+                if (!$winningBid) {
+                    // No bids - mark as expired
+                    $listing->status = Status::LISTING_EXPIRED;
+                    $listing->save();
 
-            $notify[] = ['success', 'Auction ended with no bids'];
+                    DB::commit();
+
+                    notify($listing->user, 'AUCTION_ENDED_NO_BIDS', [
+                        'listing_title' => $listing->title,
+                    ]);
+
+                    $notify[] = ['success', 'Auction ended with no bids'];
+                    return back()->withNotify($notify);
+                }
+
+                // Check if reserve was met
+                if ($listing->reserve_price > 0 && $listing->current_bid < $listing->reserve_price) {
+                    $listing->status = Status::LISTING_EXPIRED;
+                    $listing->save();
+
+                    // Mark all bids as lost
+                    Bid::where('listing_id', $listing->id)
+                        ->whereIn('status', [Status::BID_ACTIVE, Status::BID_WINNING, Status::BID_OUTBID])
+                        ->update(['status' => Status::BID_LOST]);
+
+                    DB::commit();
+
+                    notify($listing->user, 'AUCTION_ENDED_RESERVE_NOT_MET', [
+                        'listing_title' => $listing->title,
+                        'highest_bid' => showAmount($listing->current_bid),
+                        'reserve_price' => showAmount($listing->reserve_price),
+                    ]);
+
+                    $notify[] = ['success', 'Auction ended - reserve not met'];
+                    return back()->withNotify($notify);
+                }
+
+                // Winner found
+                $winningBid->status = Status::BID_WON;
+                $winningBid->save();
+
+                // Mark other bids as lost
+                Bid::where('listing_id', $listing->id)
+                    ->where('id', '!=', $winningBid->id)
+                    ->whereIn('status', [Status::BID_ACTIVE, Status::BID_OUTBID])
+                    ->update(['status' => Status::BID_LOST]);
+
+                // Update listing
+                $listing->status = Status::LISTING_SOLD;
+                $listing->winner_id = $winningBid->user_id;
+                $listing->final_price = $winningBid->amount;
+                $listing->sold_at = now();
+
+                // Create escrow
+                $escrow = $this->createEscrow($listing, $winningBid->user, $winningBid->amount);
+                $listing->escrow_id = $escrow->id;
+                $listing->save();
+
+                // Update user stats
+                $listing->user->increment('total_sales');
+                $listing->user->increment('total_sales_value', $winningBid->amount);
+                $winningBid->user->increment('total_purchases');
+
+                DB::commit();
+
+                // Notify winner (outside transaction)
+                notify($winningBid->user, 'AUCTION_WON', [
+                    'listing_title' => $listing->title,
+                    'winning_bid' => showAmount($winningBid->amount),
+                ]);
+
+                // Notify seller
+                notify($listing->user, 'AUCTION_ENDED_SOLD', [
+                    'listing_title' => $listing->title,
+                    'final_price' => showAmount($winningBid->amount),
+                    'winner' => $winningBid->user->username,
+                ]);
+
+                $notify[] = ['success', 'Auction processed successfully'];
+                return back()->withNotify($notify);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Auction processing failed: ' . $e->getMessage(), [
+                    'listing_id' => $listingId,
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Auction processing error: ' . $e->getMessage());
+            $notify[] = ['error', 'An error occurred while processing the auction. Please try again.'];
             return back()->withNotify($notify);
         }
-
-        // Check if reserve was met
-        if ($listing->reserve_price > 0 && $listing->current_bid < $listing->reserve_price) {
-            $listing->status = Status::LISTING_EXPIRED;
-            $listing->save();
-
-            // Mark all bids as lost
-            Bid::where('listing_id', $listing->id)
-                ->whereIn('status', [Status::BID_ACTIVE, Status::BID_WINNING, Status::BID_OUTBID])
-                ->update(['status' => Status::BID_LOST]);
-
-            notify($listing->user, 'AUCTION_ENDED_RESERVE_NOT_MET', [
-                'listing_title' => $listing->title,
-                'highest_bid' => showAmount($listing->current_bid),
-                'reserve_price' => showAmount($listing->reserve_price),
-            ]);
-
-            $notify[] = ['success', 'Auction ended - reserve not met'];
-            return back()->withNotify($notify);
-        }
-
-        // Winner found
-        $winningBid->status = Status::BID_WON;
-        $winningBid->save();
-
-        // Mark other bids as lost
-        Bid::where('listing_id', $listing->id)
-            ->where('id', '!=', $winningBid->id)
-            ->whereIn('status', [Status::BID_ACTIVE, Status::BID_OUTBID])
-            ->update(['status' => Status::BID_LOST]);
-
-        // Update listing
-        $listing->status = Status::LISTING_SOLD;
-        $listing->winner_id = $winningBid->user_id;
-        $listing->final_price = $winningBid->amount;
-        $listing->sold_at = now();
-        $listing->save();
-
-        // Create escrow
-        $escrow = $this->createEscrow($listing, $winningBid->user, $winningBid->amount);
-        $listing->escrow_id = $escrow->id;
-        $listing->save();
-
-        // Notify winner
-        notify($winningBid->user, 'AUCTION_WON', [
-            'listing_title' => $listing->title,
-            'winning_bid' => showAmount($winningBid->amount),
-        ]);
-
-        // Notify seller
-        notify($listing->user, 'AUCTION_ENDED_SOLD', [
-            'listing_title' => $listing->title,
-            'final_price' => showAmount($winningBid->amount),
-            'winner' => $winningBid->user->username,
-        ]);
-
-        // Update user stats
-        $listing->user->increment('total_sales');
-        $listing->user->increment('total_sales_value', $winningBid->amount);
-        $winningBid->user->increment('total_purchases');
-
-        $notify[] = ['success', 'Auction processed successfully'];
-        return back()->withNotify($notify);
     }
 
     private function getBids($request)

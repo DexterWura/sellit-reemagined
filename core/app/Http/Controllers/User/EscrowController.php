@@ -13,6 +13,8 @@ use App\Models\Transaction;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -79,86 +81,111 @@ class EscrowController extends Controller
 
     public function submitStepTwo(Request $request)
     {
-        $request->validate([
-            'email'        => 'required|max:40',
-            'title'        => 'required|max:255',
-            'details'      => 'required',
-            'charge_payer' => 'required|in:1,2,3',
-        ]);
+        try {
+            $request->validate([
+                'email'        => 'required|max:40',
+                'title'        => 'required|max:255',
+                'details'      => 'required',
+                'charge_payer' => 'required|in:1,2,3',
+            ]);
 
-        $this->checkSessionData($request->email);
+            $this->checkSessionData($request->email);
 
-        $escrowInfo  = session('escrow_info');
-        $category_id = $escrowInfo['category_id'];
-        $user        = auth()->user();
-        $toUser      = User::where('email', $request->email)->first();
-        $amount      = $escrowInfo['amount'];
-        $charge      = $this->getCharge($amount);
+            $escrowInfo  = session('escrow_info');
+            $category_id = $escrowInfo['category_id'];
+            $user        = auth()->user();
+            $toUser      = User::where('email', $request->email)->first();
+            $amount      = $escrowInfo['amount'];
+            $charge      = $this->getCharge($amount);
 
-        $sellerCharge = 0;
-        $buyerCharge  = 0;
+            $sellerCharge = 0;
+            $buyerCharge  = 0;
 
-        if ($request->charge_payer == 1) {
-            $sellerCharge = $charge;
-        } elseif ($request->charge_payer == 2) {
-            $buyerCharge = $charge;
-        } else {
-            $sellerCharge = $charge / 2;
-            $buyerCharge  = $charge / 2;
+            if ($request->charge_payer == 1) {
+                $sellerCharge = $charge;
+            } elseif ($request->charge_payer == 2) {
+                $buyerCharge = $charge;
+            } else {
+                $sellerCharge = $charge / 2;
+                $buyerCharge  = $charge / 2;
+            }
+
+            DB::beginTransaction();
+            
+            try {
+                $escrow = new Escrow();
+
+                if ($escrowInfo['type'] == 1) {
+                    $escrow->seller_id = $user->id;
+                    $escrow->buyer_id  = @$toUser->id ?? 0;
+                } else {
+                    $escrow->buyer_id  = $user->id;
+                    $escrow->seller_id = @$toUser->id ?? 0;
+                }
+
+                $escrow->escrow_number = getTrx();
+                $escrow->creator_id    = $user->id;
+                $escrow->amount        = $amount;
+                $escrow->charge_payer  = $request->charge_payer;
+                $escrow->charge        = $charge;
+                $escrow->buyer_charge  = $buyerCharge;
+                $escrow->seller_charge = $sellerCharge;
+                $escrow->category_id   = $category_id;
+                $escrow->title         = $request->title;
+                $escrow->details       = $request->details;
+
+                if (!$toUser) {
+                    $escrow->invitation_mail = $request->email;
+                }
+
+                $escrow->save();
+                
+                $conversation            = new Conversation();
+                $conversation->escrow_id = $escrow->id;
+                $conversation->buyer_id  = $escrow->buyer_id;
+                $conversation->seller_id = $escrow->seller_id;
+                $conversation->save();
+
+                DB::commit();
+
+                $message = 'Escrow created successfully';
+
+                if (!$toUser) {
+                    $inviteUser = (object) [
+                        'fullname' => $request->email,
+                        'username' => $request->email,
+                        'email'    => $request->email,
+                    ];
+
+                    notify($inviteUser, 'INVITATION_LINK', [
+                        'link' => route('user.register') . "?invite_email=" . $request->email,
+                    ], ['email']);
+
+                    $message = 'Escrow created and invitation link sent successfully';
+                }
+
+                session()->forget('escrow_info');
+                $notify[] = ['success', $message];
+
+                return redirect()->route('user.escrow.index')->withNotify($notify);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Escrow creation failed: ' . $e->getMessage(), [
+                    'user_id' => $user->id,
+                    'email' => $request->email,
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
+            
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Escrow creation error: ' . $e->getMessage());
+            $notify[] = ['error', 'An error occurred while creating the escrow. Please try again.'];
+            return back()->withNotify($notify)->withInput();
         }
-
-        $escrow = new Escrow();
-
-        if ($escrowInfo['type'] == 1) {
-            $escrow->seller_id = $user->id;
-            $escrow->buyer_id  = @$toUser->id ?? 0;
-        } else {
-            $escrow->buyer_id  = $user->id;
-            $escrow->seller_id = @$toUser->id ?? 0;
-        }
-
-        $escrow->escrow_number = getTrx();
-        $escrow->creator_id    = $user->id;
-        $escrow->amount        = $amount;
-        $escrow->charge_payer  = $request->charge_payer;
-        $escrow->charge        = $charge;
-        $escrow->buyer_charge  = $buyerCharge;
-        $escrow->seller_charge = $sellerCharge;
-        $escrow->category_id   = $category_id;
-        $escrow->title         = $request->title;
-        $escrow->details       = $request->details;
-
-        if (!$toUser) {
-            $escrow->invitation_mail = $request->email;
-        }
-
-        $escrow->save();
-        $conversation            = new Conversation();
-        $conversation->escrow_id = $escrow->id;
-        $conversation->buyer_id  = $escrow->buyer_id;
-        $conversation->seller_id = $escrow->seller_id;
-        $conversation->save();
-
-        $message = 'Escrow created successfully';
-
-        if (!$toUser) {
-            $user = (object) [
-                'fullname' => $request->email,
-                'username' => $request->email,
-                'email'    => $request->email,
-            ];
-
-            notify($user, 'INVITATION_LINK', [
-                'link' => route('user.register') . "?invite_email=" . $request->email,
-            ], ['email']);
-
-            $message = 'Escrow created and invitation link sent successfully';
-        }
-
-        session()->forget('escrow_info');
-        $notify[] = ['success', $message];
-
-        return redirect()->route('user.escrow.index')->withNotify($notify);
     }
 
     public function details($id)
@@ -258,13 +285,32 @@ class EscrowController extends Controller
 
     public function accept($id)
     {
+        try {
+            $escrow = Escrow::checkUser()->where('creator_id', '!=', auth()->id())->notAccepted()->findOrFail($id);
 
-        $escrow = Escrow::checkUser()->where('creator_id', '!=', auth()->id())->notAccepted()->findOrFail($id);
+        // Check if already accepted
+        if ($escrow->status === Status::ESCROW_ACCEPTED) {
+            $notify[] = ['error', 'Escrow has already been accepted'];
+            return back()->withNotify($notify);
+        }
 
-        $escrow->status = Status::ESCROW_ACCEPTED;
-        $escrow->save();
+        DB::beginTransaction();
+        
+        try {
+            $escrow->status = Status::ESCROW_ACCEPTED;
+            $escrow->save();
 
-        if ($escrow->buyer_id = auth()->id()) {
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Escrow acceptance failed: ' . $e->getMessage(), [
+                'escrow_id' => $id,
+                'user_id' => auth()->id(),
+            ]);
+            throw $e;
+        }
+
+        if ($escrow->buyer_id == auth()->id()) {
             $mailReceiver = $escrow->seller;
             $accepter     = 'buyer';
         } else {
@@ -272,16 +318,25 @@ class EscrowController extends Controller
             $accepter     = 'seller';
         }
 
-        notify($mailReceiver, 'ESCROW_ACCEPTED', [
-            'title'      => $escrow->title,
-            'amount'     => showAmount($escrow->amount, currencyFormat: false),
-            'accepter'   => $accepter,
-            'total_fund' => showAmount($escrow->paid_amount, currencyFormat: false),
-            'currency'   => gs()->cur_text,
-        ]);
+            notify($mailReceiver, 'ESCROW_ACCEPTED', [
+                'title'      => $escrow->title,
+                'amount'     => showAmount($escrow->amount, currencyFormat: false),
+                'accepter'   => $accepter,
+                'total_fund' => showAmount($escrow->paid_amount, currencyFormat: false),
+                'currency'   => gs()->cur_text,
+            ]);
 
-        $notify[] = ['success', 'Escrow accepted successfully'];
-        return back()->withNotify($notify);
+            $notify[] = ['success', 'Escrow accepted successfully'];
+            return back()->withNotify($notify);
+            
+        } catch (\Exception $e) {
+            Log::error('Escrow acceptance error: ' . $e->getMessage(), [
+                'escrow_id' => $id,
+                'user_id' => auth()->id(),
+            ]);
+            $notify[] = ['error', 'An error occurred while accepting the escrow. Please try again.'];
+            return back()->withNotify($notify);
+        }
     }
 
     public function dispute(Request $request, $id)
@@ -324,56 +379,92 @@ class EscrowController extends Controller
 
     public function dispatchEscrow($id)
     {
+        try {
+            // Lock escrow and seller to prevent concurrent dispatches
+            $escrow = Escrow::lockForUpdate()
+                ->where('buyer_id', auth()->id())
+                ->accepted()
+                ->with(['seller' => function($q) {
+                    $q->lockForUpdate();
+                }])
+                ->findOrFail($id);
 
-        $escrow         = Escrow::where('buyer_id', auth()->id())->accepted()->findOrFail($id);
-        $escrow->status = Status::ESCROW_COMPLETED;
-        $escrow->save();
+            // Check if already dispatched
+            if ($escrow->status === Status::ESCROW_COMPLETED) {
+                $notify[] = ['error', 'Escrow payment has already been dispatched'];
+                return back()->withNotify($notify);
+            }
 
-        $amount           = $escrow->amount;
-        $seller           = $escrow->seller;
-        $seller->balance += $amount;
-        $seller->save();
+            DB::beginTransaction();
+            
+            try {
+                $escrow->status = Status::ESCROW_COMPLETED;
+                $escrow->save();
 
-        $trx                       = getTrx();
-        $transaction               = new Transaction();
-        $transaction->user_id      = $seller->id;
-        $transaction->amount       = $amount;
-        $transaction->post_balance = $seller->balance;
-        $transaction->charge       = 0;
-        $transaction->trx_type     = '+';
-        $transaction->remark       = "escrow_payment_dispatched";
-        $transaction->details      = 'Escrow payment dispatched';
-        $transaction->trx          = $trx;
-        $transaction->save();
+                $amount           = $escrow->amount;
+                $seller           = $escrow->seller;
+                $seller->balance += $amount;
+                $seller->save();
 
-        if ($escrow->seller_charge && $escrow->seller_charge > 0) {
-            $seller->balance -= $escrow->seller_charge;
-            $seller->save();
+                $trx                       = getTrx();
+                $transaction               = new Transaction();
+                $transaction->user_id      = $seller->id;
+                $transaction->amount       = $amount;
+                $transaction->post_balance = $seller->balance;
+                $transaction->charge       = 0;
+                $transaction->trx_type     = '+';
+                $transaction->remark       = "escrow_payment_dispatched";
+                $transaction->details      = 'Escrow payment dispatched';
+                $transaction->trx          = $trx;
+                $transaction->save();
 
-            $transaction               = new Transaction();
-            $transaction->user_id      = $seller->id;
-            $transaction->amount       = $escrow->seller_charge;
-            $transaction->post_balance = $seller->balance;
-            $transaction->charge       = 0;
-            $transaction->trx_type     = '-';
-            $transaction->remark       = "escrow_charge";
-            $transaction->details      = 'Deducted as escrow charge';
-            $transaction->trx          = $trx;
-            $transaction->save();
+                if ($escrow->seller_charge && $escrow->seller_charge > 0) {
+                    $seller->balance -= $escrow->seller_charge;
+                    $seller->save();
+
+                    $transaction               = new Transaction();
+                    $transaction->user_id      = $seller->id;
+                    $transaction->amount       = $escrow->seller_charge;
+                    $transaction->post_balance = $seller->balance;
+                    $transaction->charge       = 0;
+                    $transaction->trx_type     = '-';
+                    $transaction->remark       = "escrow_charge";
+                    $transaction->details      = 'Deducted as escrow charge';
+                    $transaction->trx          = $trx;
+                    $transaction->save();
+                }
+
+                DB::commit();
+
+                // Notify seller (outside transaction)
+                notify($seller, 'ESCROW_PAYMENT_DISPATCHED', [
+                    'title'         => $escrow->title,
+                    'amount'        => showAmount($escrow->amount, currencyFormat: false),
+                    'charge'        => showAmount($escrow->charge, currencyFormat: false),
+                    'seller_charge' => showAmount($escrow->seller_charge),
+                    'trx'           => $trx,
+                    'post_balance'  => showAmount($seller->balance, currencyFormat: false),
+                    'currency'      => gs()->cur_text,
+                ]);
+
+                $notify[] = ['success', 'Escrow payment dispatched successfully'];
+                return back()->withNotify($notify);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Escrow dispatch failed: ' . $e->getMessage(), [
+                    'escrow_id' => $id,
+                    'user_id' => auth()->id(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Escrow dispatch error: ' . $e->getMessage());
+            $notify[] = ['error', 'An error occurred while dispatching the payment. Please try again.'];
+            return back()->withNotify($notify);
         }
-
-        notify($seller, 'ESCROW_PAYMENT_DISPATCHED', [
-            'title'         => $escrow->title,
-            'amount'        => showAmount($escrow->amount, currencyFormat: false),
-            'charge'        => showAmount($escrow->charge, currencyFormat: false),
-            'seller_charge' => showAmount($escrow->seller_charge),
-            'trx'           => $trx,
-            'post_balance'  => showAmount($seller->balance, currencyFormat: false),
-            'currency'      => gs()->cur_text,
-        ]);
-
-        $notify[] = ['success', 'Escrow payment dispatched successfully'];
-        return back()->withNotify($notify);
     }
 
 

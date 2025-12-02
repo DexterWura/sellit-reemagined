@@ -8,6 +8,8 @@ use App\Models\Escrow;
 use App\Models\Milestone;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class MilestoneController extends Controller
 {
@@ -47,68 +49,102 @@ class MilestoneController extends Controller
 
     public function payMilestone(Request $request, $id)
     {
+        try {
+            $request->validate([
+                'pay_via' => 'required|in:1,2',
+            ]);
 
-        $request->validate([
-            'pay_via' => 'required|in:1,2',
-        ]);
+            $milestone = Milestone::unFunded()->whereHas('escrow', function ($query) {
+                $query->where('buyer_id', auth()->user()->id);
+            })->with('deposit:milestone_id,status')->find($id);
 
-        $milestone = Milestone::unFunded()->whereHas('escrow', function ($query) {
-            $query->where('buyer_id', auth()->user()->id);
-        })->with('deposit:milestone_id,status')->find($id);
+            if (!$milestone) {
+                $notify[] = ['error', 'Milestone not found'];
+                return back()->withNotify($notify);
+            }
 
-        if ($milestone->deposit && $milestone->deposit->status == Status::PAYMENT_PENDING) {
-            $notify[] = ['error', 'Payment for this milestone is pending now. Please wait for admin approval.'];
+            if ($milestone->deposit && $milestone->deposit->status == Status::PAYMENT_PENDING) {
+                $notify[] = ['error', 'Payment for this milestone is pending now. Please wait for admin approval.'];
+                return back()->withNotify($notify);
+            }
+
+            if ($milestone->escrow->status != Status::ESCROW_ACCEPTED) {
+                $notify[] = ['error', 'You can only pay for a milestone when its escrow status is accepted'];
+                return back()->withNotify($notify);
+            }
+
+            $user = auth()->user();
+
+            if ($request->pay_via == 2) {
+                session()->put('checkout', encrypt([
+                    'amount'       => $milestone->amount,
+                    'milestone_id' => $milestone->id,
+                ]));
+
+                return redirect()->route('user.deposit.index', 'checkout');
+            }
+
+            if ($user->balance < $milestone->amount) {
+                $notify[] = ['error', 'You have no sufficient balance'];
+                return back()->withNotify($notify);
+            }
+
+            // Lock user and milestone to prevent concurrent payments
+            DB::beginTransaction();
+            
+            try {
+                // Reload user with lock
+                $user = \App\Models\User::lockForUpdate()->find($user->id);
+                
+                // Re-check balance after lock
+                if ($user->balance < $milestone->amount) {
+                    DB::rollBack();
+                    $notify[] = ['error', 'Insufficient balance'];
+                    return back()->withNotify($notify);
+                }
+
+                $user->balance -= $milestone->amount;
+                $user->save();
+
+                $transaction               = new Transaction();
+                $transaction->user_id      = $user->id;
+                $transaction->amount       = $milestone->amount;
+                $transaction->post_balance = $user->balance;
+                $transaction->charge       = 0;
+                $transaction->trx_type     = '-';
+                $transaction->remark       = "milestone_paid";
+                $transaction->details      = 'Milestone amount paid';
+                $transaction->trx          = getTrx();
+                $transaction->save();
+
+                $milestone->payment_status = Status::MILESTONE_FUNDED;
+                $milestone->save();
+
+                $escrow               = $milestone->escrow;
+                $escrow->paid_amount += $milestone->amount;
+                $escrow->save();
+
+                DB::commit();
+
+                $notify[] = ['success', 'Milestone amount paid successfully'];
+                return back()->withNotify($notify);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Milestone payment failed: ' . $e->getMessage(), [
+                    'milestone_id' => $id,
+                    'user_id' => $user->id,
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Milestone payment error: ' . $e->getMessage());
+            $notify[] = ['error', 'An error occurred while processing the payment. Please try again.'];
             return back()->withNotify($notify);
         }
-
-        if (!$milestone) {
-            $notify[] = ['error', 'Milestone not found'];
-            return back()->withNotify($notify);
-        }
-
-        if ($milestone->escrow->status != Status::ESCROW_ACCEPTED) {
-            $notify[] = ['error', 'You can only pay for a milestone when its escrow status is accepted'];
-            return back()->withNotify($notify);
-        }
-
-        $user = auth()->user();
-
-        if ($request->pay_via == 2) {
-            session()->put('checkout', encrypt([
-                'amount'       => $milestone->amount,
-                'milestone_id' => $milestone->id,
-            ]));
-
-            return redirect()->route('user.deposit.index', 'checkout');
-        }
-
-        if ($user->balance < $milestone->amount) {
-            $notify[] = ['error', 'You have no sufficient balance'];
-            return back()->withNotify($notify);
-        }
-
-        $user->balance -= $milestone->amount;
-        $user->save();
-
-        $transaction               = new Transaction();
-        $transaction->user_id      = $user->id;
-        $transaction->amount       = $milestone->amount;
-        $transaction->post_balance = $user->balance;
-        $transaction->charge       = 0;
-        $transaction->trx_type     = '-';
-        $transaction->remark       = "milestone_paid";
-        $transaction->details      = 'Milestone amount paid';
-        $transaction->trx          = getTrx();
-        $transaction->save();
-
-        $milestone->payment_status = Status::MILESTONE_FUNDED;
-        $milestone->save();
-
-        $escrow               = $milestone->escrow;
-        $escrow->paid_amount += $milestone->amount;
-        $escrow->save();
-
-        $notify[] = ['success', 'Milestone amount paid successfully'];
-        return back()->withNotify($notify);
     }
 }
