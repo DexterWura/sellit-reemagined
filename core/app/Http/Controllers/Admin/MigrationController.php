@@ -437,7 +437,12 @@ class MigrationController extends Controller
             return [];
         }
         
-        $tracking = MigrationTracking::all()->keyBy('migration_name');
+        try {
+            $tracking = MigrationTracking::all()->keyBy('migration_name');
+        } catch (\Exception $e) {
+            // Table might not exist yet, return empty array
+            return [];
+        }
         
         $modified = [];
         foreach ($files as $file) {

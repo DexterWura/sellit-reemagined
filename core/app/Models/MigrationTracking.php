@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class MigrationTracking extends Model
 {
+    protected $table = 'migration_tracking';
+    
     protected $guarded = ['id'];
 
     protected $casts = [
