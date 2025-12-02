@@ -17,9 +17,13 @@ define('ROOT_NAMESPACE', 'Paynow\\');
  */
 spl_autoload_register(function($class) {
         // Remove the root namespace
+        $relative = null;
         if (substr($class, 0, strlen(ROOT_NAMESPACE)) == ROOT_NAMESPACE) {
             $relative = substr($class, strlen(ROOT_NAMESPACE));
-        } 
+        } else {
+            // If class doesn't belong to Paynow namespace, skip
+            return false;
+        }
 
         // Bring in the file
         $filename = __DIR__ . "/src/" . str_replace('\\', '/', $relative) . ".php";
