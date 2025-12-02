@@ -10,6 +10,10 @@ use App\Models\DeviceToken;
 use App\Models\Escrow;
 use App\Models\Form;
 use App\Models\Transaction;
+use App\Models\Listing;
+use App\Models\Bid;
+use App\Models\Offer;
+use App\Models\Watchlist;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -20,30 +24,57 @@ class UserController extends Controller
     {
         $pageTitle = 'Dashboard';
         $user      = auth()->user();
-        $escrow    = Escrow::where(function ($query) use ($user) {
-            $query->orWhere('buyer_id', $user->id)->orWhere('seller_id', $user->id);
-        });
 
-        $data['balance']          = $user->balance;
-        $data['pendingDeposit']   = $user->deposits()->pending()->count();
+        // Marketplace Statistics (Primary Focus)
+        $data['balance'] = $user->balance;
+        
+        // My Listings
+        $data['my_listings'] = Listing::where('user_id', $user->id)->count();
+        $data['active_listings'] = Listing::where('user_id', $user->id)
+            ->where('status', Status::LISTING_ACTIVE)->count();
+        $data['sold_listings'] = Listing::where('user_id', $user->id)
+            ->where('status', Status::LISTING_SOLD)->count();
+        $data['pending_listings'] = Listing::where('user_id', $user->id)
+            ->where('status', Status::LISTING_PENDING)->count();
+        $data['total_sales_value'] = Listing::where('user_id', $user->id)
+            ->where('status', Status::LISTING_SOLD)->sum('final_price');
+        $data['total_listing_views'] = Listing::where('user_id', $user->id)->sum('view_count');
+        
+        // My Bids
+        $data['my_bids'] = Bid::where('user_id', $user->id)->count();
+        $data['winning_bids'] = Bid::where('user_id', $user->id)
+            ->where('status', Status::BID_WINNING)->count();
+        $data['won_bids'] = Bid::where('user_id', $user->id)
+            ->where('status', Status::BID_WON)->count();
+        
+        // My Offers
+        $data['my_offers'] = Offer::where('buyer_id', $user->id)->count();
+        $data['pending_offers'] = Offer::where('buyer_id', $user->id)
+            ->where('status', Status::OFFER_PENDING)->count();
+        $data['accepted_offers'] = Offer::where('buyer_id', $user->id)
+            ->where('status', Status::OFFER_ACCEPTED)->count();
+        
+        // Watchlist
+        $data['watchlist_items'] = Watchlist::where('user_id', $user->id)->count();
+        
+        // Escrow (only marketplace-related)
+        $userListingEscrowIds = Listing::where(function($q) use ($user) {
+            $q->where('user_id', $user->id)->orWhere('winner_id', $user->id);
+        })->where('escrow_id', '>', 0)->pluck('escrow_id');
+        
+        $escrow = Escrow::where(function ($query) use ($user) {
+            $query->orWhere('buyer_id', $user->id)->orWhere('seller_id', $user->id);
+        })->whereIn('id', $userListingEscrowIds);
+        
+        $data['active_escrows'] = (clone $escrow)->accepted()->count();
+        $data['completed_escrows'] = (clone $escrow)->completed()->count();
+
+        // Financial (secondary)
+        $data['pendingDeposit'] = $user->deposits()->pending()->count();
         $data['pendingWithdrawals'] = $user->withdrawals()->pending()->count();
 
-        $escrow1 = clone $escrow;
-        $escrow2 = clone $escrow;
-        $escrow3 = clone $escrow;
-        $escrow4 = clone $escrow;
-        $escrow5 = clone $escrow;
-        $escrow6 = clone $escrow;
-
-        $data['totalEscrow']      = $escrow1->count();
-        $data['disputed']         = $escrow2->disputed()->count();
-        $data['accepted']         = $escrow3->accepted()->count();
-        $data['notAccepted']      = $escrow4->notAccepted()->count();
-        $data['completed']        = $escrow5->completed()->count();
-        $data['cancelled']        = $escrow6->canceled()->count();
-
-        $transactions       = Transaction::where('user_id', auth()->id())->latest()->limit(5)->get();
-        return view('Template::user.dashboard', compact('pageTitle', 'user', 'escrow', 'transactions', 'data'));
+        $transactions = Transaction::where('user_id', auth()->id())->latest()->limit(5)->get();
+        return view('Template::user.dashboard', compact('pageTitle', 'user', 'transactions', 'data'));
 
     }
 

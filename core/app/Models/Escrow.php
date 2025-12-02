@@ -30,6 +30,10 @@ class Escrow extends Model {
         return $this->hasOne(Conversation::class);
     }
 
+    public function listing() {
+        return $this->hasOne(Listing::class, 'escrow_id');
+    }
+
     public function category() {
 
         return $this->belongsTo(Category::class);

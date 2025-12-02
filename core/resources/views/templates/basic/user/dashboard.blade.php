@@ -89,81 +89,148 @@
                             </div>
                         </div>
 
+                        {{-- Marketplace Statistics (Primary) --}}
                         <div class="dash-card">
                             <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['totalEscrow'] }}</h6>
+                                <h6 class="dash-card__value">{{ $data['my_listings'] }}</h6>
                                 <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="la la-handshake"></i>
+                                    <i class="las la-store"></i>
                                 </div>
                             </div>
                             <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Total Escrow')</span></h5>
-                                <a href="{{ route('user.escrow.index') }}">@lang('View All')</a>
+                                <h5 class="dash-card__title">@lang('My Listings')</h5>
+                                <a href="{{ route('user.listing.index') }}">@lang('View All')</a>
                             </div>
                         </div>
 
                         <div class="dash-card">
                             <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['notAccepted'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="fas fa-spinner"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Not Accepted')</h5>
-                                <a href="{{ route('user.escrow.index', 'notAccepted') }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['accepted'] }}</h6>
+                                <h6 class="dash-card__value">{{ $data['active_listings'] }}</h6>
                                 <div class="dash-card__icon icon icon--circle icon--md">
                                     <i class="las la-check-circle"></i>
                                 </div>
                             </div>
                             <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Running Escrow')</h5>
+                                <h5 class="dash-card__title">@lang('Active Listings')</h5>
+                                <a href="{{ route('user.listing.index', ['status' => Status::LISTING_ACTIVE]) }}">@lang('View All')</a>
+                            </div>
+                        </div>
+
+                        <div class="dash-card">
+                            <div class="dash-card__header">
+                                <h6 class="dash-card__value">{{ $data['sold_listings'] }}</h6>
+                                <div class="dash-card__icon icon icon--circle icon--md">
+                                    <i class="las la-check-double"></i>
+                                </div>
+                            </div>
+                            <div class="dash-card__body">
+                                <h5 class="dash-card__title">@lang('Sold Listings')</h5>
+                                <a href="{{ route('user.listing.index', ['status' => Status::LISTING_SOLD]) }}">@lang('View All')</a>
+                            </div>
+                        </div>
+
+                        <div class="dash-card">
+                            <div class="dash-card__header">
+                                <h6 class="dash-card__value">{{ showAmount($data['total_sales_value']) }}</h6>
+                                <div class="dash-card__icon icon icon--circle icon--md">
+                                    <i class="las la-dollar-sign"></i>
+                                </div>
+                            </div>
+                            <div class="dash-card__body">
+                                <h5 class="dash-card__title">@lang('Total Sales Value')</h5>
+                                <a href="{{ route('user.listing.index', ['status' => Status::LISTING_SOLD]) }}">@lang('View Details')</a>
+                            </div>
+                        </div>
+
+                        <div class="dash-card">
+                            <div class="dash-card__header">
+                                <h6 class="dash-card__value">{{ $data['my_bids'] }}</h6>
+                                <div class="dash-card__icon icon icon--circle icon--md">
+                                    <i class="las la-gavel"></i>
+                                </div>
+                            </div>
+                            <div class="dash-card__body">
+                                <h5 class="dash-card__title">@lang('My Bids')</h5>
+                                <a href="{{ route('user.bid.index') }}">@lang('View All')</a>
+                            </div>
+                        </div>
+
+                        <div class="dash-card">
+                            <div class="dash-card__header">
+                                <h6 class="dash-card__value">{{ $data['winning_bids'] }}</h6>
+                                <div class="dash-card__icon icon icon--circle icon--md">
+                                    <i class="las la-trophy"></i>
+                                </div>
+                            </div>
+                            <div class="dash-card__body">
+                                <h5 class="dash-card__title">@lang('Winning Bids')</h5>
+                                <a href="{{ route('user.bid.index', ['status' => Status::BID_WINNING]) }}">@lang('View All')</a>
+                            </div>
+                        </div>
+
+                        <div class="dash-card">
+                            <div class="dash-card__header">
+                                <h6 class="dash-card__value">{{ $data['my_offers'] }}</h6>
+                                <div class="dash-card__icon icon icon--circle icon--md">
+                                    <i class="las la-handshake"></i>
+                                </div>
+                            </div>
+                            <div class="dash-card__body">
+                                <h5 class="dash-card__title">@lang('My Offers')</h5>
+                                <a href="{{ route('user.offer.index') }}">@lang('View All')</a>
+                            </div>
+                        </div>
+
+                        <div class="dash-card">
+                            <div class="dash-card__header">
+                                <h6 class="dash-card__value">{{ $data['watchlist_items'] }}</h6>
+                                <div class="dash-card__icon icon icon--circle icon--md">
+                                    <i class="las la-heart"></i>
+                                </div>
+                            </div>
+                            <div class="dash-card__body">
+                                <h5 class="dash-card__title">@lang('Watchlist Items')</h5>
+                                <a href="{{ route('marketplace.watchlist') }}">@lang('View All')</a>
+                            </div>
+                        </div>
+
+                        <div class="dash-card">
+                            <div class="dash-card__header">
+                                <h6 class="dash-card__value">{{ number_format($data['total_listing_views']) }}</h6>
+                                <div class="dash-card__icon icon icon--circle icon--md">
+                                    <i class="las la-eye"></i>
+                                </div>
+                            </div>
+                            <div class="dash-card__body">
+                                <h5 class="dash-card__title">@lang('Total Views')</h5>
+                                <a href="{{ route('user.listing.index') }}">@lang('View Details')</a>
+                            </div>
+                        </div>
+
+                        {{-- Escrow (Secondary) --}}
+                        <div class="dash-card">
+                            <div class="dash-card__header">
+                                <h6 class="dash-card__value">{{ $data['active_escrows'] }}</h6>
+                                <div class="dash-card__icon icon icon--circle icon--md">
+                                    <i class="las la-handshake"></i>
+                                </div>
+                            </div>
+                            <div class="dash-card__body">
+                                <h5 class="dash-card__title">@lang('Active Escrows')</h5>
                                 <a href="{{ route('user.escrow.index', 'accepted') }}">@lang('View All')</a>
                             </div>
                         </div>
 
                         <div class="dash-card">
                             <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['completed'] }}</h6>
+                                <h6 class="dash-card__value">{{ $data['completed_escrows'] }}</h6>
                                 <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="la la-check-double"></i>
+                                    <i class="las la-check-double"></i>
                                 </div>
                             </div>
                             <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Completed')</h5>
+                                <h5 class="dash-card__title">@lang('Completed Escrows')</h5>
                                 <a href="{{ route('user.escrow.index', 'completed') }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['disputed'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="la la-exclamation-triangle"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Disputed')</h5>
-                                <a href="{{ route('user.escrow.index', 'disputed') }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['cancelled'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="la la-times-circle"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Canceled')</h5>
-                                <a href="{{ route('user.escrow.index', 'canceled') }}">@lang('View All')</a>
                             </div>
                         </div>
                     </div>

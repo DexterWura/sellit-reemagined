@@ -168,25 +168,63 @@
     </div>
 
 
+    {{-- Marketplace Statistics (Primary) --}}
     <div class="row gy-4 mt-2">
         <div class="col-xxl-3 col-sm-6">
-            <x-widget bg="primary" icon="fa fa-hand-holding-usd" link="{{ route('admin.escrow.index') }}" style="7" type="2"
-                title="Total Escrowed Amount" value="{{ showAmount($dataEscrow['total']) }}" />
-        </div><!-- dashboard-w1 end -->
+            <x-widget bg="primary" icon="las la-store" link="{{ route('admin.listing.index') }}" style="7" type="2"
+                title="Total Listings" value="{{ number_format($marketplace['total_listings']) }}" />
+        </div>
         <div class="col-xxl-3 col-sm-6">
-            <x-widget bg="1" icon="fa fa-file-invoice-dollar" link="{{ route('admin.escrow.completed') }}" style="7" type="2"
-                title="Escrowed Funded" value="{{ showAmount($dataEscrow['funded']) }}" />
-        </div><!-- dashboard-w1 end -->
+            <x-widget bg="success" icon="las la-check-circle" link="{{ route('admin.listing.index', ['status' => Status::LISTING_ACTIVE]) }}" style="7" type="2"
+                title="Active Listings" value="{{ number_format($marketplace['active_listings']) }}" />
+        </div>
         <div class="col-xxl-3 col-sm-6">
-            <x-widget bg="14" icon="fa fa-times-circle" link="{{ route('admin.escrow.canceled') }}" style="7" type="2"
-                title="Canceled Escrow" value="{{ showAmount($dataEscrow['cancelled']) }}" />
+            <x-widget bg="warning" icon="las la-clock" link="{{ route('admin.listing.index', ['status' => Status::LISTING_PENDING]) }}" style="7" type="2"
+                title="Pending Approval" value="{{ number_format($marketplace['pending_listings']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="info" icon="las la-check-double" link="{{ route('admin.listing.index', ['status' => Status::LISTING_SOLD]) }}" style="7" type="2"
+                title="Sold Listings" value="{{ number_format($marketplace['sold_listings']) }}" />
+        </div>
+    </div>
 
-        </div><!-- dashboard-w1 end -->
+    <div class="row gy-4 mt-2">
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="success" icon="las la-dollar-sign" link="{{ route('admin.listing.index', ['status' => Status::LISTING_SOLD]) }}" style="7" type="2"
+                title="Total Sales Value" value="{{ showAmount($marketplace['total_sales_value']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="primary" icon="las la-gavel" link="{{ route('admin.bid.index') }}" style="7" type="2"
+                title="Total Bids" value="{{ number_format($marketplace['total_bids']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="info" icon="las la-handshake" link="{{ route('admin.offer.index') }}" style="7" type="2"
+                title="Total Offers" value="{{ number_format($marketplace['total_offers']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="warning" icon="las la-clock" link="{{ route('admin.listing.index', ['sale_type' => 'auction']) }}" style="7" type="2"
+                title="Active Auctions" value="{{ number_format($marketplace['active_auctions']) }}" />
+        </div>
+    </div>
+
+    <div class="row gy-4 mt-2">
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="success" icon="las la-eye" link="{{ route('admin.listing.index') }}" style="7" type="2"
+                title="Total Views" value="{{ number_format($marketplace['total_views']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="primary" icon="las la-money-bill-wave" link="{{ route('admin.escrow.index') }}" style="7" type="2"
+                title="Marketplace Revenue" value="{{ showAmount($marketplace['marketplace_revenue']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="14" icon="fa fa-hand-holding-usd" link="{{ route('admin.escrow.index') }}" style="7" type="2"
+                title="Total Escrowed" value="{{ showAmount($dataEscrow['total']) }}" />
+        </div>
         <div class="col-xxl-3 col-sm-6">
             <x-widget bg="19" icon="fa fa-spinner" link="{{ route('admin.escrow.disputed') }}" style="7" type="2"
-                title="Disputed Escrow" value="{{ showAmount($dataEscrow['disputed']) }}" />
-        </div><!-- dashboard-w1 end -->
-    </div><!-- row end-->
+                title="Disputed Escrows" value="{{ number_format($dataEscrow['disputed']) }}" />
+        </div>
+    </div>
 
 
 
@@ -294,29 +332,29 @@
             $(element).html(startDate.format('MMMM D, YYYY') + ' - ' + endDate.format('MMMM D, YYYY'));
         }
 
-        let dwChart = barChart(
-            document.querySelector("#dwChartArea"),
+        let listingsChart = barChart(
+            document.querySelector("#listingsChartArea"),
             @json(__(gs('cur_text'))),
             [{
-                    name: 'Deposited',
+                    name: 'Listings Created',
                     data: []
                 },
                 {
-                    name: 'Withdrawn',
+                    name: 'Listings Sold',
                     data: []
                 }
             ],
             [],
         );
 
-        let trxChart = lineChart(
-            document.querySelector("#transactionChartArea"),
+        let bidsChart = lineChart(
+            document.querySelector("#bidsChartArea"),
             [{
-                    name: "Plus Transactions",
+                    name: "Bids Placed",
                     data: []
                 },
                 {
-                    name: "Minus Transactions",
+                    name: "Offers Made",
                     data: []
                 }
             ],
@@ -324,20 +362,20 @@
         );
 
 
-        const depositWithdrawChart = (startDate, endDate) => {
+        const listingsChartData = (startDate, endDate) => {
 
             const data = {
                 start_date: startDate.format('YYYY-MM-DD'),
                 end_date: endDate.format('YYYY-MM-DD')
             }
 
-            const url = @json(route('admin.chart.deposit.withdraw'));
+            const url = @json(route('admin.chart.listings'));
 
             $.get(url, data,
                 function(data, status) {
                     if (status == 'success') {
-                        dwChart.updateSeries(data.data);
-                        dwChart.updateOptions({
+                        listingsChart.updateSeries(data.data);
+                        listingsChart.updateOptions({
                             xaxis: {
                                 categories: data.created_on,
                             }
@@ -347,23 +385,20 @@
             );
         }
 
-        const transactionChart = (startDate, endDate) => {
+        const bidsChartData = (startDate, endDate) => {
 
             const data = {
                 start_date: startDate.format('YYYY-MM-DD'),
                 end_date: endDate.format('YYYY-MM-DD')
             }
 
-            const url = @json(route('admin.chart.transaction'));
-
+            const url = @json(route('admin.chart.bids'));
 
             $.get(url, data,
                 function(data, status) {
                     if (status == 'success') {
-
-
-                        trxChart.updateSeries(data.data);
-                        trxChart.updateOptions({
+                        bidsChart.updateSeries(data.data);
+                        bidsChart.updateOptions({
                             xaxis: {
                                 categories: data.created_on,
                             }
@@ -375,17 +410,17 @@
 
 
 
-        $('#dwDatePicker').daterangepicker(dateRangeOptions, (start, end) => changeDatePickerText('#dwDatePicker span', start, end));
-        $('#trxDatePicker').daterangepicker(dateRangeOptions, (start, end) => changeDatePickerText('#trxDatePicker span', start, end));
+        $('#listingsDatePicker').daterangepicker(dateRangeOptions, (start, end) => changeDatePickerText('#listingsDatePicker span', start, end));
+        $('#bidsDatePicker').daterangepicker(dateRangeOptions, (start, end) => changeDatePickerText('#bidsDatePicker span', start, end));
 
-        changeDatePickerText('#dwDatePicker span', start, end);
-        changeDatePickerText('#trxDatePicker span', start, end);
+        changeDatePickerText('#listingsDatePicker span', start, end);
+        changeDatePickerText('#bidsDatePicker span', start, end);
 
-        depositWithdrawChart(start, end);
-        transactionChart(start, end);
+        listingsChartData(start, end);
+        bidsChartData(start, end);
 
-        $('#dwDatePicker').on('apply.daterangepicker', (event, picker) => depositWithdrawChart(picker.startDate, picker.endDate));
-        $('#trxDatePicker').on('apply.daterangepicker', (event, picker) => transactionChart(picker.startDate, picker.endDate));
+        $('#listingsDatePicker').on('apply.daterangepicker', (event, picker) => listingsChartData(picker.startDate, picker.endDate));
+        $('#bidsDatePicker').on('apply.daterangepicker', (event, picker) => bidsChartData(picker.startDate, picker.endDate));
 
         piChart(
             document.getElementById('userBrowserChart'),

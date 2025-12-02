@@ -50,6 +50,27 @@ class AdminController extends Controller
         })->sort()->reverse()->take(5);
 
 
+        // Marketplace Statistics (Primary Focus)
+        $marketplace['total_listings'] = Listing::count();
+        $marketplace['active_listings'] = Listing::where('status', Status::LISTING_ACTIVE)->count();
+        $marketplace['pending_listings'] = Listing::where('status', Status::LISTING_PENDING)->count();
+        $marketplace['sold_listings'] = Listing::where('status', Status::LISTING_SOLD)->count();
+        $marketplace['total_sales_value'] = Listing::where('status', Status::LISTING_SOLD)->sum('final_price');
+        $marketplace['total_bids'] = Bid::count();
+        $marketplace['total_offers'] = Offer::count();
+        $marketplace['active_auctions'] = Listing::where('sale_type', 'auction')
+            ->where('status', Status::LISTING_ACTIVE)
+            ->where('auction_end', '>', now())
+            ->count();
+        $marketplace['total_views'] = \App\Models\ListingView::count();
+        
+        // Marketplace revenue from escrow fees on sold listings
+        $soldListingEscrowIds = Listing::where('status', Status::LISTING_SOLD)
+            ->where('escrow_id', '>', 0)
+            ->pluck('escrow_id');
+        $marketplace['marketplace_revenue'] = Escrow::whereIn('id', $soldListingEscrowIds)->sum('charge');
+
+        // Financial metrics (secondary)
         $deposit['total_deposit_amount']   = Deposit::successful()->sum('amount');
         $deposit['total_deposit_pending']  = Deposit::pending()->count();
         $deposit['total_deposit_rejected'] = Deposit::rejected()->count();
@@ -60,18 +81,19 @@ class AdminController extends Controller
         $withdrawals['total_withdraw_rejected'] = Withdrawal::rejected()->count();
         $withdrawals['total_withdraw_charge']   = Withdrawal::approved()->sum('charge');
 
-              //escrows 
-        $dataEscrow['total']     = Escrow::sum('amount');
-        $dataEscrow['disputed']  = Escrow::disputed()->count();
-        $dataEscrow['cancelled'] = Escrow::canceled()->count();
-        $dataEscrow['funded']    = Milestone::funded()->sum('amount');
+        // Escrow metrics (tertiary - only for marketplace-related escrows)
+        $marketplaceEscrowIds = Listing::where('escrow_id', '>', 0)->pluck('escrow_id');
+        $dataEscrow['total']     = Escrow::whereIn('id', $marketplaceEscrowIds)->sum('amount');
+        $dataEscrow['disputed']  = Escrow::whereIn('id', $marketplaceEscrowIds)->disputed()->count();
+        $dataEscrow['cancelled'] = Escrow::whereIn('id', $marketplaceEscrowIds)->canceled()->count();
+        $dataEscrow['funded']    = Milestone::whereIn('escrow_id', $marketplaceEscrowIds)->funded()->sum('amount');
 
         // Marketplace counters for sidenav
         $pendingListingsCount = Listing::where('status', Status::LISTING_PENDING)->count();
         $pendingOffersCount = Offer::where('status', Status::OFFER_PENDING)->count();
         $pendingReviewsCount = Review::where('status', Status::REVIEW_PENDING)->count();
 
-        return view('admin.dashboard', compact('pageTitle', 'widget', 'chart', 'deposit', 'withdrawals', 'dataEscrow', 'pendingListingsCount', 'pendingOffersCount', 'pendingReviewsCount'));
+        return view('admin.dashboard', compact('pageTitle', 'widget', 'chart', 'deposit', 'withdrawals', 'dataEscrow', 'marketplace', 'pendingListingsCount', 'pendingOffersCount', 'pendingReviewsCount'));
     }
 
 
