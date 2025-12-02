@@ -20,9 +20,8 @@ class MilestoneController extends Controller
         $pageTitle   = "Payment Milestones";
         $escrow      = Escrow::checkUser()->findOrFail($id);
         
-        // Get milestones ordered by sort_order, then by id
+        // Get milestones ordered by id (sort_order may not exist in all databases)
         $milestones  = Milestone::where('escrow_id', $id)
-            ->orderBy('sort_order')
             ->orderBy('id')
             ->with('deposit:milestone_id,status')
             ->get();
@@ -70,10 +69,18 @@ class MilestoneController extends Controller
         DB::beginTransaction();
         
         try {
-            // Get current max sort_order
-            $maxSortOrder = Milestone::where('escrow_id', $escrow->id)
-                ->where('approval_status', '!=', 'rejected')
-                ->max('sort_order') ?? 0;
+            // Get current max sort_order (if column exists, otherwise use count)
+            $maxSortOrder = 0;
+            try {
+                $maxSortOrder = Milestone::where('escrow_id', $escrow->id)
+                    ->where('approval_status', '!=', 'rejected')
+                    ->max('sort_order') ?? 0;
+            } catch (\Exception $e) {
+                // sort_order column doesn't exist, use count instead
+                $maxSortOrder = Milestone::where('escrow_id', $escrow->id)
+                    ->where('approval_status', '!=', 'rejected')
+                    ->count();
+            }
 
             $milestone = new Milestone();
             $milestone->escrow_id = $escrow->id;
@@ -82,7 +89,11 @@ class MilestoneController extends Controller
             $milestone->amount = $request->amount;
             $milestone->note = $request->note;
             $milestone->milestone_type = $request->milestone_type;
-            $milestone->sort_order = $maxSortOrder + 1;
+            
+            // Set sort_order only if column exists (check using Schema)
+            if (\Illuminate\Support\Facades\Schema::hasColumn('milestones', 'sort_order')) {
+                $milestone->sort_order = $maxSortOrder + 1;
+            }
             
             // Auto-approve by the creator
             if ($isSeller) {
