@@ -95,3 +95,21 @@
         </div>
     </div>
 </section>
+
+@push('style')
+<style>
+    .hero-title .highlight {
+        color: #{{ gs('base_color') }} !important;
+    }
+    
+    .hero-search-btn {
+        background: #{{ gs('base_color') }} !important;
+    }
+    
+    .hero-search-btn:hover {
+        background: #{{ gs('base_color') }} !important;
+        filter: brightness(0.85);
+        box-shadow: 0 10px 30px #{{ gs('base_color') }}66;
+    }
+</style>
+@endpush
