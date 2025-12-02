@@ -7,18 +7,15 @@
                     <div class="alert alert-info mb-4">
                         <i class="las la-info-circle"></i> 
                         <strong>@lang('Note'):</strong> 
-                        @lang('Escrow is automatically created when you purchase a listing, win an auction, or have an offer accepted. You cannot create escrow manually.')
+                        @lang('Payment escrow is automatically created when you purchase a listing, win an auction, or have an offer accepted.')
                     </div>
                     <table class="table custom--table table-responsive--lg escrow-table">
                         <thead>
                             <tr>
-                                <th>@lang('Escrow Number')</th>
-                                <th>@lang('Title')</th>
-                                <th>@lang('Buyer - Seller')</th>
-                                <th>@lang('Amount')</th>
-                                <th>@lang('Category')</th>
-                                <th>@lang('Charge')</th>
-                                <th>@lang('Charge Payer')</th>
+                                <th>@lang('Listing')</th>
+                                <th>@lang('Transaction ID')</th>
+                                <th>@lang('Seller / Buyer')</th>
+                                <th>@lang('Purchase Amount')</th>
                                 <th>@lang('Status')</th>
                                 <th>@lang('Action')</th>
                             </tr>
@@ -26,29 +23,33 @@
                         <tbody>
                             @forelse($escrows as $escrow)
                                 <tr>
-                                    <td>{{ $escrow->escrow_number }}</td>
-                                    <td>{{ __($escrow->title) }}</td>
                                     <td>
-                                        @lang('I\'m') @if ($escrow->buyer_id == auth()->user()->id)
-                                            @lang('buying from')
-                                            {{ __(@$escrow->seller->username ?? $escrow->invitation_mail) }}
+                                        @if($escrow->listing)
+                                            <a href="{{ route('marketplace.listing.show', $escrow->listing->slug) }}" class="text-decoration-none">
+                                                <strong>{{ $escrow->listing->title }}</strong>
+                                            </a>
+                                            <br>
+                                            <small class="text-muted">{{ $escrow->listing->listing_number }}</small>
                                         @else
-                                            @lang('selling to')
-                                            {{ __(@$escrow->buyer->username ?? $escrow->invitation_mail) }}
+                                            {{ __($escrow->title) }}
                                         @endif
                                     </td>
                                     <td>
-                                        {{ showAmount($escrow->amount) }}</td>
-                                    <td>{{ $escrow->category->name }}</td>
+                                        <small class="text-muted">{{ $escrow->escrow_number }}</small>
+                                    </td>
                                     <td>
-                                        {{ showAmount($escrow->charge) }}</td>
-                                    <td>
-                                        @if ($escrow->charge_payer == Status::CHARGE_PAYER_SELLER)
-                                            <span class="badge badge--dark">@lang('Seller')</span>
-                                        @elseif($escrow->charge_payer == Status::CHARGE_PAYER_BUYER)
-                                            <span class="badge badge--info">@lang('Buyer')</span>
+                                        @if ($escrow->buyer_id == auth()->user()->id)
+                                            <span class="badge badge--info">@lang('Buying from')</span><br>
+                                            <strong>{{ __(@$escrow->seller->username ?? $escrow->invitation_mail) }}</strong>
                                         @else
-                                            <span class="badge badge--success">@lang('50%-50%')</span>
+                                            <span class="badge badge--success">@lang('Selling to')</span><br>
+                                            <strong>{{ __(@$escrow->buyer->username ?? $escrow->invitation_mail) }}</strong>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <strong>{{ showAmount($escrow->amount) }}</strong>
+                                        @if($escrow->charge > 0)
+                                            <br><small class="text-muted">@lang('Fee'): {{ showAmount($escrow->charge) }}</small>
                                         @endif
                                     </td>
                                     <td>
@@ -56,12 +57,18 @@
                                     </td>
                                     <td>
                                         <a href="{{ route('user.escrow.details', $escrow->id) }}" class="btn btn-base--outline btn-sm detailBtn "><i
-                                                class="la la-desktop"></i> @lang('Details')</a>
+                                                class="la la-desktop"></i> @lang('View')</a>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="100%" class="text-center">{{ __($emptyMessage) }}</td>
+                                    <td colspan="100%" class="text-center">
+                                        <div class="py-5">
+                                            <i class="las la-shopping-cart" style="font-size: 3rem; color: #ccc;"></i>
+                                            <p class="mt-3">@lang('No purchases yet. Start browsing the marketplace!')</p>
+                                            <a href="{{ route('marketplace.index') }}" class="btn btn--base mt-2">@lang('Browse Listings')</a>
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>

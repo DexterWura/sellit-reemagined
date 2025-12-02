@@ -66,6 +66,10 @@
                                                 <a class="t-link primary-menu__sub-link"
                                                     href="{{ route('user.watchlist.index') }}">@lang('Watchlist')</a>
                                             </li>
+                                            <li class="primary-menu__sub-list">
+                                                <a class="t-link primary-menu__sub-link"
+                                                    href="{{ route('user.escrow.index') }}">@lang('My Purchases')</a>
+                                            </li>
                                         </ul>
                                     </li>
 
@@ -82,12 +86,6 @@
                                                     href="{{ route('user.deposit.history') }}">@lang('Deposit Log')</a>
                                             </li>
                                         </ul>
-                                    </li>
-
-                                    <li class="primary-menu__list">
-                                        <a class="primary-menu__link" href="{{ route('user.escrow.index') }}">
-                                            @lang('My Escrow')
-                                        </a>
                                     </li>
 
                                     <li class="primary-menu__list has-sub">

@@ -327,17 +327,16 @@
     },
     "manage_escrow": {
         "keyword": [
-            "Manage Escrow",
-            "Escrow",
-            "Escrow Management",
-            "All Escrow",
-            "Accepted Escrow",
-            "Not Accepted Escrow",
-            "Completed Escrow",
-            "Disputed Escrow",
-            "Canceled Escrow"
+            "Transaction Management",
+            "Purchase Transactions",
+            "Marketplace Transactions",
+            "All Transactions",
+            "Active Transactions",
+            "Completed Transactions",
+            "Disputed Transactions",
+            "Canceled Transactions"
         ],
-        "title": "Manage Escrow",
+        "title": "Transactions",
         "icon": "las la-handshake",
         "counters": [
             "disputedEscrowCount"
@@ -346,12 +345,12 @@
         "submenu": [
             {
                 "keyword": [
-                    "Manage Escrow",
-                    "All Escrow",
-                    "Escrow management",
-                    "Escrow control",
-                    "Escrow status",
-                    "Escrow activity"
+                    "Transaction Management",
+                    "All Transactions",
+                    "Purchase transactions",
+                    "Transaction control",
+                    "Transaction status",
+                    "Transaction activity"
                 ],
                 "title": "All",
                 "icon": "las la-dot-circle",
@@ -360,43 +359,43 @@
             },
             {
                 "keyword": [
-                    "Manage Escrow",
-                    "All Escrow",
-                    "Escrow management",
-                    "Escrow control",
-                    "Escrow status",
-                    "Escrow activity",
-                    "Accepted Escrow"
+                    "Transaction Management",
+                    "All Transactions",
+                    "Purchase transactions",
+                    "Transaction control",
+                    "Transaction status",
+                    "Transaction activity",
+                    "Active Transactions"
                 ],
-                "title": "Accepted",
+                "title": "Active",
                 "icon": "las la-dot-circle",
                 "menu_active": "admin.escrow.accepted",
                 "route_name": "admin.escrow.accepted"
             },
             {
                 "keyword": [
-                    "Manage Escrow",
-                    "All Escrow",
-                    "Escrow management",
-                    "Escrow control",
-                    "Escrow status",
-                    "Escrow activity",
-                    "Not Accepted Escrow"
+                    "Transaction Management",
+                    "All Transactions",
+                    "Purchase transactions",
+                    "Transaction control",
+                    "Transaction status",
+                    "Transaction activity",
+                    "Pending Transactions"
                 ],
-                "title": "Not Accepted",
+                "title": "Pending",
                 "icon": "las la-dot-circle",
                 "menu_active": "admin.escrow.not.accepted",
                 "route_name": "admin.escrow.not.accepted"
             },
             {
                 "keyword": [
-                    "Manage Escrow",
-                    "All Escrow",
-                    "Escrow management",
-                    "Escrow control",
-                    "Escrow status",
-                    "Escrow activity",
-                    "Completed Escrow"
+                    "Transaction Management",
+                    "All Transactions",
+                    "Purchase transactions",
+                    "Transaction control",
+                    "Transaction status",
+                    "Transaction activity",
+                    "Completed Transactions"
                 ],
                 "title": "Completed",
                 "icon": "las la-dot-circle",
@@ -405,13 +404,13 @@
             },
             {
                 "keyword": [
-                    "Manage Escrow",
-                    "All Escrow",
-                    "Escrow management",
-                    "Escrow control",
-                    "Escrow status",
-                    "Escrow activity",
-                    "Disputed Escrow"
+                    "Transaction Management",
+                    "All Transactions",
+                    "Purchase transactions",
+                    "Transaction control",
+                    "Transaction status",
+                    "Transaction activity",
+                    "Disputed Transactions"
                 ],
                 "title": "Disputed",
                 "icon": "las la-dot-circle",
@@ -422,13 +421,13 @@
             },
             {
                 "keyword": [
-                    "Manage Escrow",
-                    "All Escrow",
-                    "Escrow management",
-                    "Escrow control",
-                    "Escrow status",
-                    "Escrow activity",
-                    "Canceled Escrow"
+                    "Transaction Management",
+                    "All Transactions",
+                    "Purchase transactions",
+                    "Transaction control",
+                    "Transaction status",
+                    "Transaction activity",
+                    "Canceled Transactions"
                 ],
                 "title": "Canceled",
                 "icon": "las la-dot-circle",

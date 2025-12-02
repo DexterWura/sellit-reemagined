@@ -3,6 +3,23 @@
     <section class="section bg--light">
         <div class="container">
             <div class="row gy-4">
+                @if($escrow->listing)
+                <div class="col-md-12 mb-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="mb-1"><a href="{{ route('marketplace.listing.show', $escrow->listing->slug) }}" class="text-decoration-none">{{ $escrow->listing->title }}</a></h5>
+                                    <p class="text-muted mb-0">@lang('Listing #'): {{ $escrow->listing->listing_number }}</p>
+                                </div>
+                                <a href="{{ route('marketplace.listing.show', $escrow->listing->slug) }}" class="btn btn--base btn-sm">
+                                    <i class="las la-external-link-alt"></i> @lang('View Listing')
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
                 <div class="col-md-12">
                     @if ($escrow->status == Status::ESCROW_ACCEPTED && $escrow->restAmount() && $escrow->buyer_id == auth()->id())
                         <div class="text-end mb-4">

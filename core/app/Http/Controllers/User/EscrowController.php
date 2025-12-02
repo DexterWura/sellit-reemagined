@@ -23,7 +23,7 @@ class EscrowController extends Controller
 
     public function index($type = null)
     {
-        $pageTitle = 'My Escrow';
+        $pageTitle = 'My Purchases';
         
         // Only show marketplace-related escrows (escrows linked to listings)
         $userListingEscrowIds = \App\Models\Listing::where(function($q) {
@@ -198,7 +198,7 @@ class EscrowController extends Controller
 
     public function details($id)
     {
-        $pageTitle    = "Escrow Details";
+        $pageTitle    = "Purchase Details";
         $escrow       = Escrow::checkUser()->with('conversation.messages.sender', 'conversation.messages.admin')->findOrFail($id);
         $conversation = $escrow->conversation;
         $messages     = $conversation->messages;

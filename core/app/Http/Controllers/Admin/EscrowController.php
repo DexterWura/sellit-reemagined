@@ -16,42 +16,42 @@ class EscrowController extends Controller
 {
     public function index()
     {
-        $pageTitle = "All Escrows";
+        $pageTitle = "All Transactions";
         $escrows   = $this->escrowData();
         return view('admin.escrow.index', compact('pageTitle', 'escrows'));
     }
 
     public function accepted()
     {
-        $pageTitle = "Accepted Escrows";
+        $pageTitle = "Active Transactions";
         $escrows   = $this->escrowData('accepted');
         return view('admin.escrow.index', compact('pageTitle', 'escrows'));
     }
 
     public function notAccepted()
     {
-        $pageTitle = "Not Accepted Escrows";
+        $pageTitle = "Pending Transactions";
         $escrows   = $this->escrowData('notAccepted');
         return view('admin.escrow.index', compact('pageTitle', 'escrows'));
     }
 
     public function completed()
     {
-        $pageTitle = "Completed Escrows";
+        $pageTitle = "Completed Transactions";
         $escrows   = $this->escrowData('completed');
         return view('admin.escrow.index', compact('pageTitle', 'escrows'));
     }
 
     public function disputed()
     {
-        $pageTitle = "Disputed Escrows";
+        $pageTitle = "Disputed Transactions";
         $escrows   = $this->escrowData('disputed');
         return view('admin.escrow.index', compact('pageTitle', 'escrows'));
     }
 
     public function canceled()
     {
-        $pageTitle = "Canceled Escrows";
+        $pageTitle = "Canceled Transactions";
         $escrows   = $this->escrowData('canceled');
         return view('admin.escrow.index', compact('pageTitle', 'escrows'));
     }
@@ -65,12 +65,12 @@ class EscrowController extends Controller
             $escrows = Escrow::query();
         }
 
-        return $escrows->searchable(['title', 'category:name', 'escrow_number'])->orderBy('id', 'desc')->with('seller', 'buyer', 'category')->paginate(getPaginate());
+        return $escrows->searchable(['title', 'category:name', 'escrow_number'])->orderBy('id', 'desc')->with('seller', 'buyer', 'category', 'listing')->paginate(getPaginate());
     }
 
     public function details($id)
     {
-        $pageTitle    = "Escrow Details";
+        $pageTitle    = "Transaction Details";
         $escrow       = Escrow::with('conversation', 'conversation.messages', 'conversation.messages.sender', 'conversation.messages.admin')->findOrFail($id);
         $restAmount   = ($escrow->amount + $escrow->buyer_charge) - $escrow->paid_amount;
         $conversation = $escrow->conversation;
@@ -81,7 +81,7 @@ class EscrowController extends Controller
 
     public function milestone($id)
     {
-        $pageTitle  = "Escrow Milestone";
+        $pageTitle  = "Payment Milestones";
         $escrow     = Escrow::findOrFail($id);
         $milestones = Milestone::where('escrow_id', $escrow->id)->orderBy('id', 'desc')->paginate(getPaginate());
         return view('admin.escrow.milestones', compact('pageTitle', 'escrow', 'milestones'));

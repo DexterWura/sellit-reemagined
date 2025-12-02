@@ -55,7 +55,7 @@
                             icon_style="solid" overlay_icon="0" :viewMoreIcon=false :outline=true />
                     </div>
                     <div class="col-xxl-3 col-sm-6">
-                        <x-widget style="6" bg="danger" icon="la la-times-circle" title="Canceled Escrow" value="{{ $data['cancelled'] }}"
+                        <x-widget style="6" bg="danger" icon="la la-times-circle" title="Canceled Transactions" value="{{ $data['cancelled'] }}"
                             icon_style="solid" overlay_icon="0" :viewMoreIcon=false :outline=true />
                     </div>
                     <div class="col-xxl-3 col-sm-6">

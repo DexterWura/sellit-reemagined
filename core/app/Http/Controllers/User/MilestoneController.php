@@ -17,7 +17,7 @@ class MilestoneController extends Controller
 
     public function milestones($id)
     {
-        $pageTitle   = "Escrow Milestones";
+        $pageTitle   = "Payment Milestones";
         $escrow      = Escrow::checkUser()->findOrFail($id);
         
         // Get milestones ordered by sort_order, then by id

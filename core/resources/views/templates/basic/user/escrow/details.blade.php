@@ -4,20 +4,55 @@
         <div class="container">
             <div class="row gy-4">
 
+                @if($escrow->listing)
+                <div class="col-md-12 mb-4">
+                    <div class="card custom--card">
+                        <div class="card-header bg--base">
+                            <h5 class="text-white mb-0">
+                                <i class="las la-store"></i> 
+                                @lang('Listing Details')
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h4><a href="{{ route('marketplace.listing.show', $escrow->listing->slug) }}" class="text-decoration-none">{{ $escrow->listing->title }}</a></h4>
+                                    <p class="text-muted mb-2">{{ $escrow->listing->tagline }}</p>
+                                    <div class="d-flex flex-wrap gap-3">
+                                        <span><strong>@lang('Listing #'):</strong> {{ $escrow->listing->listing_number }}</span>
+                                        <span><strong>@lang('Business Type'):</strong> {{ ucfirst(str_replace('_', ' ', $escrow->listing->business_type)) }}</span>
+                                        @if($escrow->listing->sale_type == 'auction')
+                                            <span><strong>@lang('Sale Type'):</strong> @lang('Auction')</span>
+                                        @else
+                                            <span><strong>@lang('Sale Type'):</strong> @lang('Fixed Price')</span>
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <a href="{{ route('marketplace.listing.show', $escrow->listing->slug) }}" class="btn btn--base">
+                                        <i class="las la-external-link-alt"></i> @lang('View Listing')
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
                 <div class="col-md-6">
                     <div class="card custom--card">
                         <div class="card-header bg--base d-flex flex-wrap align-items-center justify-content-between">
                             <h6 class="text-white">
                                 @if ($escrow->buyer_id == auth()->user()->id)
-                                    @lang('Buying') {{ __($escrow->category->name) }}
+                                    @lang('Purchase Details')
                                 @else
-                                    @lang('Selling') {{ __($escrow->category->name) }}
+                                    @lang('Sale Details')
                                 @endif
                             </h6>
 
                             @if ($escrow->status != Status::ESCROW_NOT_ACCEPTED)
                                 <a href="{{ route('user.escrow.milestone.index', $escrow->id) }}" class="btn btn-sm btn--dark">
-                                    @lang('See Milestones') <i class="las la-arrow-right"></i>
+                                    @lang('Payment Milestones') <i class="las la-arrow-right"></i>
                                 </a>
                             @endif
                         </div>
@@ -25,14 +60,21 @@
                         <div class="card-body p-0">
                             <div class="list-group list-group-flush">
                                 <div class="list-group-item">
-                                    <small class="text-muted">@lang('Escrow Number')</small>
+                                    <small class="text-muted">@lang('Transaction ID')</small>
                                     <span>{{ $escrow->escrow_number }}</span>
                                 </div>
 
+                                @if($escrow->listing)
+                                <div class="list-group-item">
+                                    <small class="text-muted">@lang('Listing')</small>
+                                    <span><a href="{{ route('marketplace.listing.show', $escrow->listing->slug) }}">{{ $escrow->listing->title }}</a></span>
+                                </div>
+                                @else
                                 <div class="list-group-item">
                                     <small class="text-muted">@lang('Title')</small>
                                     <span>{{ $escrow->title }}</span>
                                 </div>
+                                @endif
 
                                 <div class="list-group-item">
                                     @if ($escrow->buyer_id == auth()->id())
@@ -125,12 +167,12 @@
 
                             <div class="card-footer d-flex flex-wrap justify-content-center gap-2 bg-white">
                                 @if ($escrow->status == Status::ESCROW_NOT_ACCEPTED)
-                                    <button class="btn btn--danger confirmationBtn" data-question="@lang('Are you sure to cancel this escrow?')"
+                                    <button class="btn btn--danger confirmationBtn" data-question="@lang('Are you sure to cancel this transaction?')"
                                         data-action="{{ route('user.escrow.cancel', $escrow->id) }}"><i
                                             class="la la-times"></i>@lang('Cancel')</button>
 
                                     @if ($escrow->creator_id != auth()->id() && $hasSellerAndBuyer)
-                                        <button class="btn btn--success confirmationBtn" data-question="@lang('Are you sure to accept this escrow?')"
+                                        <button class="btn btn--success confirmationBtn" data-question="@lang('Are you sure to accept this transaction?')"
                                             data-action="{{ route('user.escrow.accept', $escrow->id) }}"><i
                                                 class="la la-check"></i>@lang('Accept')</button>
                                     @endif
@@ -138,13 +180,13 @@
                                     {{-- payment dispute button --}}
                                     @if ($hasSellerAndBuyer)
                                         <button class="btn btn--danger text-white user-action"> <i class="las la-exclamation-triangle"></i>
-                                            @lang('Dispute Escrow')</button>
+                                            @lang('Dispute Transaction')</button>
                                     @endif
                                     {{-- If all amount is paid and the escrow is accepted --}}
                                     @if ($escrow->restAmount() <= 0 && $escrow->buyer_id == auth()->user()->id && $hasSellerAndBuyer)
-                                        <button class="btn btn--primary confirmationBtn" data-question="@lang('Are you sure to dispatch this escrow?')"
+                                        <button class="btn btn--primary confirmationBtn" data-question="@lang('Are you sure to release payment to the seller?')"
                                             data-action="{{ route('user.escrow.dispatch', $escrow->id) }}"><i class="la la-money-check-alt"></i>
-                                            @lang('Dispatch Payment')</button>
+                                            @lang('Release Payment')</button>
                                     @endif
                                 @endif
                             </div>
@@ -235,7 +277,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">@lang('Dispute Escrow')</h5>
+                    <h5 class="modal-title">@lang('Dispute Transaction')</h5>
                     <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
                         <i class="las la-times"></i>
                     </button>

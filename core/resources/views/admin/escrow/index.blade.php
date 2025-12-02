@@ -8,7 +8,7 @@
                         <table class="table table--light style--two">
                             <thead>
                                 <tr>
-                                    <th>@lang('Title | Escrow Number')</th>
+                                    <th>@lang('Listing | Transaction ID')</th>
                                     <th>@lang('Buyer')</th>
                                     <th>@lang('Seller')</th>
                                     <th>@lang('Amount | Charge')</th>
@@ -23,8 +23,17 @@
                                     <tr>
                                         <td>
                                             <div>
-                                                {{ __($escrow->title) }} <br />
-                                                {{ $escrow->escrow_number }}
+                                                @if($escrow->listing)
+                                                    <a href="{{ route('admin.listing.details', $escrow->listing->id) }}" class="text-decoration-none">
+                                                        <strong>{{ $escrow->listing->title }}</strong>
+                                                    </a>
+                                                    <br />
+                                                    <small class="text-muted">{{ $escrow->listing->listing_number }}</small>
+                                                @else
+                                                    {{ __($escrow->title) }}
+                                                @endif
+                                                <br />
+                                                <small class="text-muted">@lang('Transaction ID'): {{ $escrow->escrow_number }}</small>
                                             </div>
                                         </td>
                                         <td>
