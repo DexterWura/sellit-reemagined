@@ -116,9 +116,9 @@ class OfferController extends Controller
 
             $listing = $offer->listing;
 
-            // Check if listing is already sold
-            if ($listing->status === Status::LISTING_SOLD) {
-                $notify[] = ['error', 'This listing has already been sold'];
+            // Check if listing is already in escrow or sold
+            if ($listing->status === Status::LISTING_SOLD || $listing->escrow_id) {
+                $notify[] = ['error', 'This listing is no longer available'];
                 return back()->withNotify($notify);
             }
 
@@ -139,12 +139,12 @@ class OfferController extends Controller
                 $offer->status = Status::OFFER_ACCEPTED;
                 $offer->responded_at = now();
 
-                // Update listing
+                // Update listing - don't mark as SOLD yet, just set escrow_id to hide from public
                 $finalAmount = $offer->counter_amount > 0 ? $offer->counter_amount : $offer->amount;
-                $listing->status = Status::LISTING_SOLD;
+                // Keep status as LISTING_ACTIVE - it will be hidden from public because escrow_id is set
                 $listing->winner_id = $offer->buyer_id;
                 $listing->final_price = $finalAmount;
-                $listing->sold_at = now();
+                // Don't set sold_at yet - will be set when escrow is completed
 
                 // Create escrow
                 $escrow = $this->createEscrow($listing, $offer->buyer, $finalAmount);
@@ -154,10 +154,7 @@ class OfferController extends Controller
                 $offer->escrow_id = $escrow->id;
                 $offer->save();
 
-                // Update user stats
-                $user->increment('total_sales');
-                $user->increment('total_sales_value', $finalAmount);
-                $offer->buyer->increment('total_purchases');
+                // Don't update user stats yet - will be updated when escrow is completed
 
                 DB::commit();
 
@@ -263,12 +260,11 @@ class OfferController extends Controller
         $offer->responded_at = now();
         $offer->save();
 
-        // Update listing
-        $listing->status = Status::LISTING_SOLD;
+        // Update listing - don't mark as SOLD yet, just set escrow_id to hide from public
+        // Keep status as LISTING_ACTIVE - it will be hidden from public because escrow_id is set
         $listing->winner_id = $user->id;
         $listing->final_price = $finalAmount;
-        $listing->sold_at = now();
-        $listing->save();
+        // Don't set sold_at yet - will be set when escrow is completed
 
         // Reject other offers
         Offer::where('listing_id', $listing->id)
@@ -276,7 +272,7 @@ class OfferController extends Controller
             ->whereIn('status', [Status::OFFER_PENDING, Status::OFFER_COUNTERED])
             ->update([
                 'status' => Status::OFFER_REJECTED,
-                'rejection_reason' => 'Listing has been sold',
+                'rejection_reason' => 'Another offer was accepted',
                 'responded_at' => now(),
             ]);
 
@@ -288,10 +284,7 @@ class OfferController extends Controller
         $offer->escrow_id = $escrow->id;
         $offer->save();
 
-        // Update user stats
-        $offer->seller->increment('total_sales');
-        $offer->seller->increment('total_sales_value', $finalAmount);
-        $user->increment('total_purchases');
+        // Don't update user stats yet - will be updated when escrow is completed
 
         // Notify seller
         notify($offer->seller, 'COUNTER_OFFER_ACCEPTED', [

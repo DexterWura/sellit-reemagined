@@ -264,7 +264,16 @@ class MarketplaceController extends Controller
             ])
             ->firstOrFail();
 
-        // Only show active, sold listings or own listings
+        // Only show active (not in escrow), sold listings or own listings
+        // If listing is in escrow (has escrow_id), only show to seller/buyer
+        if ($listing->escrow_id && $listing->status !== Status::LISTING_SOLD) {
+            $isSeller = auth()->check() && auth()->id() === $listing->user_id;
+            $isBuyer = auth()->check() && $listing->winner_id && auth()->id() === $listing->winner_id;
+            if (!$isSeller && !$isBuyer) {
+                abort(404);
+            }
+        }
+        
         if (!in_array($listing->status, [Status::LISTING_ACTIVE, Status::LISTING_SOLD])) {
             if (!auth()->check() || auth()->id() !== $listing->user_id) {
                 abort(404);

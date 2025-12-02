@@ -414,6 +414,21 @@ class EscrowController extends Controller
                 $seller->balance += $amount;
                 $seller->save();
 
+                // Mark associated listing as SOLD if it exists
+                $listing = \App\Models\Listing::where('escrow_id', $escrow->id)->first();
+                if ($listing && $listing->status !== Status::LISTING_SOLD) {
+                    $listing->status = Status::LISTING_SOLD;
+                    $listing->sold_at = now();
+                    $listing->save();
+
+                    // Update user stats now that escrow is completed
+                    $seller->increment('total_sales');
+                    $seller->increment('total_sales_value', $amount);
+                    if ($escrow->buyer) {
+                        $escrow->buyer->increment('total_purchases');
+                    }
+                }
+
                 $trx                       = getTrx();
                 $transaction               = new Transaction();
                 $transaction->user_id      = $seller->id;

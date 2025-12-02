@@ -171,7 +171,10 @@ class Listing extends Model
 
     public function scopeActive($query)
     {
-        return $query->where('status', Status::LISTING_ACTIVE);
+        // Exclude listings that are in escrow process (have escrow_id set)
+        // These will be marked as SOLD when escrow is completed
+        return $query->where('status', Status::LISTING_ACTIVE)
+                     ->whereNull('escrow_id');
     }
 
     public function scopeSold($query)

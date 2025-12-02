@@ -172,9 +172,9 @@ class BidController extends Controller
                 return back()->withNotify($notify);
             }
 
-            // Check if already sold
-            if ($listing->status === Status::LISTING_SOLD) {
-                $notify[] = ['error', 'This listing has already been sold'];
+            // Check if already sold or in escrow
+            if ($listing->status === Status::LISTING_SOLD || $listing->escrow_id) {
+                $notify[] = ['error', 'This listing is no longer available'];
                 return back()->withNotify($notify);
             }
 
@@ -198,13 +198,13 @@ class BidController extends Controller
                     ->whereIn('status', [Status::BID_ACTIVE, Status::BID_WINNING])
                     ->update(['status' => Status::BID_LOST]);
 
-                // Update listing as sold
-                $listing->status = Status::LISTING_SOLD;
+                // Update listing - don't mark as SOLD yet, just set escrow_id to hide from public
+                // Keep status as LISTING_ACTIVE - it will be hidden from public because escrow_id is set
                 $listing->winner_id = $user->id;
                 $listing->final_price = $listing->buy_now_price;
                 $listing->current_bid = $listing->buy_now_price;
                 $listing->highest_bidder_id = $user->id;
-                $listing->sold_at = now();
+                // Don't set sold_at yet - will be set when escrow is completed
 
                 // Create escrow for the transaction
                 $escrow = $this->createEscrow($listing, $user, $listing->buy_now_price);

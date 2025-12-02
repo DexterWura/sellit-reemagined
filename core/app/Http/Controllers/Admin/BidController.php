@@ -154,21 +154,18 @@ class BidController extends Controller
                     ->whereIn('status', [Status::BID_ACTIVE, Status::BID_OUTBID])
                     ->update(['status' => Status::BID_LOST]);
 
-                // Update listing
-                $listing->status = Status::LISTING_SOLD;
+                // Update listing - don't mark as SOLD yet, just set escrow_id to hide from public
+                // Keep status as LISTING_ACTIVE - it will be hidden from public because escrow_id is set
                 $listing->winner_id = $winningBid->user_id;
                 $listing->final_price = $winningBid->amount;
-                $listing->sold_at = now();
+                // Don't set sold_at yet - will be set when escrow is completed
 
                 // Create escrow
                 $escrow = $this->createEscrow($listing, $winningBid->user, $winningBid->amount);
                 $listing->escrow_id = $escrow->id;
                 $listing->save();
 
-                // Update user stats
-                $listing->user->increment('total_sales');
-                $listing->user->increment('total_sales_value', $winningBid->amount);
-                $winningBid->user->increment('total_purchases');
+                // Don't update user stats yet - will be updated when escrow is completed
 
                 DB::commit();
 
