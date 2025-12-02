@@ -190,7 +190,7 @@
                             </div>
                             <div class="dash-card__body">
                                 <h5 class="dash-card__title">@lang('Watchlist Items')</h5>
-                                <a href="{{ route('marketplace.watchlist') }}">@lang('View All')</a>
+                                <a href="{{ route('user.watchlist.index') }}">@lang('View All')</a>
                             </div>
                         </div>
 
