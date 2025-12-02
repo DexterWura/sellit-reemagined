@@ -151,6 +151,16 @@ Route::middleware('auth')->name('user.')->group(function () {
                 Route::delete('remove/{id}', 'remove')->name('remove');
             });
 
+            // Saved Searches
+            Route::controller('SavedSearchController')->name('saved_search.')->prefix('saved-search')->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::post('store', 'store')->name('store');
+                Route::get('apply/{id}', 'apply')->name('apply');
+                Route::post('update/{id}', 'update')->name('update');
+                Route::delete('delete/{id}', 'destroy')->name('delete');
+                Route::post('toggle-alerts/{id}', 'toggleAlerts')->name('toggle.alerts');
+            });
+
             // Domain Verification
             Route::controller('DomainVerificationController')->name('verification.')->prefix('verification')->group(function () {
                 Route::get('/', 'index')->name('index');

@@ -8,8 +8,11 @@ use App\Models\ListingCategory;
 use App\Models\ListingQuestion;
 use App\Models\ListingView;
 use App\Models\Review;
+use App\Models\SavedSearch;
 use App\Models\Watchlist;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class MarketplaceController extends Controller
 {
@@ -73,45 +76,117 @@ class MarketplaceController extends Controller
 
         $listings = Listing::active()
             ->with(['images', 'seller', 'listingCategory'])
+            // Business Type Filter
             ->when($request->business_type, function ($q, $type) {
                 return $q->where('business_type', $type);
             })
+            // Sale Type Filter
             ->when($request->sale_type, function ($q, $type) {
                 return $q->where('sale_type', $type);
             })
+            // Category Filter
             ->when($request->category, function ($q, $categoryId) {
                 return $q->where('listing_category_id', $categoryId);
             })
+            // Price Range Filter (handles both fixed price and auction)
             ->when($request->min_price, function ($q, $min) {
                 return $q->where(function ($query) use ($min) {
-                    $query->where('asking_price', '>=', $min)
-                        ->orWhere('current_bid', '>=', $min);
+                    $query->where(function ($q) use ($min) {
+                        $q->where('sale_type', 'fixed_price')
+                            ->where('asking_price', '>=', $min);
+                    })->orWhere(function ($q) use ($min) {
+                        $q->where('sale_type', 'auction')
+                            ->where(function ($subQ) use ($min) {
+                                $subQ->where('current_bid', '>=', $min)
+                                    ->orWhere('starting_bid', '>=', $min);
+                            });
+                    });
                 });
             })
             ->when($request->max_price, function ($q, $max) {
                 return $q->where(function ($query) use ($max) {
-                    $query->where('asking_price', '<=', $max)
-                        ->orWhere('current_bid', '<=', $max);
+                    $query->where(function ($q) use ($max) {
+                        $q->where('sale_type', 'fixed_price')
+                            ->where('asking_price', '<=', $max);
+                    })->orWhere(function ($q) use ($max) {
+                        $q->where('sale_type', 'auction')
+                            ->where(function ($subQ) use ($max) {
+                                $subQ->where('current_bid', '<=', $max)
+                                    ->orWhere('starting_bid', '<=', $max);
+                            });
+                    });
                 });
             })
+            // Revenue Range Filter
             ->when($request->min_revenue, function ($q, $min) {
                 return $q->where('monthly_revenue', '>=', $min);
             })
             ->when($request->max_revenue, function ($q, $max) {
                 return $q->where('monthly_revenue', '<=', $max);
             })
+            // Traffic Range Filter (NEW)
+            ->when($request->min_traffic, function ($q, $min) {
+                return $q->where('monthly_visitors', '>=', $min);
+            })
+            ->when($request->max_traffic, function ($q, $max) {
+                return $q->where('monthly_visitors', '<=', $max);
+            })
+            // Age Filter (NEW) - based on domain age
+            ->when($request->min_age, function ($q, $min) {
+                return $q->where('domain_age_years', '>=', $min);
+            })
+            ->when($request->max_age, function ($q, $max) {
+                return $q->where('domain_age_years', '<=', $max);
+            })
+            // Verified Filter
             ->when($request->verified, function ($q) {
                 return $q->where('is_verified', true);
             })
+            // Featured Filter (NEW)
+            ->when($request->featured === '1', function ($q) {
+                return $q->featured();
+            })
+            // Monetization Methods Filter (NEW)
+            ->when($request->monetization, function ($q, $methods) {
+                if (is_array($methods)) {
+                    foreach ($methods as $method) {
+                        $q->whereJsonContains('monetization_methods', $method);
+                    }
+                } else {
+                    $q->whereJsonContains('monetization_methods', $methods);
+                }
+                return $q;
+            })
+            // Traffic Sources Filter (NEW)
+            ->when($request->traffic_source, function ($q, $sources) {
+                if (is_array($sources)) {
+                    foreach ($sources as $source) {
+                        $q->whereJsonContains('traffic_sources', $source);
+                    }
+                } else {
+                    $q->whereJsonContains('traffic_sources', $sources);
+                }
+                return $q;
+            })
+            // Search Filter (Enhanced)
             ->when($request->search, function ($q, $search) {
                 return $q->search($search);
             })
+            // Sort Options (Enhanced)
             ->when($request->sort, function ($q, $sort) {
                 switch ($sort) {
                     case 'price_low':
                         return $q->orderByRaw('COALESCE(NULLIF(current_bid, 0), asking_price) ASC');
                     case 'price_high':
                         return $q->orderByRaw('COALESCE(NULLIF(current_bid, 0), asking_price) DESC');
+                    case 'revenue_high':
+                        return $q->orderBy('monthly_revenue', 'desc');
+                    case 'revenue_low':
+                        return $q->orderBy('monthly_revenue', 'asc');
+                    case 'traffic_high':
+                        return $q->orderBy('monthly_visitors', 'desc');
+                    case 'traffic_low':
+                        return $q->orderBy('monthly_visitors', 'asc');
                     case 'ending_soon':
                         return $q->whereNotNull('auction_end')
                             ->where('auction_end', '>', now())
@@ -120,6 +195,10 @@ class MarketplaceController extends Controller
                         return $q->orderBy('total_bids', 'desc');
                     case 'most_watched':
                         return $q->orderBy('watchlist_count', 'desc');
+                    case 'most_viewed':
+                        return $q->orderBy('view_count', 'desc');
+                    case 'oldest':
+                        return $q->orderBy('approved_at', 'asc');
                     case 'newest':
                     default:
                         return $q->orderBy('approved_at', 'desc');
@@ -132,11 +211,21 @@ class MarketplaceController extends Controller
         $categories = ListingCategory::active()->orderBy('sort_order')->get();
         $businessTypes = $this->getBusinessTypes();
 
+        // Get saved searches for logged-in users
+        $savedSearches = [];
+        if (auth()->check()) {
+            $savedSearches = SavedSearch::where('user_id', auth()->id())
+                ->orderBy('created_at', 'desc')
+                ->take(5)
+                ->get();
+        }
+
         return view('Template::marketplace.browse', compact(
             'pageTitle',
             'listings',
             'categories',
-            'businessTypes'
+            'businessTypes',
+            'savedSearches'
         ));
     }
 

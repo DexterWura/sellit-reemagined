@@ -207,8 +207,17 @@ class Listing extends Model
         return $query->where(function ($q) use ($search) {
             $q->where('title', 'LIKE', "%{$search}%")
                 ->orWhere('description', 'LIKE', "%{$search}%")
+                ->orWhere('tagline', 'LIKE', "%{$search}%")
                 ->orWhere('domain_name', 'LIKE', "%{$search}%")
-                ->orWhere('niche', 'LIKE', "%{$search}%");
+                ->orWhere('niche', 'LIKE', "%{$search}%")
+                ->orWhere('listing_number', 'LIKE', "%{$search}%")
+                ->orWhereHas('seller', function ($sellerQuery) use ($search) {
+                    $sellerQuery->where('username', 'LIKE', "%{$search}%")
+                        ->orWhere('fullname', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('listingCategory', function ($catQuery) use ($search) {
+                    $catQuery->where('name', 'LIKE', "%{$search}%");
+                });
         });
     }
 
