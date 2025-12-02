@@ -60,7 +60,7 @@
         </div>
     </section>
 
-    <!-- Featured Listings -->
+    {{-- Featured Listings - Commented out
     @if($featuredListings->count() > 0)
     <section class="py-5 bg-light">
         <div class="container">
@@ -76,6 +76,7 @@
         </div>
     </section>
     @endif
+    --}}
 
     <!-- Ending Soon Auctions -->
     @if($endingSoon->count() > 0)
