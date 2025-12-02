@@ -65,7 +65,13 @@ class MilestoneController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $totalAmount = $escrow->milestones()->where('approval_status', '!=', 'rejected')->sum('amount');
+        // Check if approval_status column exists
+        $hasApprovalStatus = \Illuminate\Support\Facades\Schema::hasColumn('milestones', 'approval_status');
+        $milestonesQuery = $escrow->milestones();
+        if ($hasApprovalStatus) {
+            $milestonesQuery->where('approval_status', '!=', 'rejected');
+        }
+        $totalAmount = $milestonesQuery->sum('amount');
         $restAmount  = $escrow->amount + $escrow->buyer_charge - $totalAmount;
 
         $request->validate([
@@ -79,15 +85,15 @@ class MilestoneController extends Controller
         try {
             // Get current max sort_order (if column exists, otherwise use count)
             $maxSortOrder = 0;
-            try {
-                $maxSortOrder = Milestone::where('escrow_id', $escrow->id)
-                    ->where('approval_status', '!=', 'rejected')
-                    ->max('sort_order') ?? 0;
-            } catch (\Exception $e) {
-                // sort_order column doesn't exist, use count instead
-                $maxSortOrder = Milestone::where('escrow_id', $escrow->id)
-                    ->where('approval_status', '!=', 'rejected')
-                    ->count();
+            $hasApprovalStatus = \Illuminate\Support\Facades\Schema::hasColumn('milestones', 'approval_status');
+            $sortQuery = Milestone::where('escrow_id', $escrow->id);
+            if ($hasApprovalStatus) {
+                $sortQuery->where('approval_status', '!=', 'rejected');
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('milestones', 'sort_order')) {
+                $maxSortOrder = $sortQuery->max('sort_order') ?? 0;
+            } else {
+                $maxSortOrder = $sortQuery->count();
             }
 
             $milestone = new Milestone();
@@ -112,10 +118,12 @@ class MilestoneController extends Controller
                 $milestone->approved_by_buyer = true;
             }
             
-            // Status is approved only if both parties have approved
-            $milestone->approval_status = ($milestone->approved_by_seller && $milestone->approved_by_buyer) 
-                ? 'approved' 
-                : 'pending';
+            // Status is approved only if both parties have approved (only if column exists)
+            if ($hasApprovalStatus) {
+                $milestone->approval_status = ($milestone->approved_by_seller && $milestone->approved_by_buyer) 
+                    ? 'approved' 
+                    : 'pending';
+            }
             
             $milestone->payment_status = Status::MILESTONE_UNFUNDED;
             $milestone->status = 1;
@@ -125,14 +133,15 @@ class MilestoneController extends Controller
 
             // Notify the other party
             $otherParty = $isSeller ? $escrow->buyer : $escrow->seller;
+            $isPending = $hasApprovalStatus && $milestone->approval_status === 'pending';
             notify($otherParty, 'MILESTONE_CREATED', [
                 'escrow_number' => $escrow->escrow_number,
                 'milestone_note' => $milestone->note,
                 'milestone_amount' => showAmount($milestone->amount),
-                'action_required' => $milestone->approval_status === 'pending' ? 'Please review and approve this milestone' : null,
+                'action_required' => $isPending ? 'Please review and approve this milestone' : null,
             ]);
 
-            $notify[] = ['success', 'Milestone created successfully. ' . ($milestone->approval_status === 'pending' ? 'Waiting for ' . ($isSeller ? 'buyer' : 'seller') . ' approval.' : 'Milestone is approved and ready.')];
+            $notify[] = ['success', 'Milestone created successfully. ' . ($isPending ? 'Waiting for ' . ($isSeller ? 'buyer' : 'seller') . ' approval.' : 'Milestone is approved and ready.')];
             return back()->withNotify($notify);
             
         } catch (\Exception $e) {
@@ -173,7 +182,12 @@ class MilestoneController extends Controller
         $template = MilestoneTemplate::findOrFail($request->template_id);
         
         // Check if milestones already exist
-        if ($escrow->milestones()->where('approval_status', '!=', 'rejected')->exists()) {
+        $hasApprovalStatus = \Illuminate\Support\Facades\Schema::hasColumn('milestones', 'approval_status');
+        $milestonesQuery = $escrow->milestones();
+        if ($hasApprovalStatus) {
+            $milestonesQuery->where('approval_status', '!=', 'rejected');
+        }
+        if ($milestonesQuery->exists()) {
             $notify[] = ['error', 'Milestones already exist. Please delete existing milestones first.'];
             return back()->withNotify($notify);
         }
@@ -247,9 +261,14 @@ class MilestoneController extends Controller
             }
             
             // Check if both parties have approved
+            $hasApprovalStatus = \Illuminate\Support\Facades\Schema::hasColumn('milestones', 'approval_status');
             if ($milestone->approved_by_seller && $milestone->approved_by_buyer) {
-                $milestone->approval_status = 'approved';
-                $milestone->approved_at = now();
+                if ($hasApprovalStatus) {
+                    $milestone->approval_status = 'approved';
+                }
+                if (\Illuminate\Support\Facades\Schema::hasColumn('milestones', 'approved_at')) {
+                    $milestone->approved_at = now();
+                }
             }
             
             $milestone->save();
@@ -265,7 +284,9 @@ class MilestoneController extends Controller
                 'approved_by' => $user->username ?? $user->name,
             ]);
 
-            $message = $milestone->approval_status === 'approved' 
+            $hasApprovalStatus = \Illuminate\Support\Facades\Schema::hasColumn('milestones', 'approval_status');
+            $isApproved = $hasApprovalStatus && $milestone->approval_status === 'approved';
+            $message = $isApproved 
                 ? 'Milestone approved by both parties and is now active.'
                 : 'Your approval has been recorded. Waiting for ' . ($isSeller ? 'buyer' : 'seller') . ' approval.';
             
@@ -300,7 +321,9 @@ class MilestoneController extends Controller
         }
 
         // Can't reject if already approved by both parties
-        if ($milestone->approval_status === 'approved') {
+        $hasApprovalStatus = \Illuminate\Support\Facades\Schema::hasColumn('milestones', 'approval_status');
+        $isApproved = $hasApprovalStatus ? ($milestone->approval_status === 'approved') : ($milestone->approved_by_seller && $milestone->approved_by_buyer);
+        if ($isApproved) {
             $notify[] = ['error', 'Cannot reject an approved milestone'];
             return back()->withNotify($notify);
         }
@@ -309,12 +332,25 @@ class MilestoneController extends Controller
             'rejection_reason' => 'required|string|max:500',
         ]);
 
+        $hasApprovalStatus = \Illuminate\Support\Facades\Schema::hasColumn('milestones', 'approval_status');
+        $isApproved = $hasApprovalStatus ? ($milestone->approval_status === 'approved') : ($milestone->approved_by_seller && $milestone->approved_by_buyer);
+        if ($isApproved) {
+            $notify[] = ['error', 'Cannot reject an approved milestone'];
+            return back()->withNotify($notify);
+        }
+
         DB::beginTransaction();
         
         try {
-            $milestone->approval_status = 'rejected';
-            $milestone->rejection_reason = $request->rejection_reason;
-            $milestone->rejected_by = $user->id;
+            if ($hasApprovalStatus) {
+                $milestone->approval_status = 'rejected';
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('milestones', 'rejection_reason')) {
+                $milestone->rejection_reason = $request->rejection_reason;
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('milestones', 'rejected_by')) {
+                $milestone->rejected_by = $user->id;
+            }
             $milestone->save();
 
             DB::commit();
@@ -354,12 +390,14 @@ class MilestoneController extends Controller
         // Can only delete if:
         // 1. Not approved by both parties, OR
         // 2. You created it and it's not funded
-        if ($milestone->approval_status === 'approved' && $milestone->payment_status === Status::MILESTONE_FUNDED) {
+        $hasApprovalStatus = \Illuminate\Support\Facades\Schema::hasColumn('milestones', 'approval_status');
+        $isApproved = $hasApprovalStatus ? ($milestone->approval_status === 'approved') : ($milestone->approved_by_seller && $milestone->approved_by_buyer);
+        if ($isApproved && $milestone->payment_status === Status::MILESTONE_FUNDED) {
             $notify[] = ['error', 'Cannot delete a funded milestone'];
             return back()->withNotify($notify);
         }
         
-        if ($milestone->user_id != $user->id && $milestone->approval_status === 'approved') {
+        if ($milestone->user_id != $user->id && $isApproved) {
             $notify[] = ['error', 'Cannot delete an approved milestone created by someone else'];
             return back()->withNotify($notify);
         }
@@ -398,8 +436,14 @@ class MilestoneController extends Controller
                 return back()->withNotify($notify);
             }
 
-            // Check if milestone is approved by both parties
-            if ($milestone->approval_status !== 'approved') {
+            // Check if milestone is approved by both parties (if approval_status column exists)
+            $hasApprovalStatus = \Illuminate\Support\Facades\Schema::hasColumn('milestones', 'approval_status');
+            if ($hasApprovalStatus && $milestone->approval_status !== 'approved') {
+                $notify[] = ['error', 'You can only pay for milestones that are approved by both parties'];
+                return back()->withNotify($notify);
+            }
+            // If approval_status doesn't exist, check if both parties have approved using boolean fields
+            if (!$hasApprovalStatus && (!($milestone->approved_by_seller && $milestone->approved_by_buyer))) {
                 $notify[] = ['error', 'You can only pay for milestones that are approved by both parties'];
                 return back()->withNotify($notify);
             }
