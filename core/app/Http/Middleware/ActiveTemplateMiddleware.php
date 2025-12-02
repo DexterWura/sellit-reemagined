@@ -19,17 +19,28 @@ class ActiveTemplateMiddleware
      */
     public function handle(Request $request, Closure $next)
     {
-        $viewShare['activeTemplate']     = activeTemplate();
-        $viewShare['activeTemplateTrue'] = activeTemplate(true);
-        view()->share($viewShare);
+        try {
+            $viewShare['activeTemplate']     = activeTemplate();
+            $viewShare['activeTemplateTrue'] = activeTemplate(true);
+            view()->share($viewShare);
 
-        view()->composer([$viewShare['activeTemplate'] . "partials.header", $viewShare['activeTemplate'] . "partials.footer"], function ($view) {
-            $view->with([
-                'pages' => Page::where('is_default', Status::NO)->where('tempname', activeTemplate())->orderBy('id', 'DESC')->get()
-            ]);
-        });
+            view()->composer([$viewShare['activeTemplate'] . "partials.header", $viewShare['activeTemplate'] . "partials.footer"], function ($view) {
+                try {
+                    $view->with([
+                        'pages' => Page::where('is_default', Status::NO)->where('tempname', activeTemplate())->orderBy('id', 'DESC')->get()
+                    ]);
+                } catch (\Exception $e) {
+                    $view->with(['pages' => collect()]);
+                }
+            });
 
-        View::addNamespace('Template', resource_path('views/templates/' . activeTemplateName()));
+            View::addNamespace('Template', resource_path('views/templates/' . activeTemplateName()));
+        } catch (\Exception $e) {
+            // If anything fails, just continue with defaults
+            $viewShare['activeTemplate'] = 'templates.basic.';
+            $viewShare['activeTemplateTrue'] = 'assets/templates/basic/';
+            view()->share($viewShare);
+        }
 
         return $next($request);
     }

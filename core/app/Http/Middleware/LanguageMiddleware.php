@@ -27,8 +27,13 @@ class LanguageMiddleware
         if (session()->has('lang')) {
             return session('lang');
         }
-        $language = Language::where('is_default', Status::ENABLE)->first();
-        return $language ? $language->code : 'en';
+        try {
+            $language = Language::where('is_default', Status::ENABLE)->first();
+            return $language ? $language->code : 'en';
+        } catch (\Exception $e) {
+            // Database not ready, return default
+            return 'en';
+        }
     }
 
 

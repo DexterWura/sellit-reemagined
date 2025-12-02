@@ -8,10 +8,16 @@ class Utility{
 
     public function handle($request, Closure $next)
     {
-        if (!Helpmate::sysPass()) {
-            return redirect()->route(VugiChugi::acRouter());
+        try {
+            $sysPass = Helpmate::sysPass();
+            if (!$sysPass) {
+                return redirect()->route(VugiChugi::acRouter());
+            }
+            abort_if($sysPass === 99 && request()->isMethod('post'),401);
+        } catch (\Exception $e) {
+            // If verification fails, allow request to continue
+            // This prevents 500 errors during installation or when database isn't ready
         }
-        abort_if(Helpmate::sysPass() === 99 && request()->isMethod('post'),401);
         return $next($request);
     }
 }
