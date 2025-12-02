@@ -33,21 +33,78 @@
                                 <th>@lang('Date')</th>
                                 <th>@lang('Note')</th>
                                 <th>@lang('Amount')</th>
+                                <th>@lang('Approval Status')</th>
                                 <th>@lang('Payment Status')</th>
-
-                                @if ($escrow->buyer_id == auth()->id() && $escrow->restAmount())
-                                    <th>@lang('Action')</th>
-                                @endif
+                                <th>@lang('Action')</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($milestones as $milestone)
+                                @php
+                                    $hasApprovalStatus = \Illuminate\Support\Facades\Schema::hasColumn('milestones', 'approval_status');
+                                    $isApproved = $hasApprovalStatus ? ($milestone->approval_status === 'approved') : ($milestone->approved_by_seller && $milestone->approved_by_buyer);
+                                    $isPending = $hasApprovalStatus ? ($milestone->approval_status === 'pending') : (!($milestone->approved_by_seller && $milestone->approved_by_buyer));
+                                    $isRejected = $hasApprovalStatus && $milestone->approval_status === 'rejected';
+                                    
+                                    $user = auth()->user();
+                                    $isSeller = $escrow->seller_id == $user->id;
+                                    $isBuyer = $escrow->buyer_id == $user->id;
+                                    
+                                    // Check if user needs to approve
+                                    $needsSellerApproval = $isSeller && !$milestone->approved_by_seller && !$isRejected;
+                                    $needsBuyerApproval = $isBuyer && !$milestone->approved_by_buyer && !$isRejected;
+                                    $canApprove = ($needsSellerApproval || $needsBuyerApproval) && $isPending;
+                                    $canReject = ($isSeller || $isBuyer) && $isPending && !$isApproved;
+                                    
+                                    // Check if created by buyer or seller
+                                    $createdBy = isset($milestone->requested_by) ? $milestone->requested_by : ($milestone->user_id == $escrow->seller_id ? 'seller' : 'buyer');
+                                @endphp
                                 <tr>
                                     <td>{{ showDateTime($milestone->created_at, 'Y-m-d') }}</td>
 
-                                    <td>{{ $milestone->note }}</td>
+                                    <td>
+                                        {{ $milestone->note }}
+                                        @if($isRejected && isset($milestone->rejection_reason))
+                                            <br><small class="text-danger"><i class="las la-times-circle"></i> @lang('Rejected'): {{ $milestone->rejection_reason }}</small>
+                                        @endif
+                                    </td>
 
                                     <td>{{ showAmount($milestone->amount) }}</td>
+
+                                    <td>
+                                        @if($isApproved)
+                                            <span class="badge badge--success">
+                                                <i class="las la-check-circle"></i> @lang('Approved')
+                                            </span>
+                                        @elseif($isRejected)
+                                            <span class="badge badge--danger">
+                                                <i class="las la-times-circle"></i> @lang('Rejected')
+                                            </span>
+                                        @else
+                                            <span class="badge badge--warning">
+                                                <i class="las la-clock"></i> @lang('Pending Approval')
+                                            </span>
+                                            <br>
+                                            <small class="text-muted">
+                                                @if($createdBy == 'buyer')
+                                                    @lang('Created by buyer')
+                                                @else
+                                                    @lang('Created by seller')
+                                                @endif
+                                                <br>
+                                                @if(!$milestone->approved_by_seller)
+                                                    <span class="text-danger">@lang('Seller: Pending')</span>
+                                                @else
+                                                    <span class="text-success">@lang('Seller: ✓')</span>
+                                                @endif
+                                                @if(!$milestone->approved_by_buyer)
+                                                    <span class="text-danger"> | @lang('Buyer: Pending')</span>
+                                                @else
+                                                    <span class="text-success"> | @lang('Buyer: ✓')</span>
+                                                @endif
+                                            </small>
+                                        @endif
+                                    </td>
 
                                     <td>
                                         @if ($milestone->payment_status == Status::MILESTONE_FUNDED)
@@ -61,13 +118,43 @@
                                         @endif
                                     </td>
 
-                                    @if ($escrow->buyer_id == auth()->id() && $escrow->restAmount())
-                                        <td>
-                                            <button class="btn btn--primary btn-sm payBtn" @disabled($milestone->payment_status == Status::MILESTONE_FUNDED || optional($milestone->deposit)->status == Status::PAYMENT_PENDING) data-id="{{ $milestone->id }}">
-                                                @lang('Pay Now')
-                                            </button>
-                                        </td>
-                                    @endif
+                                    <td>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            {{-- Approval Actions --}}
+                                            @if($canApprove)
+                                                <form action="{{ route('user.escrow.milestone.approve', $milestone->id) }}" method="POST" class="d-inline">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn--success btn-sm" title="@lang('Approve Milestone')">
+                                                        <i class="las la-check"></i> @lang('Approve')
+                                                    </button>
+                                                </form>
+                                            @endif
+                                            
+                                            @if($canReject)
+                                                <button type="button" class="btn btn--danger btn-sm rejectBtn" data-id="{{ $milestone->id }}" title="@lang('Reject Milestone')">
+                                                    <i class="las la-times"></i> @lang('Reject')
+                                                </button>
+                                            @endif
+                                            
+                                            {{-- Payment Action (only for buyer, only if approved) --}}
+                                            @if ($isBuyer && $isApproved && $escrow->restAmount() && $milestone->payment_status != Status::MILESTONE_FUNDED)
+                                                <button class="btn btn--primary btn-sm payBtn" @disabled(optional($milestone->deposit)->status == Status::PAYMENT_PENDING) data-id="{{ $milestone->id }}" title="@lang('Pay Milestone')">
+                                                    <i class="las la-money-bill-wave"></i> @lang('Pay')
+                                                </button>
+                                            @endif
+                                            
+                                            {{-- Delete Action (only if not funded and created by user or not approved) --}}
+                                            @if(($milestone->user_id == $user->id || !$isApproved) && $milestone->payment_status != Status::MILESTONE_FUNDED)
+                                                <form action="{{ route('user.escrow.milestone.delete', $milestone->id) }}" method="POST" class="d-inline" onsubmit="return confirm('@lang('Are you sure you want to delete this milestone?')');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn--danger btn-sm" title="@lang('Delete Milestone')">
+                                                        <i class="las la-trash"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
@@ -113,6 +200,32 @@
                     </div>
                     <div class="modal-footer">
                         <button type="submit" class="btn btn--base w-100 h-45">@lang('Submit')</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Reject Milestone Modal --}}
+    <div class="modal fade" id="rejectModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@lang('Reject Milestone')</h5>
+                    <button role="button" class="close"><i class="las la-times" data-bs-dismiss="modal"></i></button>
+                </div>
+                <form action="" method="POST">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">@lang('Rejection Reason') <span class="text-danger">*</span></label>
+                            <textarea name="rejection_reason" class="form-control form--control" rows="3" placeholder="@lang('Please provide a reason for rejecting this milestone')" required></textarea>
+                            <small class="text-muted">@lang('This will be shared with the other party')</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn--secondary" data-bs-dismiss="modal">@lang('Cancel')</button>
+                        <button type="submit" class="btn btn--danger">@lang('Reject Milestone')</button>
                     </div>
                 </form>
             </div>
@@ -166,7 +279,13 @@
                 var modal = $('#payModal');
                 modal.find('form')[0].action = `{{ route('user.escrow.milestone.pay', '') }}/${$(this).data('id')}`;
                 modal.modal('show');
-            })
+            });
+
+            $('.rejectBtn').on('click', function() {
+                var modal = $('#rejectModal');
+                modal.find('form')[0].action = `{{ route('user.escrow.milestone.reject', '') }}/${$(this).data('id')}`;
+                modal.modal('show');
+            });
         })(jQuery);
     </script>
 @endpush
