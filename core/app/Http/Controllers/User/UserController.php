@@ -14,6 +14,7 @@ use App\Models\Listing;
 use App\Models\Bid;
 use App\Models\Offer;
 use App\Models\Watchlist;
+use App\Models\Milestone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -74,7 +75,11 @@ class UserController extends Controller
         $data['pendingWithdrawals'] = $user->withdrawals()->pending()->count();
 
         $transactions = Transaction::where('user_id', auth()->id())->latest()->limit(5)->get();
-        return view('Template::user.dashboard', compact('pageTitle', 'user', 'transactions', 'data'));
+        
+        // Get pending escrow actions for reminders
+        $pendingActions = $this->getPendingEscrowActions($user);
+        
+        return view('Template::user.dashboard', compact('pageTitle', 'user', 'transactions', 'data', 'pendingActions'));
 
     }
 
@@ -294,6 +299,125 @@ class UserController extends Controller
         header('Content-Disposition: attachment; filename="' . $title);
         header("Content-Type: " . $mimetype);
         return readfile($filePath);
+    }
+
+    /**
+     * Get pending escrow actions that require user attention
+     */
+    private function getPendingEscrowActions($user)
+    {
+        $actions = [];
+
+        // Get all escrows where user is buyer or seller
+        $escrows = Escrow::where(function($q) use ($user) {
+            $q->where('buyer_id', $user->id)
+              ->orWhere('seller_id', $user->id);
+        })
+        ->whereNotIn('status', [Status::ESCROW_COMPLETED, Status::ESCROW_CANCELLED])
+        ->with(['listing', 'milestones'])
+        ->get();
+
+        foreach ($escrows as $escrow) {
+            $isBuyer = $escrow->buyer_id == $user->id;
+            $isSeller = $escrow->seller_id == $user->id;
+
+            // 1. Escrow not accepted - buyer needs to accept (for non-marketplace escrows)
+            if ($escrow->status == Status::ESCROW_NOT_ACCEPTED && $isBuyer && $escrow->creator_id != $user->id) {
+                $actions[] = [
+                    'type' => 'escrow_accept_buyer',
+                    'message' => 'You have a pending escrow. Please accept it to proceed.',
+                    'link' => route('user.escrow.details', $escrow->id),
+                    'linkText' => 'View Escrow',
+                    'priority' => 'high',
+                    'escrow_id' => $escrow->id,
+                    'listing_title' => $escrow->listing ? ($escrow->listing->title ?? $escrow->listing->domain_name ?? 'N/A') : ($escrow->title ?? 'N/A'),
+                ];
+            }
+
+            // 2. Escrow not accepted - seller needs to accept (for non-marketplace escrows)
+            if ($escrow->status == Status::ESCROW_NOT_ACCEPTED && $isSeller) {
+                $actions[] = [
+                    'type' => 'escrow_accept_seller',
+                    'message' => 'A buyer has initiated payment. Please accept the escrow to proceed.',
+                    'link' => route('user.escrow.details', $escrow->id),
+                    'linkText' => 'View Escrow',
+                    'priority' => 'high',
+                    'escrow_id' => $escrow->id,
+                    'listing_title' => $escrow->listing ? ($escrow->listing->title ?? $escrow->listing->domain_name ?? 'N/A') : ($escrow->title ?? 'N/A'),
+                ];
+            }
+
+            // 3. Escrow accepted but buyer needs to pay
+            if ($escrow->status == Status::ESCROW_ACCEPTED && $isBuyer) {
+                $totalAmount = $escrow->amount + $escrow->buyer_charge;
+                $remainingAmount = $totalAmount - $escrow->paid_amount;
+
+                // Check if there are milestones
+                $milestones = $escrow->milestones;
+                if ($milestones->count() > 0) {
+                    // Check for milestones pending approval
+                    $pendingMilestones = $milestones->where('approval_status', 'pending');
+                    if ($pendingMilestones->count() > 0) {
+                        $actions[] = [
+                            'type' => 'milestones_pending_approval',
+                            'message' => 'You have ' . $pendingMilestones->count() . ' milestone(s) pending your approval.',
+                            'link' => route('user.escrow.milestone.index', $escrow->id),
+                            'linkText' => 'Review Milestones',
+                            'priority' => 'high',
+                            'escrow_id' => $escrow->id,
+                            'listing_title' => $escrow->listing ? ($escrow->listing->title ?? $escrow->listing->domain_name ?? 'N/A') : 'N/A',
+                        ];
+                    }
+
+                    // Check for milestones ready for payment
+                    $readyMilestones = $milestones->filter(function($m) {
+                        return $m->approval_status === 'approved' && $m->payment_status == Status::MILESTONE_UNFUNDED;
+                    });
+                    if ($readyMilestones->count() > 0) {
+                        $totalDue = $readyMilestones->sum('amount');
+                        $actions[] = [
+                            'type' => 'milestones_ready_payment',
+                            'message' => 'You have ' . $readyMilestones->count() . ' milestone(s) ready for payment. Total: ' . showAmount($totalDue),
+                            'link' => route('user.escrow.milestone.index', $escrow->id),
+                            'linkText' => 'Pay Milestones',
+                            'priority' => 'high',
+                            'escrow_id' => $escrow->id,
+                            'listing_title' => $escrow->listing ? ($escrow->listing->title ?? $escrow->listing->domain_name ?? 'N/A') : 'N/A',
+                        ];
+                    }
+                } elseif ($remainingAmount > 0) {
+                    // No milestones, but buyer needs to pay the full amount
+                    $actions[] = [
+                        'type' => 'escrow_payment_required',
+                        'message' => 'Please complete payment for your purchase. Remaining: ' . showAmount($remainingAmount),
+                        'link' => route('user.escrow.details', $escrow->id),
+                        'linkText' => 'Complete Payment',
+                        'priority' => 'high',
+                        'escrow_id' => $escrow->id,
+                        'listing_title' => $escrow->listing ? ($escrow->listing->title ?? $escrow->listing->domain_name ?? 'N/A') : 'N/A',
+                    ];
+                }
+            }
+
+            // 4. Escrow accepted - seller has milestones pending approval
+            if ($escrow->status == Status::ESCROW_ACCEPTED && $isSeller) {
+                $milestones = $escrow->milestones;
+                $pendingMilestones = $milestones->where('approval_status', 'pending');
+                if ($pendingMilestones->count() > 0) {
+                    $actions[] = [
+                        'type' => 'milestones_pending_approval_seller',
+                        'message' => 'You have ' . $pendingMilestones->count() . ' milestone(s) pending your approval.',
+                        'link' => route('user.escrow.milestone.index', $escrow->id),
+                        'linkText' => 'Review Milestones',
+                        'priority' => 'medium',
+                        'escrow_id' => $escrow->id,
+                        'listing_title' => $escrow->listing ? ($escrow->listing->title ?? $escrow->listing->domain_name ?? 'N/A') : 'N/A',
+                    ];
+                }
+            }
+        }
+
+        return $actions;
     }
 
 }

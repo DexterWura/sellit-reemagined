@@ -51,6 +51,45 @@
                     </div>
                 @endif
 
+                {{-- Pending Escrow Actions Reminders --}}
+                @if(isset($pendingActions) && count($pendingActions) > 0)
+                    @foreach($pendingActions as $action)
+                        <div class="col-12">
+                            <div class="alert alert-{{ $action['priority'] == 'high' ? 'danger' : 'warning' }} mb-0">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                    <div class="flex-grow-1">
+                                        <h4 class="alert-heading text--{{ $action['priority'] == 'high' ? 'danger' : 'warning' }} m-0">
+                                            @if($action['type'] == 'escrow_accept_buyer')
+                                                @lang('Action Required: Accept Escrow')
+                                            @elseif($action['type'] == 'escrow_accept_seller')
+                                                @lang('Action Required: Accept Escrow')
+                                            @elseif($action['type'] == 'escrow_payment_required')
+                                                @lang('Payment Required')
+                                            @elseif($action['type'] == 'milestones_pending_approval' || $action['type'] == 'milestones_pending_approval_seller')
+                                                @lang('Milestones Pending Approval')
+                                            @elseif($action['type'] == 'milestones_ready_payment')
+                                                @lang('Milestones Ready for Payment')
+                                            @else
+                                                @lang('Action Required')
+                                            @endif
+                                        </h4>
+                                    </div>
+                                </div>
+                                <hr>
+                                <p class="mb-2">
+                                    <strong>{{ $action['listing_title'] }}</strong>
+                                </p>
+                                <p class="mb-0">
+                                    {{ $action['message'] }}
+                                    <a href="{{ $action['link'] }}" class="fw-bold">
+                                        {{ $action['linkText'] }}
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                    @endforeach
+                @endif
+
 
                 <div class="col-lg-8 col-xl-9">
 
