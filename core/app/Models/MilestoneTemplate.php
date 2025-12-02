@@ -17,10 +17,22 @@ class MilestoneTemplate extends Model
      */
     public static function getTemplatesForBusinessType($businessType)
     {
-        return self::where('business_type', $businessType)
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->get();
+        // Check if table exists first
+        if (!\Illuminate\Support\Facades\Schema::hasTable('milestone_templates')) {
+            return collect([]);
+        }
+        
+        $query = self::where('business_type', $businessType)
+            ->where('is_active', true);
+        
+        // Only order by sort_order if column exists
+        if (\Illuminate\Support\Facades\Schema::hasColumn('milestone_templates', 'sort_order')) {
+            $query->orderBy('sort_order');
+        } else {
+            $query->orderBy('id');
+        }
+        
+        return $query->get();
     }
 
     /**
@@ -28,6 +40,11 @@ class MilestoneTemplate extends Model
      */
     public static function getDefaultTemplate($businessType)
     {
+        // Check if table exists first
+        if (!\Illuminate\Support\Facades\Schema::hasTable('milestone_templates')) {
+            return null;
+        }
+        
         return self::where('business_type', $businessType)
             ->where('is_default', true)
             ->where('is_active', true)
@@ -47,14 +64,13 @@ class MilestoneTemplate extends Model
                 ? ($totalAmount * $template['percentage'] / 100)
                 : ($template['amount'] ?? 0);
             
-            $milestones[] = [
+            $milestoneData = [
                 'escrow_id' => $escrow->id,
                 'user_id' => $escrow->seller_id,
                 'requested_by' => 'seller',
                 'milestone_type' => $template['type'] ?? null,
                 'note' => $template['note'] ?? $template['title'] ?? '',
                 'amount' => $amount,
-                'sort_order' => $index + 1,
                 'approval_status' => 'pending',
                 'approved_by_seller' => true, // Seller auto-approves their own proposal
                 'approved_by_buyer' => false,
@@ -63,6 +79,13 @@ class MilestoneTemplate extends Model
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
+            
+            // Only add sort_order if column exists
+            if (\Illuminate\Support\Facades\Schema::hasColumn('milestones', 'sort_order')) {
+                $milestoneData['sort_order'] = $index + 1;
+            }
+            
+            $milestones[] = $milestoneData;
         }
         
         return $milestones;

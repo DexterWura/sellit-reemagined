@@ -32,10 +32,18 @@ class MilestoneController extends Controller
         // Get available templates if no milestones exist yet
         $templates = null;
         if ($milestones->isEmpty() && $escrow->status == Status::ESCROW_ACCEPTED) {
-            // Try to get business type from associated listing
-            $listing = \App\Models\Listing::where('escrow_id', $escrow->id)->first();
-            if ($listing) {
-                $templates = MilestoneTemplate::getTemplatesForBusinessType($listing->business_type);
+            // Check if milestone_templates table exists before querying
+            if (\Illuminate\Support\Facades\Schema::hasTable('milestone_templates')) {
+                // Try to get business type from associated listing
+                $listing = \App\Models\Listing::where('escrow_id', $escrow->id)->first();
+                if ($listing) {
+                    try {
+                        $templates = MilestoneTemplate::getTemplatesForBusinessType($listing->business_type);
+                    } catch (\Exception $e) {
+                        // Table or column doesn't exist, skip templates
+                        $templates = null;
+                    }
+                }
             }
         }
         
@@ -150,6 +158,12 @@ class MilestoneController extends Controller
         // Only seller can generate from template
         if ($escrow->seller_id != $user->id) {
             abort(403, 'Only seller can generate milestones from template');
+        }
+
+        // Check if milestone_templates table exists
+        if (!\Illuminate\Support\Facades\Schema::hasTable('milestone_templates')) {
+            $notify[] = ['error', 'Milestone templates feature is not available'];
+            return back()->withNotify($notify);
         }
 
         $request->validate([
