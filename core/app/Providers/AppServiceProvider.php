@@ -68,12 +68,13 @@ class AppServiceProvider extends ServiceProvider
             }
             
             if (!$isInstalled) {
-                $envFilePath = base_path('.env');
+                // .env is in the parent directory of core
+                $envFilePath = dirname(base_path()) . '/.env';
                 if (!file_exists($envFilePath)) {
                     header('Location: /install');
                     exit;
                 }
-                $envContents = file_get_contents($envFilePath);
+                $envContents = @file_get_contents($envFilePath);
                 if (empty(trim($envContents))) {
                     header('Location: /install');
                     exit;
@@ -94,48 +95,93 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
+        // Only proceed with view composers if database is ready
+        try {
+            // Check if database connection is available
+            \DB::connection()->getPdo();
+            
+            $activeTemplate = activeTemplate();
+            $viewShare['activeTemplate'] = $activeTemplate;
+            $viewShare['activeTemplateTrue'] = activeTemplate(true);
+            $viewShare['emptyMessage'] = 'Data not found';
+            view()->share($viewShare);
 
-        $activeTemplate = activeTemplate();
-        $viewShare['activeTemplate'] = $activeTemplate;
-        $viewShare['activeTemplateTrue'] = activeTemplate(true);
-        $viewShare['emptyMessage'] = 'Data not found';
-        view()->share($viewShare);
 
+            view()->composer('admin.partials.sidenav', function ($view) {
+                try {
+                    $view->with([
+                        'bannedUsersCount'           => User::banned()->count(),
+                        'emailUnverifiedUsersCount' => User::emailUnverified()->count(),
+                        'mobileUnverifiedUsersCount'   => User::mobileUnverified()->count(),
+                        'kycUnverifiedUsersCount'   => User::kycUnverified()->count(),
+                        'kycPendingUsersCount'   => User::kycPending()->count(),
+                        'pendingTicketCount'         => SupportTicket::whereIN('status', [Status::TICKET_OPEN, Status::TICKET_REPLY])->count(),
+                        'pendingDepositsCount'    => Deposit::pending()->count(),
+                        'pendingWithdrawCount'    => Withdrawal::pending()->count(),
+                        'disputedEscrowCount'        => Escrow::disputed()->count(),
+                        'pendingListingsCount'    => Listing::where('status', Status::LISTING_PENDING)->count(),
+                        'pendingOffersCount'      => Offer::where('status', Status::OFFER_PENDING)->count(),
+                        'pendingReviewsCount'     => Review::where('status', Status::REVIEW_PENDING)->count(),
+                        'updateAvailable'    => version_compare(gs('available_version'),systemDetails()['version'],'>') ? 'v'.gs('available_version') : false,
+                    ]);
+                } catch (\Exception $e) {
+                    // Database might not be ready, use defaults
+                    $view->with([
+                        'bannedUsersCount' => 0,
+                        'emailUnverifiedUsersCount' => 0,
+                        'mobileUnverifiedUsersCount' => 0,
+                        'kycUnverifiedUsersCount' => 0,
+                        'kycPendingUsersCount' => 0,
+                        'pendingTicketCount' => 0,
+                        'pendingDepositsCount' => 0,
+                        'pendingWithdrawCount' => 0,
+                        'disputedEscrowCount' => 0,
+                        'pendingListingsCount' => 0,
+                        'pendingOffersCount' => 0,
+                        'pendingReviewsCount' => 0,
+                        'updateAvailable' => false,
+                    ]);
+                }
+            });
 
-        view()->composer('admin.partials.sidenav', function ($view) {
-            $view->with([
-                'bannedUsersCount'           => User::banned()->count(),
-                'emailUnverifiedUsersCount' => User::emailUnverified()->count(),
-                'mobileUnverifiedUsersCount'   => User::mobileUnverified()->count(),
-                'kycUnverifiedUsersCount'   => User::kycUnverified()->count(),
-                'kycPendingUsersCount'   => User::kycPending()->count(),
-                'pendingTicketCount'         => SupportTicket::whereIN('status', [Status::TICKET_OPEN, Status::TICKET_REPLY])->count(),
-                'pendingDepositsCount'    => Deposit::pending()->count(),
-                'pendingWithdrawCount'    => Withdrawal::pending()->count(),
-                'disputedEscrowCount'        => Escrow::disputed()->count(),
-                'pendingListingsCount'    => Listing::where('status', Status::LISTING_PENDING)->count(),
-                'pendingOffersCount'      => Offer::where('status', Status::OFFER_PENDING)->count(),
-                'pendingReviewsCount'     => Review::where('status', Status::REVIEW_PENDING)->count(),
-                'updateAvailable'    => version_compare(gs('available_version'),systemDetails()['version'],'>') ? 'v'.gs('available_version') : false,
-            ]);
-        });
+            view()->composer('admin.partials.topnav', function ($view) {
+                try {
+                    $view->with([
+                        'adminNotifications' => AdminNotification::where('is_read', Status::NO)->with('user')->orderBy('id', 'desc')->take(10)->get(),
+                        'adminNotificationCount' => AdminNotification::where('is_read', Status::NO)->count(),
+                    ]);
+                } catch (\Exception $e) {
+                    $view->with([
+                        'adminNotifications' => collect(),
+                        'adminNotificationCount' => 0,
+                    ]);
+                }
+            });
 
-        view()->composer('admin.partials.topnav', function ($view) {
-            $view->with([
-                'adminNotifications' => AdminNotification::where('is_read', Status::NO)->with('user')->orderBy('id', 'desc')->take(10)->get(),
-                'adminNotificationCount' => AdminNotification::where('is_read', Status::NO)->count(),
-            ]);
-        });
+            view()->composer('partials.seo', function ($view) {
+                try {
+                    $seo = Frontend::where('data_keys', 'seo.data')->first();
+                    $view->with([
+                        'seo' => $seo ? $seo->data_values : $seo,
+                    ]);
+                } catch (\Exception $e) {
+                    $view->with(['seo' => null]);
+                }
+            });
 
-        view()->composer('partials.seo', function ($view) {
-            $seo = Frontend::where('data_keys', 'seo.data')->first();
-            $view->with([
-                'seo' => $seo ? $seo->data_values : $seo,
-            ]);
-        });
-
-        if (gs('force_ssl')) {
-            \URL::forceScheme('https');
+            try {
+                if (gs('force_ssl')) {
+                    \URL::forceScheme('https');
+                }
+            } catch (\Exception $e) {
+                // Ignore if gs() fails
+            }
+        } catch (\Exception $e) {
+            // Database not ready, set minimal view shares
+            $viewShare['activeTemplate'] = 'templates.basic.';
+            $viewShare['activeTemplateTrue'] = 'assets/templates/basic/';
+            $viewShare['emptyMessage'] = 'Data not found';
+            view()->share($viewShare);
         }
 
 
