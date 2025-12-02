@@ -104,6 +104,10 @@ Route::middleware('auth')->name('user.')->group(function () {
             Route::controller('MilestoneController')->name('escrow.milestone.')->prefix('escrow/milestone')->group(function () {
                 Route::get('/{id}', 'milestones')->name('index');
                 Route::post('/{id}', 'createMilestone')->name('create');
+                Route::post('/generate/{id}', 'generateFromTemplate')->name('generate');
+                Route::post('/approve/{id}', 'approveMilestone')->name('approve');
+                Route::post('/reject/{id}', 'rejectMilestone')->name('reject');
+                Route::delete('/{id}', 'deleteMilestone')->name('delete');
                 Route::post('/pay/{id}', 'payMilestone')->name('pay');
             });
 

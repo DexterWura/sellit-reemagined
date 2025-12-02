@@ -150,6 +150,9 @@ class ProcessAuctionEnd implements ShouldQueue
                 $listing->escrow_id = $escrow->id;
                 $listing->save();
 
+                // Auto-generate milestones from template if available
+                $this->generateMilestonesFromTemplate($escrow, $listing);
+
                 // Update user stats
                 $listing->seller->increment('total_sales');
                 $listing->seller->increment('total_sales_value', $winningBid->amount);
@@ -252,6 +255,49 @@ class ProcessAuctionEnd implements ShouldQueue
         $conversation->save();
 
         return $escrow;
+    }
+
+    /**
+     * Generate milestones from template for auction escrow
+     */
+    private function generateMilestonesFromTemplate($escrow, $listing)
+    {
+        try {
+            $template = \App\Models\MilestoneTemplate::getDefaultTemplate($listing->business_type);
+            
+            if (!$template) {
+                // Try generic template
+                $template = \App\Models\MilestoneTemplate::getDefaultTemplate('all');
+            }
+            
+            if ($template) {
+                $totalAmount = $escrow->amount + $escrow->buyer_charge;
+                $milestones = $template->generateMilestones($escrow, $totalAmount);
+                
+                \App\Models\Milestone::insert($milestones);
+                
+                Log::info('Milestones auto-generated from template', [
+                    'escrow_id' => $escrow->id,
+                    'template_id' => $template->id,
+                    'milestone_count' => count($milestones)
+                ]);
+                
+                // Notify buyer to review milestones
+                notify($escrow->buyer, 'MILESTONES_GENERATED', [
+                    'escrow_number' => $escrow->escrow_number,
+                    'listing_title' => $listing->title,
+                    'template_name' => $template->name,
+                    'milestone_count' => count($milestones),
+                    'action_required' => 'Please review and approve the proposed milestones',
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Don't fail escrow creation if milestone generation fails
+            Log::warning('Failed to auto-generate milestones: ' . $e->getMessage(), [
+                'escrow_id' => $escrow->id,
+                'listing_id' => $listing->id
+            ]);
+        }
     }
 }
 
