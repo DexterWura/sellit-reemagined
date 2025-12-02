@@ -113,7 +113,10 @@
                                             </div>
                                         </div>
                                         
-                                        @if(($marketplaceSettings['require_domain_verification'] ?? '1') == '1')
+                                        @php
+                                            $requireDomainVerification = \App\Models\MarketplaceSetting::requireDomainVerification();
+                                        @endphp
+                                        @if($requireDomainVerification)
                                             @php
                                                 $allowedMethods = \App\Models\MarketplaceSetting::getDomainVerificationMethods();
                                             @endphp
@@ -240,7 +243,10 @@
                                             </div>
                                         </div>
                                         
-                                        @if(($marketplaceSettings['require_website_verification'] ?? '1') == '1')
+                                        @php
+                                            $requireWebsiteVerification = \App\Models\MarketplaceSetting::requireWebsiteVerification();
+                                        @endphp
+                                        @if($requireWebsiteVerification)
                                             @php
                                                 $allowedMethods = \App\Models\MarketplaceSetting::getDomainVerificationMethods();
                                             @endphp
@@ -849,12 +855,46 @@ $(document).ready(function() {
     // Business type change - show relevant fields
     $('input[name="business_type"]').on('change', function() {
         const type = $(this).val();
+        const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
+        const requireWebsiteVerification = {{ \App\Models\MarketplaceSetting::requireWebsiteVerification() ? 'true' : 'false' }};
         
         // Hide all business fields
         $('.business-fields').addClass('d-none');
         
         // Show relevant fields
         $(`.${type}-fields`).removeClass('d-none');
+        
+        // If domain is selected and verification is required, ensure verification section is ready
+        if (type === 'domain' && requireDomainVerification) {
+            // Check if domain name is already entered
+            const domainValue = $('#domainNameInput').val().trim();
+            if (domainValue) {
+                // Trigger input event to show verification section if domain is already entered
+                $('#domainNameInput').trigger('input');
+            } else {
+                // Hide verification section until domain is entered
+                $('#domainVerificationSection').slideUp();
+            }
+        } else if (type === 'domain' && !requireDomainVerification) {
+            // Hide verification section if verification is not required
+            $('#domainVerificationSection').slideUp();
+        }
+        
+        // If website is selected and verification is required, ensure verification section is ready
+        if (type === 'website' && requireWebsiteVerification) {
+            // Check if website URL is already entered
+            const websiteValue = $('#websiteUrlInput').val().trim();
+            if (websiteValue) {
+                // Trigger input event to show verification section if website is already entered
+                $('#websiteUrlInput').trigger('input');
+            } else {
+                // Hide verification section until website is entered
+                $('#websiteVerificationSection').slideUp();
+            }
+        } else if (type === 'website' && !requireWebsiteVerification) {
+            // Hide verification section if verification is not required
+            $('#websiteVerificationSection').slideUp();
+        }
         
         // Filter categories
         $('#listingCategory option').each(function() {
@@ -919,7 +959,7 @@ $(document).ready(function() {
         let value = $(this).val().trim();
         const warning = $('#domainProtocolWarning');
         const helpText = $('#domainHelpText');
-        const requireDomainVerification = {{ ($marketplaceSettings['require_domain_verification'] ?? '1') == '1' ? 'true' : 'false' }};
+        const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
         
         // Check if protocol is present
         if (value && !value.match(/^https?:\/\//i)) {
@@ -954,7 +994,7 @@ $(document).ready(function() {
         let value = $(this).val().trim();
         const warning = $('#websiteProtocolWarning');
         const helpText = $('#websiteHelpText');
-        const requireWebsiteVerification = {{ ($marketplaceSettings['require_website_verification'] ?? '1') == '1' ? 'true' : 'false' }};
+        const requireWebsiteVerification = {{ \App\Models\MarketplaceSetting::requireWebsiteVerification() ? 'true' : 'false' }};
         
         // Check if protocol is present
         if (value && !value.match(/^https?:\/\//i)) {
@@ -1277,8 +1317,8 @@ $(document).ready(function() {
     $('#listingForm').on('submit', function(e) {
         try {
             const businessType = $('input[name="business_type"]:checked').val();
-            const requireDomainVerification = {{ ($marketplaceSettings['require_domain_verification'] ?? '1') == '1' ? 'true' : 'false' }};
-            const requireWebsiteVerification = {{ ($marketplaceSettings['require_website_verification'] ?? '1') == '1' ? 'true' : 'false' }};
+            const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
+            const requireWebsiteVerification = {{ \App\Models\MarketplaceSetting::requireWebsiteVerification() ? 'true' : 'false' }};
             
             // Only check verification if it's required AND the business type needs it
             // If verification is not required, skip the check entirely
