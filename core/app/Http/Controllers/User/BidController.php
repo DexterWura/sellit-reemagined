@@ -9,6 +9,7 @@ use App\Models\Conversation;
 use App\Models\Escrow;
 use App\Models\Listing;
 use App\Models\Watchlist;
+use App\Models\MarketplaceSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -95,6 +96,9 @@ class BidController extends Controller
                 $bid->status = Status::BID_WINNING;
                 $bid->ip_address = $request->ip();
                 $bid->save();
+
+                // Check for auto-extend on last-minute bids
+                $this->checkAutoExtend($listing);
 
                 // Update listing
                 $listing->current_bid = $amount;
@@ -339,6 +343,45 @@ class BidController extends Controller
         $conversation->save();
 
         return $escrow;
+    }
+
+    /**
+     * Check if auction should be auto-extended on last-minute bid
+     */
+    private function checkAutoExtend($listing)
+    {
+        if ($listing->sale_type !== 'auction' || !$listing->auction_end) {
+            return;
+        }
+
+        try {
+            $autoExtendMinutes = MarketplaceSetting::autoExtendAuctionMinutes();
+            
+            if ($autoExtendMinutes <= 0) {
+                return; // Auto-extend disabled
+            }
+
+            // Check if auction is ending within the auto-extend threshold
+            $minutesUntilEnd = $listing->auction_end->diffInMinutes(now(), false);
+            
+            if ($minutesUntilEnd <= $autoExtendMinutes && $minutesUntilEnd > 0) {
+                // Extend auction by the configured minutes
+                $oldEndTime = $listing->auction_end->copy();
+                $listing->auction_end = $listing->auction_end->addMinutes($autoExtendMinutes);
+                
+                Log::info('Auction auto-extended due to last-minute bid', [
+                    'listing_id' => $listing->id,
+                    'old_end' => $oldEndTime,
+                    'new_end' => $listing->auction_end,
+                    'extended_by' => $autoExtendMinutes
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Don't fail bid placement if auto-extend check fails
+            Log::warning('Auto-extend check failed: ' . $e->getMessage(), [
+                'listing_id' => $listing->id
+            ]);
+        }
     }
 }
 

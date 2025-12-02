@@ -23,3 +23,10 @@ if (app()->environment(['local', 'staging', 'development'])) {
         ->onOneServer()
         ->appendOutputTo(storage_path('logs/migration-auto.log'));
 }
+
+// Process ending auctions - run every minute
+Schedule::command('auctions:process-ending --minutes=5')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/auction-processing.log'));

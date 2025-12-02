@@ -120,5 +120,15 @@ class MarketplaceSetting extends Model
     {
         return (int) self::getValue('min_listing_description', 100);
     }
+
+    public static function autoExtendAuctionMinutes()
+    {
+        return (int) self::getValue('auto_extend_auction_minutes', 10);
+    }
+
+    public static function bidExtensionThresholdMinutes()
+    {
+        return (int) self::getValue('bid_extension_threshold_minutes', 5);
+    }
 }
 
