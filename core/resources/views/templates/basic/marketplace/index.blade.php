@@ -29,38 +29,6 @@
         </div>
     </section>
 
-    <!-- Stats Section -->
-    <section class="py-4 bg-light">
-        <div class="container">
-            <div class="row text-center">
-                <div class="col-6 col-md-3">
-                    <div class="stat-item">
-                        <h3 class="text--base mb-0">{{ number_format($stats['total_listings']) }}</h3>
-                        <small class="text-muted">@lang('Active Listings')</small>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="stat-item">
-                        <h3 class="text--base mb-0">{{ number_format($stats['total_auctions']) }}</h3>
-                        <small class="text-muted">@lang('Live Auctions')</small>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="stat-item">
-                        <h3 class="text--base mb-0">{{ number_format($stats['total_sold']) }}</h3>
-                        <small class="text-muted">@lang('Businesses Sold')</small>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="stat-item">
-                        <h3 class="text--base mb-0">{{ showAmount($stats['total_value_sold']) }}</h3>
-                        <small class="text-muted">@lang('Total Value Sold')</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
     <!-- Categories -->
     <section class="py-5">
         <div class="container">

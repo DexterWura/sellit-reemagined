@@ -53,14 +53,6 @@ class MarketplaceController extends Controller
             ->get()
             ->groupBy('business_type');
 
-        // Stats
-        $stats = [
-            'total_listings' => Listing::active()->count(),
-            'total_auctions' => Listing::activeAuctions()->count(),
-            'total_sold' => Listing::sold()->count(),
-            'total_value_sold' => Listing::sold()->sum('final_price'),
-        ];
-
         return view('Template::marketplace.index', compact(
             'pageTitle',
             'featuredListings',

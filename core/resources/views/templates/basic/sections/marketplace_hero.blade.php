@@ -2,9 +2,7 @@
     $content = getContent('marketplace_hero.content', true);
     if(!@$content->data_values->status) return;
     
-    // Get marketplace stats
-    $totalListings = \App\Models\Listing::where('status', \App\Constants\Status::LISTING_ACTIVE)->count();
-    $totalSold = \App\Models\Listing::where('status', \App\Constants\Status::LISTING_SOLD)->count();
+    // Stats removed - not exposing business metrics publicly
 @endphp
 
 <section class="flippa-hero">
@@ -65,12 +63,7 @@
                     @endauth
                 </div>
                 
-                {{-- Stats --}}
-                <div class="hero-stats animate-fade-up-delay-4">
-                    <p class="stats-text">
-                        @lang('Over') <strong>{{ number_format($totalSold > 0 ? $totalSold : 1000) }}+</strong> @lang('online acquisitions globally')
-                    </p>
-                </div>
+                {{-- Stats removed - not exposing business metrics publicly --}}
                 
                 {{-- Business Type Icons --}}
                 <div class="business-types animate-fade-up-delay-5">

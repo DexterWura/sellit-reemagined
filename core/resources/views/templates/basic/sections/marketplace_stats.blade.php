@@ -1,4 +1,7 @@
 @php
+    // Stats section disabled - not exposing business metrics publicly
+    return;
+    
     $content = getContent('marketplace_stats.content', true);
     if(!@$content->data_values->status) return;
     
