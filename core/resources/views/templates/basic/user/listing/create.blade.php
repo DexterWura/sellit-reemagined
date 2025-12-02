@@ -757,17 +757,47 @@
                                 
                                 {{-- Domain Card Preview (for domain type) --}}
                                 <div class="domain-card-preview d-none mb-4">
-                                    <div class="card border" style="max-width: 400px; margin: 0 auto;">
-                                        <div class="card-body text-center p-4">
-                                            <div class="domain-icon mb-3" style="font-size: 48px; color: #3b82f6;">
-                                                <i class="las la-globe"></i>
+                                    <div class="card border-0 shadow-sm" style="max-width: 400px; margin: 0 auto; overflow: hidden;">
+                                        <div class="domain-card-image" id="domainCardImage" style="height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;">
+                                            <div class="position-absolute top-0 start-0 m-2">
+                                                <span class="badge bg-success">
+                                                    <i class="las la-check-circle"></i> @lang('Verified')
+                                                </span>
                                             </div>
-                                            <h5 class="domain-name-preview mb-2" id="domainNamePreview">example.com</h5>
-                                            <p class="text-muted small mb-0">@lang('This domain will be displayed as a card')</p>
+                                            <div class="text-center text-white" style="z-index: 1;">
+                                                <i class="las la-globe mb-2" style="font-size: 3rem; opacity: 0.3;"></i>
+                                                <div class="position-relative">
+                                                    <div class="position-absolute top-0 start-50 translate-middle-x" style="width: 80px; height: 2px; background: rgba(255,255,255,0.5); transform: translateX(-50%);"></div>
+                                                </div>
+                                                <h3 class="domain-name-preview mb-0 mt-3 fw-bold text-white" id="domainNamePreview" style="font-size: 1.75rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">example.com</h3>
+                                            </div>
+                                        </div>
+                                        <div class="card-body p-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="badge bg--base bg-opacity-10 text--base">
+                                                    <i class="las la-globe"></i> @lang('Domain')
+                                                </span>
+                                                <small class="text-muted">@lang('Premium Domains')</small>
+                                            </div>
+                                            <h5 class="card-title mb-2 fw-semibold" id="domainTitlePreview">@lang('Domain Name')</h5>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <small class="text-muted d-block">@lang('Asking Price')</small>
+                                                    <span class="text--base fw-bold" id="domainPricePreview">$0.00 USD</span>
+                                                </div>
+                                                <div class="text-end">
+                                                    <small class="text-muted d-block">
+                                                        <i class="las la-eye"></i> 0
+                                                    </small>
+                                                    <small class="text-muted d-block">
+                                                        <i class="las la-heart"></i> 0
+                                                    </small>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     <p class="text-center text-muted small mt-3">
-                                        @lang('For domain listings, the domain name will be displayed as a card. Images are optional.')
+                                        @lang('For domain listings, the domain name will be displayed as a card with a colored background. Images are optional.')
                                     </p>
                                 </div>
                                 
@@ -941,11 +971,9 @@ $(document).ready(function() {
         
         // Update domain card preview when domain is entered
         if (type === 'domain') {
-            const domainValue = $('#domainNameInput').val();
-            if (domainValue) {
-                const domainName = domainValue.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
-                $('#domainNamePreview').text(domainName || 'example.com');
-            }
+            setTimeout(function() {
+                updateDomainCardPreview();
+            }, 100);
         }
         
         // Show/hide image upload section based on business type
@@ -1078,6 +1106,88 @@ $(document).ready(function() {
         domain: null
     };
     
+    // ============================================
+    // Domain Card Preview Logic
+    // ============================================
+    
+    // Generate a consistent color based on domain name
+    function getDomainColor(domain) {
+        if (!domain) return ['#667eea', '#764ba2'];
+        
+        // Generate a hash from the domain name
+        let hash = 0;
+        for (let i = 0; i < domain.length; i++) {
+            hash = domain.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        
+        // Predefined color gradients
+        const gradients = [
+            ['#667eea', '#764ba2'], // Purple
+            ['#f093fb', '#f5576c'], // Pink
+            ['#4facfe', '#00f2fe'], // Blue
+            ['#43e97b', '#38f9d7'], // Green
+            ['#fa709a', '#fee140'], // Pink-Yellow
+            ['#30cfd0', '#330867'], // Cyan-Purple
+            ['#a8edea', '#fed6e3'], // Light Blue-Pink
+            ['#ff9a9e', '#fecfef'], // Red-Pink
+            ['#ffecd2', '#fcb69f'], // Orange
+            ['#ff6e7f', '#bfe9ff'], // Red-Blue
+        ];
+        
+        // Use hash to select a gradient
+        const index = Math.abs(hash) % gradients.length;
+        return gradients[index];
+    }
+    
+    // Update domain card preview
+    function updateDomainCardPreview() {
+        const domainValue = $('#domainNameInput').val();
+        if (domainValue) {
+            const domainName = domainValue.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+            const displayName = domainName || 'example.com';
+            
+            // Update domain name
+            $('#domainNamePreview').text(displayName);
+            
+            // Update title preview
+            const titleValue = $('input[name="title"]').val();
+            $('#domainTitlePreview').text(titleValue || displayName);
+            
+            // Update price preview
+            const saleType = $('input[name="sale_type"]:checked').val();
+            let price = '0.00';
+            if (saleType === 'fixed_price') {
+                price = $('input[name="asking_price"]').val() || '0.00';
+            } else if (saleType === 'auction') {
+                price = $('input[name="starting_bid"]').val() || '0.00';
+            }
+            $('#domainPricePreview').text('$' + parseFloat(price).toFixed(2) + ' USD');
+            
+            // Update background color
+            const colors = getDomainColor(domainName);
+            $('#domainCardImage').css('background', `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`);
+        }
+    }
+    
+    // Update card when title or price changes
+    $('input[name="title"]').on('input', function() {
+        if ($('input[name="business_type"]:checked').val() === 'domain') {
+            updateDomainCardPreview();
+        }
+    });
+    
+    $('input[name="asking_price"], input[name="starting_bid"]').on('input', function() {
+        if ($('input[name="business_type"]:checked').val() === 'domain') {
+            updateDomainCardPreview();
+        }
+    });
+    
+    $('input[name="sale_type"]').on('change', function() {
+        if ($('input[name="business_type"]:checked').val() === 'domain') {
+            updateDomainCardPreview();
+        }
+    });
+    
     // Validate and format domain name input
     $('#domainNameInput').on('input', function() {
         let value = $(this).val().trim();
@@ -1096,8 +1206,7 @@ $(document).ready(function() {
             helpText.html('@lang("Enter domain with http:// or https:// (e.g., https://example.com)")');
             
             // Update domain card preview
-            let domain = value.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
-            $('#domainNamePreview').text(domain || 'example.com');
+            updateDomainCardPreview();
             
             // Only show verification section if verification is required
             if (value && requireDomainVerification) {
