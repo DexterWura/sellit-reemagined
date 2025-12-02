@@ -78,11 +78,7 @@
                     </table>
                 </div>
 
-                @if ($milestones->hasPages())
-                    <div class="col-md-12">
-                        {{ $milestones->links() }}
-                    </div>
-                @endif
+                {{-- Pagination removed - milestones are not paginated --}}
             </div>
         </div>
     </section>
