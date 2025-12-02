@@ -498,14 +498,7 @@
                                 <hr class="my-4">
                                 
                                 <div class="row g-3">
-                                    <div class="col-md-8">
-                                        <label class="form-label fw-semibold">@lang('Listing Title') <span class="text-danger">*</span></label>
-                                        <input type="text" name="title" class="form-control form-control-lg" 
-                                               value="{{ old('title') }}" 
-                                               placeholder="@lang('e.g., Premium Tech Blog with 50k Monthly Visitors')" required>
-                                        <small class="text-muted">@lang('Write a compelling title that attracts buyers')</small>
-                                    </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-12">
                                         <label class="form-label fw-semibold">@lang('Category')</label>
                                         <select name="listing_category_id" class="form-select form-select-lg" id="listingCategory">
                                             <option value="">@lang('Select Category')</option>
@@ -910,10 +903,6 @@ $(document).ready(function() {
         
         // Validation for step 2
         if (currentStep === 2) {
-            if (!$('input[name="title"]').val()) {
-                notify('error', '@lang("Please enter a listing title")');
-                return;
-            }
             if (!$('textarea[name="description"]').val()) {
                 notify('error', '@lang("Please enter a description")');
                 return;
@@ -1149,9 +1138,8 @@ $(document).ready(function() {
             // Update domain name
             $('#domainNamePreview').text(displayName);
             
-            // Update title preview
-            const titleValue = $('input[name="title"]').val();
-            $('#domainTitlePreview').text(titleValue || displayName);
+            // Update title preview (use domain name)
+            $('#domainTitlePreview').text(displayName);
             
             // Update price preview
             const saleType = $('input[name="sale_type"]:checked').val();
@@ -1169,12 +1157,7 @@ $(document).ready(function() {
         }
     }
     
-    // Update card when title or price changes
-    $('input[name="title"]').on('input', function() {
-        if ($('input[name="business_type"]:checked').val() === 'domain') {
-            updateDomainCardPreview();
-        }
-    });
+    // Update card when price changes
     
     $('input[name="asking_price"], input[name="starting_bid"]').on('input', function() {
         if ($('input[name="business_type"]:checked').val() === 'domain') {

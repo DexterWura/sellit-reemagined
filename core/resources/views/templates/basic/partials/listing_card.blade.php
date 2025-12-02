@@ -124,7 +124,32 @@
             
             <h5 class="card-title mb-2 fw-semibold" style="min-height: 48px;">
                 <a href="{{ route('marketplace.listing.show', $listing->slug) }}" class="text-dark text-decoration-none stretched-link-title">
-                    {{ Str::limit($listing->title, 50) }}
+                    @if($listing->business_type == 'domain' && $listing->domain_name)
+                        {{ $listing->domain_name }}
+                    @elseif($listing->business_type == 'website' && $listing->url)
+                        @php
+                            $url = $listing->url;
+                            if (preg_match('/^https?:\/\/(.+)$/i', $url, $matches)) {
+                                $url = $matches[1];
+                            }
+                            $url = preg_replace('/^www\./i', '', $url);
+                            $url = explode('/', $url)[0];
+                        @endphp
+                        {{ $url }}
+                    @elseif($listing->business_type == 'social_media_account' && $listing->url)
+                        @php
+                            $socialUrl = $listing->url;
+                            $username = '';
+                            if (preg_match('/(?:instagram|twitter|x|facebook|youtube|tiktok)\.com\/(?:@)?([^\/\?]+)/i', $socialUrl, $matches)) {
+                                $username = '@' . $matches[1];
+                            } else {
+                                $username = $socialUrl;
+                            }
+                        @endphp
+                        {{ $username }}
+                    @else
+                        {{ Str::limit($listing->title, 50) }}
+                    @endif
                 </a>
             </h5>
             

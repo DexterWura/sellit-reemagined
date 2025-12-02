@@ -86,7 +86,6 @@ class ListingController extends Controller
         $minDescription = MarketplaceSetting::minListingDescription();
 
         $request->validate([
-            'title' => 'required|string|max:255',
             'description' => 'required|string|min:' . $minDescription,
             'business_type' => 'required|in:domain,website,social_media_account,mobile_app,desktop_app',
             'sale_type' => 'required|in:fixed_price,auction',
@@ -131,11 +130,54 @@ class ListingController extends Controller
             }
         }
 
+        // Auto-generate title based on business type
+        $title = '';
+        switch ($request->business_type) {
+            case 'domain':
+                $domainName = $request->domain_name;
+                if (preg_match('/^https?:\/\/(.+)$/i', $domainName, $matches)) {
+                    $domainName = $matches[1];
+                }
+                $domainName = preg_replace('/^www\./i', '', $domainName);
+                $domainName = explode('/', $domainName)[0];
+                $title = $domainName;
+                break;
+            case 'website':
+                $websiteUrl = $request->website_url;
+                if (preg_match('/^https?:\/\/(.+)$/i', $websiteUrl, $matches)) {
+                    $websiteUrl = $matches[1];
+                }
+                $websiteUrl = preg_replace('/^www\./i', '', $websiteUrl);
+                $websiteUrl = explode('/', $websiteUrl)[0];
+                $title = $websiteUrl;
+                break;
+            case 'social_media_account':
+                // Extract username from URL or use social_username field
+                $socialUrl = $request->social_url ?? '';
+                $username = $request->social_username ?? '';
+                
+                if ($username) {
+                    $title = '@' . $username;
+                } elseif ($socialUrl) {
+                    // Try to extract username from URL
+                    if (preg_match('/(?:instagram|twitter|x|facebook|youtube|tiktok)\.com\/(?:@)?([^\/\?]+)/i', $socialUrl, $matches)) {
+                        $title = '@' . $matches[1];
+                    } else {
+                        $title = $socialUrl;
+                    }
+                } else {
+                    $title = ucfirst($request->platform ?? 'Social Media Account');
+                }
+                break;
+            default:
+                $title = ucfirst(str_replace('_', ' ', $businessType));
+        }
+
         $listing = new Listing();
         $listing->listing_number = getTrx();
         $listing->user_id = $user->id;
-        $listing->title = $request->title;
-        $listing->slug = Str::slug($request->title) . '-' . Str::random(8);
+        $listing->title = $title;
+        $listing->slug = Str::slug($title) . '-' . Str::random(8);
         $listing->tagline = $request->tagline;
         $listing->description = $request->description;
         $listing->business_type = $request->business_type;
