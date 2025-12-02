@@ -84,23 +84,10 @@
                                         </ul>
                                     </li>
 
-                                    <li class="primary-menu__list has-sub">
-                                        <a class="primary-menu__link" href="javascript:void(0)">
-                                            @lang('Escrow')
+                                    <li class="primary-menu__list">
+                                        <a class="primary-menu__link" href="{{ route('user.escrow.index') }}">
+                                            @lang('My Escrow')
                                         </a>
-
-                                        <ul class="primary-menu__sub">
-                                            <li class="primary-menu__sub-list">
-                                                <a class="t-link primary-menu__sub-link" href="{{ route('user.escrow.step.one') }}">
-                                                    @lang('New Escrow')
-                                                </a>
-                                            </li>
-                                            <li class="primary-menu__sub-list">
-                                                <a class="t-link primary-menu__sub-link" href="{{ route('user.escrow.index') }}">
-                                                    @lang('All Escrow')
-                                                </a>
-                                            </li>
-                                        </ul>
                                     </li>
 
                                     <li class="primary-menu__list has-sub">

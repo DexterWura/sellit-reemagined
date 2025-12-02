@@ -24,9 +24,17 @@ class EscrowController extends Controller
     public function index($type = null)
     {
         $pageTitle = 'My Escrow';
-        $escrows   = Escrow::where(function ($query) {
+        
+        // Only show marketplace-related escrows (escrows linked to listings)
+        $userListingEscrowIds = \App\Models\Listing::where(function($q) {
+            $q->where('user_id', auth()->id())->orWhere('winner_id', auth()->id());
+        })->where('escrow_id', '>', 0)->pluck('escrow_id');
+        
+        $escrows = Escrow::where(function ($query) {
             $query->orWhere('buyer_id', auth()->id())->orWhere('seller_id', auth()->id());
-        })->with('seller', 'buyer');
+        })
+        ->whereIn('id', $userListingEscrowIds)
+        ->with('seller', 'buyer', 'listing');
 
         if ($type) {
             try {

@@ -4,6 +4,11 @@
         <div class="container">
             <div class="row justify-content-center">
                 <div class="col-md-12">
+                    <div class="alert alert-info mb-4">
+                        <i class="las la-info-circle"></i> 
+                        <strong>@lang('Note'):</strong> 
+                        @lang('Escrow is automatically created when you purchase a listing, win an auction, or have an offer accepted. You cannot create escrow manually.')
+                    </div>
                     <table class="table custom--table table-responsive--lg escrow-table">
                         <thead>
                             <tr>

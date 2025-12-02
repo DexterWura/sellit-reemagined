@@ -85,10 +85,7 @@ Route::middleware('auth')->name('user.')->group(function () {
 
 
             Route::controller('EscrowController')->name('escrow.')->prefix('escrow')->group(function () {
-                Route::get('step-one', 'stepOne')->name('step.one');
-                Route::post('step-one', 'submitStepOne')->name('step.one.submit');
-                Route::get('step-two', 'stepTwo')->name('step.two');
-                Route::post('step-two', 'submitStepTwo')->name('step.two.submit');
+                // Manual escrow creation removed - escrow is only created automatically during purchases
                 Route::get('details/{id}', 'details')->name('details');
 
                 Route::post('cancel/{id}', 'cancel')->name('cancel');
