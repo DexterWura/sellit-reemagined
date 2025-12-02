@@ -27,10 +27,10 @@ class ProcessController extends Controller
         $integrationKey = $paynowAcc->integration_key;
         
         // Return URL - where user returns after payment
-        $returnUrl = route('ipn.paynow') . '?paynow-return=true&trx=' . $deposit->trx;
+        $returnUrl = url('ipn/paynow') . '?paynow-return=true&trx=' . $deposit->trx;
         
         // Result URL - callback URL for status updates
-        $resultUrl = route('ipn.paynow');
+        $resultUrl = url('ipn/paynow');
 
         // Initialize Paynow SDK
         $paynow = new PaynowSDK(
@@ -95,10 +95,10 @@ class ProcessController extends Controller
         $integrationKey = $paynowAcc->integration_key;
         
         // Return URL
-        $returnUrl = route('ipn.paynow') . '?paynow-return=true&trx=' . $deposit->trx;
+        $returnUrl = url('ipn/paynow') . '?paynow-return=true&trx=' . $deposit->trx;
         
         // Result URL
-        $resultUrl = route('ipn.paynow');
+        $resultUrl = url('ipn/paynow');
 
         // Initialize Paynow SDK
         $paynow = new PaynowSDK(
