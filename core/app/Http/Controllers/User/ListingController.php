@@ -98,6 +98,11 @@ class ListingController extends Controller
             'auction_duration' => 'required_if:sale_type,auction|nullable|integer|min:' . $minAuctionDays . '|max:' . $maxAuctionDays,
             'listing_category_id' => 'nullable|exists:listing_categories,id',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'domain_name' => 'required_if:business_type,domain|nullable|string|regex:/^https?:\/\/.+/i',
+            'website_url' => 'required_if:business_type,website|nullable|url|regex:/^https?:\/\/.+/i',
+        ], [
+            'domain_name.regex' => 'Domain must start with http:// or https://',
+            'website_url.regex' => 'Website URL must start with http:// or https://',
         ]);
 
         $user = auth()->user();
@@ -446,13 +451,23 @@ class ListingController extends Controller
     {
         switch ($request->business_type) {
             case 'domain':
-                $listing->domain_name = $request->domain_name;
+                // Extract domain name (remove protocol if present)
+                $domainName = $request->domain_name;
+                if (preg_match('/^https?:\/\/(.+)$/i', $domainName, $matches)) {
+                    $domainName = $matches[1];
+                }
+                // Remove www. if present
+                $domainName = preg_replace('/^www\./i', '', $domainName);
+                // Remove path if present
+                $domainName = explode('/', $domainName)[0];
+                
+                $listing->domain_name = $domainName;
                 $listing->domain_extension = $request->domain_extension;
                 $listing->domain_registrar = $request->domain_registrar;
                 $listing->domain_expiry = $request->domain_expiry;
                 $listing->domain_age_years = $request->domain_age_years ?? 0;
                 // Set URL from domain name for verification purposes
-                $listing->url = 'https://' . $request->domain_name;
+                $listing->url = $request->domain_name; // Keep the full URL with protocol
                 break;
 
             case 'website':

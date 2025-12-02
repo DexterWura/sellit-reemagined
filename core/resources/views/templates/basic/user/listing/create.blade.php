@@ -99,10 +99,18 @@
                                             <label class="form-label fw-semibold">@lang('Domain Name') <span class="text-danger">*</span></label>
                                             <div class="input-group input-group-lg">
                                                 <span class="input-group-text bg-light"><i class="las la-globe"></i></span>
-                                                <input type="text" name="domain_name" class="form-control" 
-                                                       value="{{ old('domain_name') }}" placeholder="example.com">
+                                                <input type="text" name="domain_name" id="domainNameInput" class="form-control" 
+                                                       value="{{ old('domain_name') }}" placeholder="https://example.com" required>
                                             </div>
-                                            <small class="text-muted">@lang('Enter domain without http:// or https://')</small>
+                                            <small class="text-muted d-block mt-1">
+                                                <i class="las la-info-circle"></i> 
+                                                <span id="domainHelpText">@lang('Enter domain with http:// or https:// (e.g., https://example.com)')</span>
+                                            </small>
+                                            <div id="domainProtocolWarning" class="alert alert-warning alert-sm mt-2 mb-0" style="display: none;">
+                                                <i class="las la-exclamation-triangle"></i> 
+                                                <strong>@lang('Protocol Required'):</strong> 
+                                                @lang('Please start with http:// or https://')
+                                            </div>
                                         </div>
                                         
                                         @if(($marketplaceSettings['require_domain_verification'] ?? '1') == '1')
@@ -206,8 +214,17 @@
                                             <label class="form-label fw-semibold">@lang('Website URL') <span class="text-danger">*</span></label>
                                             <div class="input-group input-group-lg">
                                                 <span class="input-group-text bg-light"><i class="las la-link"></i></span>
-                                                <input type="url" name="website_url" class="form-control" 
-                                                       value="{{ old('website_url') }}" placeholder="https://example.com">
+                                                <input type="url" name="website_url" id="websiteUrlInput" class="form-control" 
+                                                       value="{{ old('website_url') }}" placeholder="https://example.com" required>
+                                            </div>
+                                            <small class="text-muted d-block mt-1">
+                                                <i class="las la-info-circle"></i> 
+                                                <span id="websiteHelpText">@lang('Enter full URL starting with http:// or https://')</span>
+                                            </small>
+                                            <div id="websiteProtocolWarning" class="alert alert-warning alert-sm mt-2 mb-0" style="display: none;">
+                                                <i class="las la-exclamation-triangle"></i> 
+                                                <strong>@lang('Protocol Required'):</strong> 
+                                                @lang('Please start with http:// or https://')
                                             </div>
                                         </div>
                                         
@@ -716,6 +733,23 @@
 </section>
 @endsection
 
+@push('style')
+<style>
+    .alert-sm {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        margin-bottom: 0;
+    }
+    .border-warning {
+        border-color: #ffc107 !important;
+    }
+    .is-invalid.border-warning:focus {
+        border-color: #ffc107 !important;
+        box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+    }
+</style>
+@endpush
+
 @push('script')
 <script>
 $(document).ready(function() {
@@ -849,31 +883,88 @@ $(document).ready(function() {
         domain: null
     };
     
-    // Show verification section when domain/website is entered
-    $('input[name="domain_name"]').on('input', function() {
-        const domain = $(this).val().trim();
-        if (domain) {
-            $('#domainVerificationSection').slideDown();
-            generateDomainVerification(domain);
+    // Validate and format domain name input
+    $('#domainNameInput').on('input', function() {
+        let value = $(this).val().trim();
+        const warning = $('#domainProtocolWarning');
+        const helpText = $('#domainHelpText');
+        
+        // Check if protocol is present
+        if (value && !value.match(/^https?:\/\//i)) {
+            warning.slideDown();
+            $(this).addClass('is-invalid border-warning');
+            helpText.html('<span class="text-danger"><i class="las la-exclamation-circle"></i> @lang("URL must start with http:// or https://")</span>');
         } else {
-            $('#domainVerificationSection').slideUp();
+            warning.slideUp();
+            $(this).removeClass('is-invalid border-warning');
+            helpText.html('@lang("Enter domain with http:// or https:// (e.g., https://example.com)")');
+            
+            // Extract domain for verification
+            if (value) {
+                let domain = value;
+                // Remove protocol if present for verification
+                domain = domain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+                $('#domainVerificationSection').slideDown();
+                generateDomainVerification(domain);
+            } else {
+                $('#domainVerificationSection').slideUp();
+            }
         }
     });
     
-    $('input[name="website_url"]').on('input', function() {
-        const url = $(this).val().trim();
-        if (url) {
-            try {
-                const urlObj = new URL(url);
-                const domain = urlObj.hostname.replace(/^www\./, '');
-                $('#websiteVerificationSection').slideDown();
-                generateWebsiteVerification(domain);
-            } catch(e) {
-                // Invalid URL, hide verification
+    // Validate and format website URL input
+    $('#websiteUrlInput').on('input', function() {
+        let value = $(this).val().trim();
+        const warning = $('#websiteProtocolWarning');
+        const helpText = $('#websiteHelpText');
+        
+        // Check if protocol is present
+        if (value && !value.match(/^https?:\/\//i)) {
+            warning.slideDown();
+            $(this).addClass('is-invalid border-warning');
+            helpText.html('<span class="text-danger"><i class="las la-exclamation-circle"></i> @lang("URL must start with http:// or https://")</span>');
+        } else {
+            warning.slideUp();
+            $(this).removeClass('is-invalid border-warning');
+            helpText.html('@lang("Enter full URL starting with http:// or https://")');
+            
+            // Extract domain for verification
+            if (value) {
+                try {
+                    const urlObj = new URL(value);
+                    const domain = urlObj.hostname.replace(/^www\./, '');
+                    $('#websiteVerificationSection').slideDown();
+                    generateWebsiteVerification(domain);
+                } catch(e) {
+                    // Invalid URL format, hide verification
+                    $('#websiteVerificationSection').slideUp();
+                }
+            } else {
                 $('#websiteVerificationSection').slideUp();
             }
-        } else {
-            $('#websiteVerificationSection').slideUp();
+        }
+    });
+    
+    // Auto-prepend https:// if user starts typing without protocol (on blur)
+    $('#domainNameInput').on('blur', function() {
+        let value = $(this).val().trim();
+        if (value && !value.match(/^https?:\/\//i)) {
+            // If it looks like a domain, prepend https://
+            if (value.match(/^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}/)) {
+                $(this).val('https://' + value);
+                $(this).trigger('input');
+            }
+        }
+    });
+    
+    $('#websiteUrlInput').on('blur', function() {
+        let value = $(this).val().trim();
+        if (value && !value.match(/^https?:\/\//i)) {
+            // If it looks like a domain or URL, prepend https://
+            if (value.match(/^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}/)) {
+                $(this).val('https://' + value);
+                $(this).trigger('input');
+            }
         }
     });
     
