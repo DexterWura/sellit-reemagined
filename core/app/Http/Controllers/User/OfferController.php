@@ -9,6 +9,8 @@ use App\Models\Escrow;
 use App\Models\Listing;
 use App\Models\Offer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OfferController extends Controller
 {
@@ -100,58 +102,89 @@ class OfferController extends Controller
 
     public function accept($id)
     {
-        $user = auth()->user();
-        $offer = Offer::where('seller_id', $user->id)
-            ->whereIn('status', [Status::OFFER_PENDING, Status::OFFER_COUNTERED])
-            ->with(['listing', 'buyer'])
-            ->findOrFail($id);
+        try {
+            $user = auth()->user();
+            
+            // Lock offer and listing to prevent concurrent acceptances
+            $offer = Offer::lockForUpdate()
+                ->where('seller_id', $user->id)
+                ->whereIn('status', [Status::OFFER_PENDING, Status::OFFER_COUNTERED])
+                ->with(['listing' => function($q) {
+                    $q->lockForUpdate();
+                }, 'buyer'])
+                ->findOrFail($id);
 
-        $listing = $offer->listing;
+            $listing = $offer->listing;
 
-        // Reject other pending offers
-        Offer::where('listing_id', $listing->id)
-            ->where('id', '!=', $offer->id)
-            ->whereIn('status', [Status::OFFER_PENDING, Status::OFFER_COUNTERED])
-            ->update([
-                'status' => Status::OFFER_REJECTED,
-                'rejection_reason' => 'Another offer was accepted',
-                'responded_at' => now(),
-            ]);
+            // Check if listing is already sold
+            if ($listing->status === Status::LISTING_SOLD) {
+                $notify[] = ['error', 'This listing has already been sold'];
+                return back()->withNotify($notify);
+            }
 
-        // Accept this offer
-        $offer->status = Status::OFFER_ACCEPTED;
-        $offer->responded_at = now();
-        $offer->save();
+            DB::beginTransaction();
+            
+            try {
+                // Reject other pending offers
+                Offer::where('listing_id', $listing->id)
+                    ->where('id', '!=', $offer->id)
+                    ->whereIn('status', [Status::OFFER_PENDING, Status::OFFER_COUNTERED])
+                    ->update([
+                        'status' => Status::OFFER_REJECTED,
+                        'rejection_reason' => 'Another offer was accepted',
+                        'responded_at' => now(),
+                    ]);
 
-        // Update listing
-        $finalAmount = $offer->counter_amount > 0 ? $offer->counter_amount : $offer->amount;
-        $listing->status = Status::LISTING_SOLD;
-        $listing->winner_id = $offer->buyer_id;
-        $listing->final_price = $finalAmount;
-        $listing->sold_at = now();
-        $listing->save();
+                // Accept this offer
+                $offer->status = Status::OFFER_ACCEPTED;
+                $offer->responded_at = now();
 
-        // Create escrow
-        $escrow = $this->createEscrow($listing, $offer->buyer, $finalAmount);
-        $listing->escrow_id = $escrow->id;
-        $listing->save();
+                // Update listing
+                $finalAmount = $offer->counter_amount > 0 ? $offer->counter_amount : $offer->amount;
+                $listing->status = Status::LISTING_SOLD;
+                $listing->winner_id = $offer->buyer_id;
+                $listing->final_price = $finalAmount;
+                $listing->sold_at = now();
 
-        $offer->escrow_id = $escrow->id;
-        $offer->save();
+                // Create escrow
+                $escrow = $this->createEscrow($listing, $offer->buyer, $finalAmount);
+                $listing->escrow_id = $escrow->id;
+                $listing->save();
 
-        // Update user stats
-        $user->increment('total_sales');
-        $user->increment('total_sales_value', $finalAmount);
-        $offer->buyer->increment('total_purchases');
+                $offer->escrow_id = $escrow->id;
+                $offer->save();
 
-        // Notify buyer
-        notify($offer->buyer, 'OFFER_ACCEPTED', [
-            'listing_title' => $listing->title,
-            'offer_amount' => showAmount($finalAmount),
-        ]);
+                // Update user stats
+                $user->increment('total_sales');
+                $user->increment('total_sales_value', $finalAmount);
+                $offer->buyer->increment('total_purchases');
 
-        $notify[] = ['success', 'Offer accepted. Escrow has been created.'];
-        return redirect()->route('user.escrow.details', $escrow->id)->withNotify($notify);
+                DB::commit();
+
+                // Notify buyer (outside transaction)
+                notify($offer->buyer, 'OFFER_ACCEPTED', [
+                    'listing_title' => $listing->title,
+                    'offer_amount' => showAmount($finalAmount),
+                ]);
+
+                $notify[] = ['success', 'Offer accepted. Escrow has been created.'];
+                return redirect()->route('user.escrow.details', $escrow->id)->withNotify($notify);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Offer acceptance failed: ' . $e->getMessage(), [
+                    'offer_id' => $id,
+                    'user_id' => $user->id,
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Offer acceptance error: ' . $e->getMessage());
+            $notify[] = ['error', 'An error occurred while accepting the offer. Please try again.'];
+            return back()->withNotify($notify);
+        }
     }
 
     public function reject(Request $request, $id)

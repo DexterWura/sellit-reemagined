@@ -10,6 +10,8 @@ use App\Models\Escrow;
 use App\Models\Listing;
 use App\Models\Watchlist;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class BidController extends Controller
 {
@@ -31,154 +33,213 @@ class BidController extends Controller
 
     public function place(Request $request, $listingId)
     {
-        $user = auth()->user();
-        $listing = Listing::active()
-            ->auction()
-            ->where('auction_end', '>', now())
-            ->findOrFail($listingId);
+        try {
+            $user = auth()->user();
+            
+            // Lock listing row to prevent race conditions
+            $listing = Listing::lockForUpdate()
+                ->active()
+                ->auction()
+                ->where('auction_end', '>', now())
+                ->findOrFail($listingId);
 
-        // Cannot bid on own listing
-        if ($listing->user_id === $user->id) {
-            $notify[] = ['error', 'You cannot bid on your own listing'];
-            return back()->withNotify($notify);
-        }
-
-        $request->validate([
-            'amount' => 'required|numeric|min:' . $listing->minimum_bid,
-            'max_bid' => 'nullable|numeric|min:' . $request->amount,
-        ]);
-
-        $amount = $request->amount;
-        $maxBid = $request->max_bid ?? 0;
-
-        // Validate bid amount
-        if ($amount < $listing->minimum_bid) {
-            $notify[] = ['error', 'Bid must be at least ' . showAmount($listing->minimum_bid)];
-            return back()->withNotify($notify);
-        }
-
-        // Mark previous winning bid as outbid
-        if ($listing->highest_bidder_id && $listing->highest_bidder_id !== $user->id) {
-            Bid::where('listing_id', $listing->id)
-                ->where('status', Status::BID_WINNING)
-                ->update(['status' => Status::BID_OUTBID]);
-
-            // Notify outbid user
-            $outbidUser = $listing->highestBidder;
-            if ($outbidUser) {
-                notify($outbidUser, 'BID_OUTBID', [
-                    'listing_title' => $listing->title,
-                    'your_bid' => showAmount($listing->current_bid),
-                    'new_bid' => showAmount($amount),
-                ]);
+            // Cannot bid on own listing
+            if ($listing->user_id === $user->id) {
+                $notify[] = ['error', 'You cannot bid on your own listing'];
+                return back()->withNotify($notify);
             }
-        }
 
-        // Create bid
-        $bid = new Bid();
-        $bid->bid_number = getTrx();
-        $bid->listing_id = $listing->id;
-        $bid->user_id = $user->id;
-        $bid->amount = $amount;
-        $bid->max_bid = $maxBid;
-        $bid->is_auto_bid = $maxBid > 0;
-        $bid->status = Status::BID_WINNING;
-        $bid->ip_address = $request->ip();
-        $bid->save();
+            $request->validate([
+                'amount' => 'required|numeric|min:' . $listing->minimum_bid,
+                'max_bid' => 'nullable|numeric|min:' . $request->amount,
+            ]);
 
-        // Update listing
-        $listing->current_bid = $amount;
-        $listing->highest_bidder_id = $user->id;
-        $listing->total_bids = $listing->bids()->count();
-        $listing->save();
+            $amount = $request->amount;
+            $maxBid = $request->max_bid ?? 0;
 
-        // Notify seller
-        notify($listing->seller, 'NEW_BID_RECEIVED', [
-            'listing_title' => $listing->title,
-            'bid_amount' => showAmount($amount),
-            'bidder' => $user->username,
-            'current_highest' => showAmount($listing->current_bid),
-        ]);
+            // Validate bid amount
+            if ($amount < $listing->minimum_bid) {
+                $notify[] = ['error', 'Bid must be at least ' . showAmount($listing->minimum_bid)];
+                return back()->withNotify($notify);
+            }
 
-        // Notify watchlist users
-        $watchlistUsers = Watchlist::where('listing_id', $listing->id)
-            ->where('user_id', '!=', $user->id)
-            ->where('notify_bid', true)
-            ->with('user')
-            ->get();
+            // Use database transaction for atomicity
+            DB::beginTransaction();
+            
+            try {
+                // Mark previous winning bid as outbid
+                if ($listing->highest_bidder_id && $listing->highest_bidder_id !== $user->id) {
+                    Bid::where('listing_id', $listing->id)
+                        ->where('status', Status::BID_WINNING)
+                        ->update(['status' => Status::BID_OUTBID]);
 
-        foreach ($watchlistUsers as $watch) {
-            if ($watch->user) {
-                notify($watch->user, 'WATCHED_LISTING_NEW_BID', [
+                    // Notify outbid user
+                    $outbidUser = $listing->highestBidder;
+                    if ($outbidUser) {
+                        notify($outbidUser, 'BID_OUTBID', [
+                            'listing_title' => $listing->title,
+                            'your_bid' => showAmount($listing->current_bid),
+                            'new_bid' => showAmount($amount),
+                        ]);
+                    }
+                }
+
+                // Create bid
+                $bid = new Bid();
+                $bid->bid_number = getTrx();
+                $bid->listing_id = $listing->id;
+                $bid->user_id = $user->id;
+                $bid->amount = $amount;
+                $bid->max_bid = $maxBid;
+                $bid->is_auto_bid = $maxBid > 0;
+                $bid->status = Status::BID_WINNING;
+                $bid->ip_address = $request->ip();
+                $bid->save();
+
+                // Update listing
+                $listing->current_bid = $amount;
+                $listing->highest_bidder_id = $user->id;
+                $listing->total_bids = $listing->bids()->count();
+                $listing->save();
+
+                DB::commit();
+
+                // Notify seller (outside transaction)
+                notify($listing->seller, 'NEW_BID_RECEIVED', [
                     'listing_title' => $listing->title,
                     'bid_amount' => showAmount($amount),
+                    'bidder' => $user->username,
+                    'current_highest' => showAmount($listing->current_bid),
                 ]);
-            }
-        }
 
-        $notify[] = ['success', 'Bid placed successfully'];
-        return back()->withNotify($notify);
+                // Notify watchlist users (outside transaction)
+                $watchlistUsers = Watchlist::where('listing_id', $listing->id)
+                    ->where('user_id', '!=', $user->id)
+                    ->where('notify_bid', true)
+                    ->with('user')
+                    ->get();
+
+                foreach ($watchlistUsers as $watch) {
+                    if ($watch->user) {
+                        notify($watch->user, 'WATCHED_LISTING_NEW_BID', [
+                            'listing_title' => $listing->title,
+                            'bid_amount' => showAmount($amount),
+                        ]);
+                    }
+                }
+
+                $notify[] = ['success', 'Bid placed successfully'];
+                return back()->withNotify($notify);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Bid placement failed: ' . $e->getMessage(), [
+                    'listing_id' => $listingId,
+                    'user_id' => $user->id,
+                    'amount' => $amount,
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Bid placement error: ' . $e->getMessage());
+            $notify[] = ['error', 'An error occurred while placing your bid. Please try again.'];
+            return back()->withNotify($notify);
+        }
     }
 
     public function buyNow(Request $request, $listingId)
     {
-        $user = auth()->user();
-        $listing = Listing::active()
-            ->where('buy_now_price', '>', 0)
-            ->findOrFail($listingId);
+        try {
+            $user = auth()->user();
+            
+            // Lock listing to prevent concurrent buy-now purchases
+            $listing = Listing::lockForUpdate()
+                ->active()
+                ->where('buy_now_price', '>', 0)
+                ->findOrFail($listingId);
 
-        // Cannot buy own listing
-        if ($listing->user_id === $user->id) {
-            $notify[] = ['error', 'You cannot buy your own listing'];
+            // Cannot buy own listing
+            if ($listing->user_id === $user->id) {
+                $notify[] = ['error', 'You cannot buy your own listing'];
+                return back()->withNotify($notify);
+            }
+
+            // Check if already sold
+            if ($listing->status === Status::LISTING_SOLD) {
+                $notify[] = ['error', 'This listing has already been sold'];
+                return back()->withNotify($notify);
+            }
+
+            DB::beginTransaction();
+            
+            try {
+                // Create winning bid
+                $bid = new Bid();
+                $bid->bid_number = getTrx();
+                $bid->listing_id = $listing->id;
+                $bid->user_id = $user->id;
+                $bid->amount = $listing->buy_now_price;
+                $bid->status = Status::BID_WON;
+                $bid->is_buy_now = true;
+                $bid->ip_address = $request->ip();
+                $bid->save();
+
+                // Mark other bids as lost
+                Bid::where('listing_id', $listing->id)
+                    ->where('id', '!=', $bid->id)
+                    ->whereIn('status', [Status::BID_ACTIVE, Status::BID_WINNING])
+                    ->update(['status' => Status::BID_LOST]);
+
+                // Update listing as sold
+                $listing->status = Status::LISTING_SOLD;
+                $listing->winner_id = $user->id;
+                $listing->final_price = $listing->buy_now_price;
+                $listing->current_bid = $listing->buy_now_price;
+                $listing->highest_bidder_id = $user->id;
+                $listing->sold_at = now();
+
+                // Create escrow for the transaction
+                $escrow = $this->createEscrow($listing, $user, $listing->buy_now_price);
+                $listing->escrow_id = $escrow->id;
+                $listing->save();
+
+                DB::commit();
+
+                // Notify seller (outside transaction)
+                notify($listing->seller, 'LISTING_SOLD_BUY_NOW', [
+                    'listing_title' => $listing->title,
+                    'amount' => showAmount($listing->buy_now_price),
+                    'buyer' => $user->username,
+                ]);
+
+                // Notify buyer
+                notify($user, 'PURCHASE_BUY_NOW', [
+                    'listing_title' => $listing->title,
+                    'amount' => showAmount($listing->buy_now_price),
+                ]);
+
+                $notify[] = ['success', 'Purchase successful! Please proceed to payment.'];
+                return redirect()->route('user.escrow.details', $escrow->id)->withNotify($notify);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Buy Now failed: ' . $e->getMessage(), [
+                    'listing_id' => $listingId,
+                    'user_id' => $user->id,
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Buy Now error: ' . $e->getMessage());
+            $notify[] = ['error', 'An error occurred while processing your purchase. Please try again.'];
             return back()->withNotify($notify);
         }
-
-        // Create winning bid
-        $bid = new Bid();
-        $bid->bid_number = getTrx();
-        $bid->listing_id = $listing->id;
-        $bid->user_id = $user->id;
-        $bid->amount = $listing->buy_now_price;
-        $bid->status = Status::BID_WON;
-        $bid->is_buy_now = true;
-        $bid->ip_address = $request->ip();
-        $bid->save();
-
-        // Mark other bids as lost
-        Bid::where('listing_id', $listing->id)
-            ->where('id', '!=', $bid->id)
-            ->whereIn('status', [Status::BID_ACTIVE, Status::BID_WINNING])
-            ->update(['status' => Status::BID_LOST]);
-
-        // Update listing as sold
-        $listing->status = Status::LISTING_SOLD;
-        $listing->winner_id = $user->id;
-        $listing->final_price = $listing->buy_now_price;
-        $listing->current_bid = $listing->buy_now_price;
-        $listing->highest_bidder_id = $user->id;
-        $listing->sold_at = now();
-        $listing->save();
-
-        // Create escrow for the transaction
-        $escrow = $this->createEscrow($listing, $user, $listing->buy_now_price);
-        $listing->escrow_id = $escrow->id;
-        $listing->save();
-
-        // Notify seller
-        notify($listing->seller, 'LISTING_SOLD_BUY_NOW', [
-            'listing_title' => $listing->title,
-            'amount' => showAmount($listing->buy_now_price),
-            'buyer' => $user->username,
-        ]);
-
-        // Notify buyer
-        notify($user, 'PURCHASE_BUY_NOW', [
-            'listing_title' => $listing->title,
-            'amount' => showAmount($listing->buy_now_price),
-        ]);
-
-        $notify[] = ['success', 'Purchase successful! Please proceed to payment.'];
-        return redirect()->route('user.escrow.details', $escrow->id)->withNotify($notify);
     }
 
     public function cancel($id)
