@@ -7,19 +7,58 @@
                          alt="{{ $listing->title }}" class="img-fluid listing-img" style="height: 200px; object-fit: cover; width: 100%; transition: transform 0.3s;">
                 </a>
             @else
-                <a href="{{ route('marketplace.listing.show', $listing->slug) }}" class="placeholder-img bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
-                    @if($listing->business_type == 'domain')
-                        <i class="las la-globe text-muted" style="font-size: 4rem;"></i>
-                    @elseif($listing->business_type == 'website')
-                        <i class="las la-laptop text-muted" style="font-size: 4rem;"></i>
-                    @elseif($listing->business_type == 'social_media_account')
-                        <i class="las la-share-alt text-muted" style="font-size: 4rem;"></i>
-                    @elseif($listing->business_type == 'mobile_app')
-                        <i class="las la-mobile-alt text-muted" style="font-size: 4rem;"></i>
-                    @else
-                        <i class="las la-desktop text-muted" style="font-size: 4rem;"></i>
-                    @endif
-                </a>
+                @if($listing->business_type == 'domain' && $listing->domain_name)
+                    @php
+                        // Generate consistent color based on domain name
+                        $domainName = $listing->domain_name;
+                        $hash = 0;
+                        for ($i = 0; $i < strlen($domainName); $i++) {
+                            $hash = ord($domainName[$i]) + (($hash << 5) - $hash);
+                        }
+                        
+                        // Predefined color gradients
+                        $gradients = [
+                            ['#667eea', '#764ba2'], // Purple
+                            ['#f093fb', '#f5576c'], // Pink
+                            ['#4facfe', '#00f2fe'], // Blue
+                            ['#43e97b', '#38f9d7'], // Green
+                            ['#fa709a', '#fee140'], // Pink-Yellow
+                            ['#30cfd0', '#330867'], // Cyan-Purple
+                            ['#a8edea', '#fed6e3'], // Light Blue-Pink
+                            ['#ff9a9e', '#fecfef'], // Red-Pink
+                            ['#ffecd2', '#fcb69f'], // Orange
+                            ['#ff6e7f', '#bfe9ff'], // Red-Blue
+                        ];
+                        
+                        $index = abs($hash) % count($gradients);
+                        $colors = $gradients[$index];
+                    @endphp
+                    <a href="{{ route('marketplace.listing.show', $listing->slug) }}" 
+                       class="domain-card-image d-flex flex-column align-items-center justify-content-center position-relative text-decoration-none" 
+                       style="height: 200px; background: linear-gradient(135deg, {{ $colors[0] }} 0%, {{ $colors[1] }} 100%);">
+                        <div class="text-center text-white" style="z-index: 1;">
+                            <i class="las la-globe mb-2" style="font-size: 3rem; opacity: 0.3;"></i>
+                            <div class="position-relative">
+                                <div class="position-absolute top-0 start-50 translate-middle-x" style="width: 80px; height: 2px; background: rgba(255,255,255,0.5); transform: translateX(-50%);"></div>
+                            </div>
+                            <h3 class="mb-0 mt-3 fw-bold text-white" style="font-size: 1.75rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                {{ $listing->domain_name }}
+                            </h3>
+                        </div>
+                    </a>
+                @else
+                    <a href="{{ route('marketplace.listing.show', $listing->slug) }}" class="placeholder-img bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                        @if($listing->business_type == 'website')
+                            <i class="las la-laptop text-muted" style="font-size: 4rem;"></i>
+                        @elseif($listing->business_type == 'social_media_account')
+                            <i class="las la-share-alt text-muted" style="font-size: 4rem;"></i>
+                        @elseif($listing->business_type == 'mobile_app')
+                            <i class="las la-mobile-alt text-muted" style="font-size: 4rem;"></i>
+                        @else
+                            <i class="las la-desktop text-muted" style="font-size: 4rem;"></i>
+                        @endif
+                    </a>
+                @endif
             @endif
             
             <div class="listing-badges position-absolute top-0 start-0 end-0 p-2 d-flex justify-content-between">
