@@ -10,13 +10,9 @@ define('LARAVEL_START', microtime(true));
 // Check if .env file exists before proceeding
 $envPath = __DIR__ . '/.env';
 if (!file_exists($envPath)) {
-    // Try to redirect to installer or show helpful message
-    if (file_exists(__DIR__ . '/install')) {
-        header('Location: /install');
-        exit;
-    }
-    http_response_code(500);
-    die('Error: .env file is missing. Please create it using create-env.php or run the installer.');
+    // Redirect to installer
+    header('Location: /install');
+    exit;
 }
 
 // Determine if the application is in maintenance mode...

@@ -16,6 +16,10 @@ RewriteOptions inherit
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
+    # Allow install directory
+    RewriteCond %{REQUEST_URI} ^/install
+    RewriteRule ^ - [L]
+    
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
