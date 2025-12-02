@@ -48,16 +48,45 @@ class RegisterController extends Controller
             $agree = 'required';
         }
 
-        $validate     = Validator::make($data, [
-            'firstname' => 'required',
-            'lastname'  => 'required',
+        // Validate full name - must be reasonable (not just numbers or single letters)
+        $fullnameRules = [
+            'required',
+            'string',
+            'min:3',
+            'max:100',
+            function ($attribute, $value, $fail) {
+                $value = trim($value);
+                // Check if it's just numbers
+                if (preg_match('/^[0-9]+$/', $value)) {
+                    $fail('Full name cannot be just numbers.');
+                }
+                // Check if it's too short or just single characters
+                if (strlen($value) < 3) {
+                    $fail('Full name must be at least 3 characters long.');
+                }
+                // Check if it contains at least one letter
+                if (!preg_match('/[a-zA-Z]/', $value)) {
+                    $fail('Full name must contain at least one letter.');
+                }
+            }
+        ];
+
+        $validate = Validator::make($data, [
+            'fullname'  => $fullnameRules,
             'email'     => 'required|string|email|unique:users',
+            'mobile'     => ['required', 'regex:/^[0-9]+$/', 'min:6', 'max:15'],
+            'mobile_code' => 'required|string',
+            'country'   => 'required|string',
+            'country_code' => 'required|string',
             'password'  => ['required', 'confirmed', $passwordValidation],
             'captcha'   => 'sometimes|required',
             'agree'     => $agree
         ], [
-            'firstname.required' => 'The first name field is required',
-            'lastname.required'  => 'The last name field is required'
+            'fullname.required' => 'Full name is required',
+            'fullname.min' => 'Full name must be at least 3 characters',
+            'mobile.required' => 'Phone number is required',
+            'mobile.regex' => 'Phone number must contain only numbers',
+            'country.required' => 'Country is required'
         ]);
 
         return $validate;
@@ -95,18 +124,48 @@ class RegisterController extends Controller
             $referUser = null;
         }
 
+        // Split fullname into firstname and lastname
+        $fullname = trim($data['fullname']);
+        $nameParts = explode(' ', $fullname, 2);
+        $firstname = $nameParts[0];
+        $lastname = isset($nameParts[1]) && !empty($nameParts[1]) ? $nameParts[1] : $nameParts[0];
+
+        // Auto-generate username from email
+        $email = strtolower($data['email']);
+        $emailParts = explode('@', $email);
+        $baseUsername = preg_replace('/[^a-z0-9]/', '', $emailParts[0]); // Remove special chars, keep only lowercase letters and numbers
+        
+        // Ensure username is not empty
+        if (empty($baseUsername)) {
+            $baseUsername = 'user';
+        }
+        
+        // Check if username exists and generate unique one
+        $username = $baseUsername;
+        $counter = 0;
+        while (User::where('username', $username)->exists()) {
+            $counter++;
+            $username = $baseUsername . str_pad($counter, 2, '0', STR_PAD_LEFT);
+        }
+
         //User Create
-        $user            = new User();
-        $user->email     = strtolower($data['email']);
-        $user->firstname = $data['firstname'];
-        $user->lastname  = $data['lastname'];
-        $user->password  = Hash::make($data['password']);
-        $user->ref_by    = $referUser ? $referUser->id : 0;
-        $user->kv        = gs('kv') ? Status::NO : Status::YES;
-        $user->ev        = gs('ev') ? Status::NO : Status::YES;
-        $user->sv        = gs('sv') ? Status::NO : Status::YES;
-        $user->ts        = Status::DISABLE;
-        $user->tv        = Status::ENABLE;
+        $user = new User();
+        $user->email = $email;
+        $user->firstname = $firstname;
+        $user->lastname = $lastname;
+        $user->username = $username;
+        $user->password = Hash::make($data['password']);
+        $user->mobile = $data['mobile'];
+        $user->dial_code = $data['mobile_code'];
+        $user->country_code = $data['country_code'];
+        $user->country_name = $data['country'];
+        $user->ref_by = $referUser ? $referUser->id : 0;
+        $user->kv = gs('kv') ? Status::NO : Status::YES;
+        $user->ev = gs('ev') ? Status::NO : Status::YES;
+        $user->sv = gs('sv') ? Status::NO : Status::YES;
+        $user->ts = Status::DISABLE;
+        $user->tv = Status::ENABLE;
+        $user->profile_complete = Status::YES; // Mark profile as complete since we collected all required info
         $user->save();
 
         $adminNotification            = new AdminNotification();

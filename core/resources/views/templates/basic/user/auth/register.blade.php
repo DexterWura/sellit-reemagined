@@ -41,38 +41,75 @@
                                                     </div>
                                                 @endif
 
-                                                <div class="form-group col-sm-6">
-                                                    <label class="form-label">@lang('First Name')</label>
-                                                    <input type="text" class="form-control form--control" name="firstname"
-                                                        value="{{ old(' firstname') }}" required>
-                                                </div>
-                                                <div class="form-group col-sm-6">
-                                                    <label class="form-label">@lang('Last Name')</label>
-                                                    <input type="text" class="form-control form--control" name="lastname"
-                                                        value="{{ old(' lastname') }}" required>
+                                                <div class="col-md-12">
+                                                    <div class="form-group">
+                                                        <label class="form-label">@lang('Full Name') <span class="text-danger">*</span></label>
+                                                        <input type="text" class="form-control form--control" name="fullname"
+                                                            value="{{ old('fullname') }}" required 
+                                                            placeholder="@lang('Enter your full name')"
+                                                            minlength="3" maxlength="100">
+                                                        <small class="text-muted">@lang('Please enter your full legal name (minimum 3 characters)')</small>
+                                                    </div>
                                                 </div>
 
                                                 <div class="col-md-12">
                                                     <div class="form-group">
-                                                        <label class="form-label">@lang('E-Mail Address')</label>
+                                                        <label class="form-label">@lang('E-Mail Address') <span class="text-danger">*</span></label>
                                                         <input type="email" class="form-control form--control checkUser" name="email"
-                                                            value="{{ old('email',@request()->invite_email) }}" required @readonly(@request()->invite_email)>
+                                                            value="{{ old('email',@request()->invite_email) }}" required @readonly(@request()->invite_email)
+                                                            placeholder="@lang('Enter your email address')">
                                                     </div>
                                                 </div>
 
                                                 <div class="col-md-6">
                                                     <div class="form-group">
-                                                        <label class="form-label">@lang('Password')</label>
+                                                        <label class="form-label">@lang('Phone Number') <span class="text-danger">*</span></label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text mobile-code">+1</span>
+                                                            <input type="hidden" name="mobile_code" value="1">
+                                                            <input type="hidden" name="country_code" value="US">
+                                                            <input type="tel" name="mobile" value="{{ old('mobile') }}"
+                                                                class="form-control form--control" required
+                                                                placeholder="@lang('Enter phone number')"
+                                                                pattern="[0-9]*" inputmode="numeric">
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <div class="form-group select2-parent">
+                                                        <label class="form-label">@lang('Country') <span class="text-danger">*</span></label>
+                                                        <select name="country" class="form-control form--control select2-basic" required>
+                                                            @php
+                                                                $countryData = (array)json_decode(file_get_contents(resource_path('views/partials/country.json')));
+                                                            @endphp
+                                                            @foreach ($countryData as $key => $country)
+                                                                <option value="{{ $country->country }}" 
+                                                                    data-code="{{ $key }}" 
+                                                                    data-mobile_code="{{ $country->dial_code }}"
+                                                                    {{ old('country') == $country->country ? 'selected' : '' }}>
+                                                                    {{ __($country->country) }}
+                                                                </option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label class="form-label">@lang('Password') <span class="text-danger">*</span></label>
                                                         <input type="password"
                                                             class="form-control form--control @if (gs('secure_password')) secure-password @endif"
-                                                            name="password" required>
+                                                            name="password" required
+                                                            placeholder="@lang('Enter password')">
                                                     </div>
                                                 </div>
 
                                                 <div class="col-md-6">
                                                     <div class="form-group">
-                                                        <label class="form-label">@lang('Confirm Password')</label>
-                                                        <input type="password" class="form-control form--control" name="password_confirmation" required>
+                                                        <label class="form-label">@lang('Confirm Password') <span class="text-danger">*</span></label>
+                                                        <input type="password" class="form-control form--control" name="password_confirmation" required
+                                                            placeholder="@lang('Confirm password')">
                                                     </div>
                                                 </div>
 
@@ -145,17 +182,44 @@
     </style>
 @endpush
 
+@push('style-lib')
+<link rel="stylesheet" href="{{ asset('assets/global/css/select2.min.css') }}">
+@endpush
+
+@push('script-lib')
+<script src="{{ asset('assets/global/js/select2.min.js') }}"></script>
 @if (gs('secure_password'))
-    @push('script-lib')
-        <script src="{{ asset('assets/global/js/secure_password.js') }}"></script>
-    @endpush
+    <script src="{{ asset('assets/global/js/secure_password.js') }}"></script>
 @endif
+@endpush
 
 @push('script')
     <script>
         "use strict";
         (function($) {
+            // Initialize Select2 for country dropdown
+            $('.select2-basic').select2();
 
+            // Update mobile code and country code when country changes
+            $('select[name=country]').on('change', function() {
+                var selectedOption = $(this).find(':selected');
+                var mobileCode = selectedOption.data('mobile_code');
+                var countryCode = selectedOption.data('code');
+                
+                $('input[name=mobile_code]').val(mobileCode);
+                $('input[name=country_code]').val(countryCode);
+                $('.mobile-code').text('+' + mobileCode);
+            });
+
+            // Set initial mobile code
+            var initialOption = $('select[name=country]').find(':selected');
+            if (initialOption.length) {
+                $('input[name=mobile_code]').val(initialOption.data('mobile_code'));
+                $('input[name=country_code]').val(initialOption.data('code'));
+                $('.mobile-code').text('+' + initialOption.data('mobile_code'));
+            }
+
+            // Check if email exists
             $('.checkUser').on('focusout', function(e) {
                 var url = '{{ route('user.checkUser') }}';
                 var value = $(this).val();
@@ -171,6 +235,16 @@
                         $('#existModalCenter').modal('show');
                     }
                 });
+            });
+
+            // Validate full name on input
+            $('input[name="fullname"]').on('input', function() {
+                var fullname = $(this).val().trim();
+                if (fullname.length > 0 && fullname.length < 3) {
+                    $(this).addClass('is-invalid');
+                } else {
+                    $(this).removeClass('is-invalid');
+                }
             });
         })(jQuery);
     </script>
