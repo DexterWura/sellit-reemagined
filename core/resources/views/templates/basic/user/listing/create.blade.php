@@ -140,17 +140,29 @@
                                                         </div>
                                                         
                                                         {{-- TXT File Method --}}
-                                                        <div id="txtFileMethod" class="verification-method-content">
+                                                        <div id="txtFileMethod" class="verification-method-content" style="display: none;">
                                                             <div class="alert alert-light border">
                                                                 <h6 class="mb-2">@lang('Step 1: Download Verification File')</h6>
-                                                                <p class="mb-2 small">@lang('Download the verification file and upload it to your domain root.')</p>
+                                                                <p class="mb-2 small">@lang('Download the verification file and upload it to your website root directory.')</p>
                                                                 <button type="button" class="btn btn-sm btn-outline-primary" id="downloadTxtFile">
                                                                     <i class="las la-download me-1"></i>@lang('Download TXT File')
                                                                 </button>
                                                                 <div class="mt-2">
                                                                     <small class="text-muted">
                                                                         <strong>@lang('File name'):</strong> <code id="txtFileName">-</code><br>
-                                                                        <strong>@lang('Upload to'):</strong> <code id="txtFileLocation">-</code>
+                                                                        <strong>@lang('Upload to'):</strong> <code id="txtFileLocation">-</code><br>
+                                                                        <strong>@lang('File content'):</strong> <code id="txtFileContent" class="text-break">-</code>
+                                                                    </small>
+                                                                </div>
+                                                                <div class="mt-3">
+                                                                    <small class="text-muted">
+                                                                        <strong>@lang('Instructions'):</strong>
+                                                                        <ol class="small mb-0 mt-2">
+                                                                            <li>@lang('Click the download button above to download the verification file')</li>
+                                                                            <li>@lang('Upload the file to your website root directory (public_html, www, or public folder)')</li>
+                                                                            <li>@lang('Make sure the file is accessible at the URL shown above')</li>
+                                                                            <li>@lang('Click "Verify Ownership" button below to check')</li>
+                                                                        </ol>
                                                                     </small>
                                                                 </div>
                                                             </div>
@@ -255,17 +267,29 @@
                                                         </div>
                                                         
                                                         {{-- TXT File Method --}}
-                                                        <div id="websiteTxtFileMethod" class="verification-method-content">
+                                                        <div id="websiteTxtFileMethod" class="verification-method-content" style="display: none;">
                                                             <div class="alert alert-light border">
                                                                 <h6 class="mb-2">@lang('Step 1: Download Verification File')</h6>
-                                                                <p class="mb-2 small">@lang('Download the verification file and upload it to your website root.')</p>
+                                                                <p class="mb-2 small">@lang('Download the verification file and upload it to your website root directory.')</p>
                                                                 <button type="button" class="btn btn-sm btn-outline-primary" id="downloadWebsiteTxtFile">
                                                                     <i class="las la-download me-1"></i>@lang('Download TXT File')
                                                                 </button>
                                                                 <div class="mt-2">
                                                                     <small class="text-muted">
                                                                         <strong>@lang('File name'):</strong> <code id="websiteTxtFileName">-</code><br>
-                                                                        <strong>@lang('Upload to'):</strong> <code id="websiteTxtFileLocation">-</code>
+                                                                        <strong>@lang('Upload to'):</strong> <code id="websiteTxtFileLocation">-</code><br>
+                                                                        <strong>@lang('File content'):</strong> <code id="websiteTxtFileContent" class="text-break">-</code>
+                                                                    </small>
+                                                                </div>
+                                                                <div class="mt-3">
+                                                                    <small class="text-muted">
+                                                                        <strong>@lang('Instructions'):</strong>
+                                                                        <ol class="small mb-0 mt-2">
+                                                                            <li>@lang('Click the download button above to download the verification file')</li>
+                                                                            <li>@lang('Upload the file to your website root directory (public_html, www, or public folder)')</li>
+                                                                            <li>@lang('Make sure the file is accessible at the URL shown above')</li>
+                                                                            <li>@lang('Click "Verify Ownership" button below to check')</li>
+                                                                        </ol>
                                                                     </small>
                                                                 </div>
                                                             </div>
@@ -970,21 +994,27 @@ $(document).ready(function() {
     
     // Generate verification data for domain
     function generateDomainVerification(domain) {
+        if (!domain) return;
+        
         domainVerificationData.domain = domain;
         domainVerificationData.token = 'escrow-verify-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
         domainVerificationData.filename = 'escrow-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
         domainVerificationData.dnsName = '_escrow-verify';
         
+        // Update display with the current selected method
         updateDomainVerificationDisplay();
     }
     
     // Generate verification data for website
     function generateWebsiteVerification(domain) {
+        if (!domain) return;
+        
         websiteVerificationData.domain = domain;
         websiteVerificationData.token = 'escrow-verify-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
         websiteVerificationData.filename = 'escrow-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
         websiteVerificationData.dnsName = '_escrow-verify';
         
+        // Update display with the current selected method
         updateWebsiteVerificationDisplay();
     }
     
@@ -992,16 +1022,24 @@ $(document).ready(function() {
     function updateDomainVerificationDisplay() {
         const method = $('#domainVerificationMethod').val();
         
+        if (!domainVerificationData.domain) {
+            // Domain not set yet, hide both methods
+            $('#txtFileMethod').hide();
+            $('#dnsRecordMethod').hide();
+            return;
+        }
+        
         if (method === 'txt_file') {
             $('#txtFileMethod').show();
             $('#dnsRecordMethod').hide();
-            $('#txtFileName').text(domainVerificationData.filename);
-            $('#txtFileLocation').text('https://' + domainVerificationData.domain + '/' + domainVerificationData.filename);
-        } else {
+            $('#txtFileName').text(domainVerificationData.filename || '-');
+            $('#txtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
+            $('#txtFileContent').text(domainVerificationData.token || '-');
+        } else if (method === 'dns_record') {
             $('#txtFileMethod').hide();
             $('#dnsRecordMethod').show();
-            $('#dnsRecordName').text(domainVerificationData.dnsName);
-            $('#dnsRecordValue').text(domainVerificationData.token);
+            $('#dnsRecordName').text(domainVerificationData.dnsName || '-');
+            $('#dnsRecordValue').text(domainVerificationData.token || '-');
         }
         
         // Update hidden fields
@@ -1018,16 +1056,24 @@ $(document).ready(function() {
     function updateWebsiteVerificationDisplay() {
         const method = $('#websiteVerificationMethod').val();
         
+        if (!websiteVerificationData.domain) {
+            // Domain not set yet, hide both methods
+            $('#websiteTxtFileMethod').hide();
+            $('#websiteDnsRecordMethod').hide();
+            return;
+        }
+        
         if (method === 'txt_file') {
             $('#websiteTxtFileMethod').show();
             $('#websiteDnsRecordMethod').hide();
-            $('#websiteTxtFileName').text(websiteVerificationData.filename);
-            $('#websiteTxtFileLocation').text('https://' + websiteVerificationData.domain + '/' + websiteVerificationData.filename);
-        } else {
+            $('#websiteTxtFileName').text(websiteVerificationData.filename || '-');
+            $('#websiteTxtFileLocation').text('https://' + websiteVerificationData.domain + '/' + (websiteVerificationData.filename || ''));
+            $('#websiteTxtFileContent').text(websiteVerificationData.token || '-');
+        } else if (method === 'dns_record') {
             $('#websiteTxtFileMethod').hide();
             $('#websiteDnsRecordMethod').show();
-            $('#websiteDnsRecordName').text(websiteVerificationData.dnsName);
-            $('#websiteDnsRecordValue').text(websiteVerificationData.token);
+            $('#websiteDnsRecordName').text(websiteVerificationData.dnsName || '-');
+            $('#websiteDnsRecordValue').text(websiteVerificationData.token || '-');
         }
         
         // Update hidden fields
