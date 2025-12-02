@@ -1319,45 +1319,45 @@ $(document).ready(function() {
         const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
         const requireWebsiteVerification = {{ \App\Models\MarketplaceSetting::requireWebsiteVerification() ? 'true' : 'false' }};
         
+        let shouldPreventSubmit = false;
+        
         // Only check verification if it's required AND the business type needs it
-        // If verification is not required, skip the check entirely
         if (businessType === 'domain' && requireDomainVerification) {
-            // Only check if the verification field exists (meaning verification section was shown)
             if ($('#domainVerified').length > 0) {
                 const domainVerified = $('#domainVerified').val();
                 if (domainVerified !== '1') {
-                    e.preventDefault();
+                    shouldPreventSubmit = true;
                     notify('error', '@lang("You must verify domain ownership before submitting the listing")');
-                    showStep(2); // Go back to step 2
-                    return false;
+                    showStep(2);
                 }
             }
-            // If field doesn't exist, verification is not required, so allow submission
         }
         
         if (businessType === 'website' && requireWebsiteVerification) {
-            // Only check if the verification field exists (meaning verification section was shown)
             if ($('#websiteVerified').length > 0) {
                 const websiteVerified = $('#websiteVerified').val();
                 if (websiteVerified !== '1') {
-                    e.preventDefault();
+                    shouldPreventSubmit = true;
                     notify('error', '@lang("You must verify website ownership before submitting the listing")');
-                    showStep(2); // Go back to step 2
-                    return false;
+                    showStep(2);
                 }
             }
-            // If field doesn't exist, verification is not required, so allow submission
+        }
+        
+        // If verification failed, prevent submission
+        if (shouldPreventSubmit) {
+            e.preventDefault();
+            return false;
         }
         
         // If we get here, allow form submission
-        // Show loading state on button
         const submitBtn = $(this).find('button[type="submit"]');
         if (submitBtn.length && !submitBtn.prop('disabled')) {
             submitBtn.prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i>@lang("Submitting...")');
         }
         
-        // Allow form to submit normally - don't prevent default
-        // Form will submit naturally
+        // Allow form to submit naturally - don't prevent default
+        // Form will submit via normal HTML form submission
     });
     
     // Image upload preview
