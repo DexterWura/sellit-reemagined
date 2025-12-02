@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Constants\Status;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class DomainVerification extends Model
@@ -66,17 +67,23 @@ class DomainVerification extends Model
     // Helper Methods
     public static function generateToken()
     {
-        return 'escrow-verify-' . Str::random(32);
+        $siteName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', gs('site_name') ?? 'marketplace'));
+        $siteName = substr($siteName, 0, 10); // Limit length
+        return $siteName . '-verify-' . Str::random(32);
     }
 
     public static function generateTxtFilename()
     {
-        return 'escrow-verification-' . Str::random(16) . '.txt';
+        $siteName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', gs('site_name') ?? 'marketplace'));
+        $siteName = substr($siteName, 0, 10); // Limit length
+        return $siteName . '-verification-' . Str::random(16) . '.txt';
     }
 
     public static function generateDnsRecordName()
     {
-        return '_escrow-verify';
+        $siteName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', gs('site_name') ?? 'marketplace'));
+        $siteName = substr($siteName, 0, 10); // Limit length for DNS record name
+        return '_' . $siteName . '-verify';
     }
 
     /**

@@ -893,6 +893,13 @@ $(document).ready(function() {
     // ============================================
     // Domain/Website Verification Logic
     // ============================================
+    @php
+        // Get site name prefix for verification (sanitized, lowercase, max 10 chars)
+        $siteName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', gs('site_name') ?? 'marketplace'));
+        $siteNamePrefix = substr($siteName, 0, 10) ?: 'marketplace';
+    @endphp
+    const siteNamePrefix = '{{ $siteNamePrefix }}';
+    
     let domainVerificationData = {
         token: null,
         filename: null,
@@ -928,8 +935,10 @@ $(document).ready(function() {
                 let domain = value;
                 // Remove protocol if present for verification
                 domain = domain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
-                $('#domainVerificationSection').slideDown();
+                // Generate verification data first
                 generateDomainVerification(domain);
+                // Then show the section
+                $('#domainVerificationSection').slideDown();
             } else {
                 $('#domainVerificationSection').slideUp();
             }
@@ -957,8 +966,10 @@ $(document).ready(function() {
                 try {
                     const urlObj = new URL(value);
                     const domain = urlObj.hostname.replace(/^www\./, '');
-                    $('#websiteVerificationSection').slideDown();
+                    // Generate verification data first
                     generateWebsiteVerification(domain);
+                    // Then show the section
+                    $('#websiteVerificationSection').slideDown();
                 } catch(e) {
                     // Invalid URL format, hide verification
                     $('#websiteVerificationSection').slideUp();
@@ -997,9 +1008,9 @@ $(document).ready(function() {
         if (!domain) return;
         
         domainVerificationData.domain = domain;
-        domainVerificationData.token = 'escrow-verify-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        domainVerificationData.filename = 'escrow-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
-        domainVerificationData.dnsName = '_escrow-verify';
+        domainVerificationData.token = siteNamePrefix + '-verify-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        domainVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
+        domainVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
         
         // Update display with the current selected method
         updateDomainVerificationDisplay();
@@ -1010,9 +1021,9 @@ $(document).ready(function() {
         if (!domain) return;
         
         websiteVerificationData.domain = domain;
-        websiteVerificationData.token = 'escrow-verify-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        websiteVerificationData.filename = 'escrow-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
-        websiteVerificationData.dnsName = '_escrow-verify';
+        websiteVerificationData.token = siteNamePrefix + '-verify-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        websiteVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
+        websiteVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
         
         // Update display with the current selected method
         updateWebsiteVerificationDisplay();
@@ -1022,24 +1033,30 @@ $(document).ready(function() {
     function updateDomainVerificationDisplay() {
         const method = $('#domainVerificationMethod').val();
         
-        if (!domainVerificationData.domain) {
-            // Domain not set yet, hide both methods
+        if (!domainVerificationData.domain || !domainVerificationData.token) {
+            // Domain or token not set yet, hide both methods
             $('#txtFileMethod').hide();
             $('#dnsRecordMethod').hide();
             return;
         }
         
+        // Always hide both first, then show the selected one
+        $('#txtFileMethod').hide();
+        $('#dnsRecordMethod').hide();
+        
         if (method === 'txt_file') {
-            $('#txtFileMethod').show();
-            $('#dnsRecordMethod').hide();
+            // Update content first
             $('#txtFileName').text(domainVerificationData.filename || '-');
             $('#txtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
             $('#txtFileContent').text(domainVerificationData.token || '-');
+            // Then show
+            $('#txtFileMethod').show();
         } else if (method === 'dns_record') {
-            $('#txtFileMethod').hide();
-            $('#dnsRecordMethod').show();
+            // Update content first
             $('#dnsRecordName').text(domainVerificationData.dnsName || '-');
             $('#dnsRecordValue').text(domainVerificationData.token || '-');
+            // Then show
+            $('#dnsRecordMethod').show();
         }
         
         // Update hidden fields
@@ -1056,24 +1073,30 @@ $(document).ready(function() {
     function updateWebsiteVerificationDisplay() {
         const method = $('#websiteVerificationMethod').val();
         
-        if (!websiteVerificationData.domain) {
-            // Domain not set yet, hide both methods
+        if (!websiteVerificationData.domain || !websiteVerificationData.token) {
+            // Domain or token not set yet, hide both methods
             $('#websiteTxtFileMethod').hide();
             $('#websiteDnsRecordMethod').hide();
             return;
         }
         
+        // Always hide both first, then show the selected one
+        $('#websiteTxtFileMethod').hide();
+        $('#websiteDnsRecordMethod').hide();
+        
         if (method === 'txt_file') {
-            $('#websiteTxtFileMethod').show();
-            $('#websiteDnsRecordMethod').hide();
+            // Update content first
             $('#websiteTxtFileName').text(websiteVerificationData.filename || '-');
             $('#websiteTxtFileLocation').text('https://' + websiteVerificationData.domain + '/' + (websiteVerificationData.filename || ''));
             $('#websiteTxtFileContent').text(websiteVerificationData.token || '-');
+            // Then show
+            $('#websiteTxtFileMethod').show();
         } else if (method === 'dns_record') {
-            $('#websiteTxtFileMethod').hide();
-            $('#websiteDnsRecordMethod').show();
+            // Update content first
             $('#websiteDnsRecordName').text(websiteVerificationData.dnsName || '-');
             $('#websiteDnsRecordValue').text(websiteVerificationData.token || '-');
+            // Then show
+            $('#websiteDnsRecordMethod').show();
         }
         
         // Update hidden fields
