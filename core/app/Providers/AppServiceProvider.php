@@ -36,7 +36,38 @@ class AppServiceProvider extends ServiceProvider
         // Don't redirect if we're already on the install page
         $request = request();
         if ($request && !$request->is('install*')) {
-            if (!cache()->get('SystemInstalled')) {
+            $isInstalled = false;
+            
+            // Try Laravel cache first
+            try {
+                $isInstalled = cache()->get('SystemInstalled');
+            } catch (\Exception $e) {
+                // Cache might not be working, try alternative method
+            }
+            
+            // If not found in cache, check file-based alternative
+            if (!$isInstalled) {
+                // Check both possible locations (relative to core and absolute)
+                $cacheFile1 = base_path('storage/framework/cache/data/SystemInstalled');
+                $cacheFile2 = dirname(base_path()) . '/core/storage/framework/cache/data/SystemInstalled';
+                
+                $cacheFile = file_exists($cacheFile1) ? $cacheFile1 : (file_exists($cacheFile2) ? $cacheFile2 : null);
+                
+                if ($cacheFile && file_exists($cacheFile)) {
+                    $cacheData = @unserialize(file_get_contents($cacheFile));
+                    if (is_array($cacheData) && isset($cacheData['installed']) && $cacheData['installed']) {
+                        $isInstalled = true;
+                        // Try to set it in Laravel cache for future use
+                        try {
+                            cache()->put('SystemInstalled', true, now()->addYears(10));
+                        } catch (\Exception $e) {
+                            // Ignore if cache still doesn't work
+                        }
+                    }
+                }
+            }
+            
+            if (!$isInstalled) {
                 $envFilePath = base_path('.env');
                 if (!file_exists($envFilePath)) {
                     header('Location: /install');
@@ -47,7 +78,18 @@ class AppServiceProvider extends ServiceProvider
                     header('Location: /install');
                     exit;
                 } else {
-                    cache()->put('SystemInstalled', true);
+                    // .env exists and has content, set installation flag
+                    try {
+                        cache()->put('SystemInstalled', true, now()->addYears(10));
+                    } catch (\Exception $e) {
+                        // If cache fails, use file-based method
+                        $cacheFile = base_path('storage/framework/cache/data/SystemInstalled');
+                        $cacheDir = dirname($cacheFile);
+                        if (!is_dir($cacheDir)) {
+                            @mkdir($cacheDir, 0755, true);
+                        }
+                        @file_put_contents($cacheFile, serialize(['installed' => true, 'timestamp' => time()]));
+                    }
                 }
             }
         }
