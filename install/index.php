@@ -22,13 +22,18 @@ if (!$force) {
     $envPath = __DIR__ . '/../.env';
     if (file_exists($envPath) && file_exists(__DIR__ . '/../core/vendor/autoload.php')) {
         try {
-            define('LARAVEL_START', microtime(true));
+            if (!defined('LARAVEL_START')) {
+                define('LARAVEL_START', microtime(true));
+            }
             require __DIR__ . '/../core/vendor/autoload.php';
-            $app = require_once __DIR__ . '/../core/bootstrap/app.php';
-            $cache = $app->make('cache');
-            if ($cache->get('SystemInstalled')) {
-                header('Location: /');
-                exit;
+            $app = require __DIR__ . '/../core/bootstrap/app.php';
+            // Handle case where require_once was used elsewhere
+            if (is_object($app) && method_exists($app, 'make')) {
+                $cache = $app->make('cache');
+                if ($cache->get('SystemInstalled')) {
+                    header('Location: /');
+                    exit;
+                }
             }
         } catch (Exception $e) {
             // If Laravel can't bootstrap, allow installation to proceed

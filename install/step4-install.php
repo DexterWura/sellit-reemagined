@@ -92,13 +92,27 @@ $steps = [];
 $app = null;
 
 try {
-    define('LARAVEL_START', microtime(true));
+    if (!defined('LARAVEL_START')) {
+        define('LARAVEL_START', microtime(true));
+    }
     require __DIR__ . '/../core/vendor/autoload.php';
-    $app = require_once __DIR__ . '/../core/bootstrap/app.php';
-    $steps[] = ['✅', 'Laravel bootstrapped successfully'];
+    
+    // Use require instead of require_once to ensure we get the app instance
+    $bootstrapFile = __DIR__ . '/../core/bootstrap/app.php';
+    if (file_exists($bootstrapFile)) {
+        $app = require $bootstrapFile;
+        // If require_once was used elsewhere and returned true, we need to bootstrap again
+        if ($app === true) {
+            $app = require $bootstrapFile;
+        }
+        $steps[] = ['✅', 'Laravel bootstrapped successfully'];
+    } else {
+        throw new Exception('Bootstrap file not found');
+    }
 } catch (Exception $e) {
     $errors[] = 'Failed to bootstrap Laravel: ' . $e->getMessage();
     $steps[] = ['❌', 'Laravel bootstrap failed: ' . $e->getMessage()];
+    $app = null;
 }
 
 if ($app) {
@@ -251,6 +265,9 @@ if ($app) {
     
     // Step 5: Set SystemInstalled cache
     try {
+        if (!is_object($app) || !method_exists($app, 'make')) {
+            throw new Exception('Application instance is not valid. Bootstrap may have failed.');
+        }
         $cache = $app->make('cache');
         $cache->put('SystemInstalled', true, now()->addYears(10));
         $steps[] = ['✅', 'Installation flag set'];

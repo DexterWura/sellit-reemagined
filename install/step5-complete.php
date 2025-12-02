@@ -6,15 +6,27 @@ $installed = false;
 $verificationErrors = [];
 
 try {
-    define('LARAVEL_START', microtime(true));
+    if (!defined('LARAVEL_START')) {
+        define('LARAVEL_START', microtime(true));
+    }
     require __DIR__ . '/../core/vendor/autoload.php';
-    $app = require_once __DIR__ . '/../core/bootstrap/app.php';
+    $app = require __DIR__ . '/../core/bootstrap/app.php';
+    // Handle case where require_once was used elsewhere
+    if ($app === true) {
+        $app = require __DIR__ . '/../core/bootstrap/app.php';
+    }
     
     // Try to get cache
-    try {
-        $cache = $app->make('cache');
-        $installed = $cache->get('SystemInstalled');
-    } catch (Exception $e) {
+    if (is_object($app) && method_exists($app, 'make')) {
+        try {
+            $cache = $app->make('cache');
+            $installed = $cache->get('SystemInstalled');
+        } catch (Exception $e) {
+            // Try alternative verification
+            $cacheFile = __DIR__ . '/../core/storage/framework/cache/data/SystemInstalled';
+            $installed = file_exists($cacheFile);
+        }
+    } else {
         // Try alternative verification
         $cacheFile = __DIR__ . '/../core/storage/framework/cache/data/SystemInstalled';
         $installed = file_exists($cacheFile);
