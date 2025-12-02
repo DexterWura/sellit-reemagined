@@ -1,8 +1,12 @@
 @php
+    // About section (Transact Safely) commented out - not displaying on frontend
+    return;
+    
     $aboutContent = getContent('about.content', true);
     $aboutElements = getContent('about.element', orderById: true);
 @endphp
 
+{{-- About section (Transact Safely) commented out
 <div class="section--top">
     <div class="container">
         <div class="row g-4 justify-content-lg-between justify-content-center">
@@ -34,3 +38,4 @@
         </div>
     </div>
 </div>
+--}}

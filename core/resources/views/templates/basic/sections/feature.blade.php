@@ -1,8 +1,12 @@
 @php
+    // Provided Features section commented out - not displaying on frontend
+    return;
+    
     $featureContent = getContent('feature.content', true);
     $featureElements = getContent('feature.element', orderById: true);
 @endphp
 
+{{-- Provided Features section commented out
 <div class="section">
     <div class="container">
         <div class="row g-4 justify-content-between align-items-center flex-wrap-reverse">
@@ -41,3 +45,4 @@
         </div>
     </div>
 </div>
+--}}
