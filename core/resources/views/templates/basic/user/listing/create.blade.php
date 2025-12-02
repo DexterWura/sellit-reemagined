@@ -131,10 +131,10 @@
                                                             <label class="form-label">@lang('Verification Method')</label>
                                                             <select name="verification_method" id="domainVerificationMethod" class="form-select">
                                                                 @if(in_array('txt_file', $allowedMethods))
-                                                                    <option value="txt_file">@lang('Upload TXT File to Root')</option>
+                                                                    <option value="txt_file" {{ (old('verification_method', 'txt_file') == 'txt_file') ? 'selected' : '' }}>@lang('Upload TXT File to Root')</option>
                                                                 @endif
                                                                 @if(in_array('dns_record', $allowedMethods))
-                                                                    <option value="dns_record">@lang('Add DNS TXT Record')</option>
+                                                                    <option value="dns_record" {{ (old('verification_method') == 'dns_record') ? 'selected' : '' }}>@lang('Add DNS TXT Record')</option>
                                                                 @endif
                                                             </select>
                                                         </div>
@@ -258,10 +258,10 @@
                                                             <label class="form-label">@lang('Verification Method')</label>
                                                             <select name="verification_method" id="websiteVerificationMethod" class="form-select">
                                                                 @if(in_array('txt_file', $allowedMethods))
-                                                                    <option value="txt_file">@lang('Upload TXT File to Root')</option>
+                                                                    <option value="txt_file" {{ (old('verification_method', 'txt_file') == 'txt_file') ? 'selected' : '' }}>@lang('Upload TXT File to Root')</option>
                                                                 @endif
                                                                 @if(in_array('dns_record', $allowedMethods))
-                                                                    <option value="dns_record">@lang('Add DNS TXT Record')</option>
+                                                                    <option value="dns_record" {{ (old('verification_method') == 'dns_record') ? 'selected' : '' }}>@lang('Add DNS TXT Record')</option>
                                                                 @endif
                                                             </select>
                                                         </div>
@@ -919,6 +919,7 @@ $(document).ready(function() {
         let value = $(this).val().trim();
         const warning = $('#domainProtocolWarning');
         const helpText = $('#domainHelpText');
+        const requireDomainVerification = {{ ($marketplaceSettings['require_domain_verification'] ?? '1') == '1' ? 'true' : 'false' }};
         
         // Check if protocol is present
         if (value && !value.match(/^https?:\/\//i)) {
@@ -930,15 +931,18 @@ $(document).ready(function() {
             $(this).removeClass('is-invalid border-warning');
             helpText.html('@lang("Enter domain with http:// or https:// (e.g., https://example.com)")');
             
-            // Extract domain for verification
-            if (value) {
+            // Only show verification section if verification is required
+            if (value && requireDomainVerification) {
                 let domain = value;
                 // Remove protocol if present for verification
                 domain = domain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
                 // Generate verification data first
                 generateDomainVerification(domain);
-                // Then show the section
-                $('#domainVerificationSection').slideDown();
+                // Then show the section and update display after it's visible
+                $('#domainVerificationSection').slideDown(300, function() {
+                    // After section is fully visible, update display
+                    updateDomainVerificationDisplay();
+                });
             } else {
                 $('#domainVerificationSection').slideUp();
             }
@@ -950,6 +954,7 @@ $(document).ready(function() {
         let value = $(this).val().trim();
         const warning = $('#websiteProtocolWarning');
         const helpText = $('#websiteHelpText');
+        const requireWebsiteVerification = {{ ($marketplaceSettings['require_website_verification'] ?? '1') == '1' ? 'true' : 'false' }};
         
         // Check if protocol is present
         if (value && !value.match(/^https?:\/\//i)) {
@@ -961,15 +966,18 @@ $(document).ready(function() {
             $(this).removeClass('is-invalid border-warning');
             helpText.html('@lang("Enter full URL starting with http:// or https://")');
             
-            // Extract domain for verification
-            if (value) {
+            // Only show verification section if verification is required
+            if (value && requireWebsiteVerification) {
                 try {
                     const urlObj = new URL(value);
                     const domain = urlObj.hostname.replace(/^www\./, '');
                     // Generate verification data first
                     generateWebsiteVerification(domain);
-                    // Then show the section
-                    $('#websiteVerificationSection').slideDown();
+                    // Then show the section and update display after it's visible
+                    $('#websiteVerificationSection').slideDown(300, function() {
+                        // After section is fully visible, update display
+                        updateWebsiteVerificationDisplay();
+                    });
                 } catch(e) {
                     // Invalid URL format, hide verification
                     $('#websiteVerificationSection').slideUp();
@@ -1012,6 +1020,11 @@ $(document).ready(function() {
         domainVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
         domainVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
         
+        // Ensure default method is selected if none is selected
+        if (!$('#domainVerificationMethod').val()) {
+            $('#domainVerificationMethod').val('txt_file');
+        }
+        
         // Update display with the current selected method
         updateDomainVerificationDisplay();
     }
@@ -1025,19 +1038,31 @@ $(document).ready(function() {
         websiteVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
         websiteVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
         
+        // Ensure default method is selected if none is selected
+        if (!$('#websiteVerificationMethod').val()) {
+            $('#websiteVerificationMethod').val('txt_file');
+        }
+        
         // Update display with the current selected method
         updateWebsiteVerificationDisplay();
     }
     
     // Update domain verification display
     function updateDomainVerificationDisplay() {
-        const method = $('#domainVerificationMethod').val();
+        let method = $('#domainVerificationMethod').val();
         
+        // Check if we have the required data
         if (!domainVerificationData.domain || !domainVerificationData.token) {
             // Domain or token not set yet, hide both methods
             $('#txtFileMethod').hide();
             $('#dnsRecordMethod').hide();
             return;
+        }
+        
+        // If no method selected, default to txt_file
+        if (!method) {
+            method = 'txt_file';
+            $('#domainVerificationMethod').val('txt_file');
         }
         
         // Always hide both first, then show the selected one
@@ -1050,13 +1075,13 @@ $(document).ready(function() {
             $('#txtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
             $('#txtFileContent').text(domainVerificationData.token || '-');
             // Then show
-            $('#txtFileMethod').show();
+            $('#txtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
             // Update content first
             $('#dnsRecordName').text(domainVerificationData.dnsName || '-');
             $('#dnsRecordValue').text(domainVerificationData.token || '-');
             // Then show
-            $('#dnsRecordMethod').show();
+            $('#dnsRecordMethod').css('display', 'block');
         }
         
         // Update hidden fields
@@ -1071,13 +1096,20 @@ $(document).ready(function() {
     
     // Update website verification display
     function updateWebsiteVerificationDisplay() {
-        const method = $('#websiteVerificationMethod').val();
+        let method = $('#websiteVerificationMethod').val();
         
+        // Check if we have the required data
         if (!websiteVerificationData.domain || !websiteVerificationData.token) {
             // Domain or token not set yet, hide both methods
             $('#websiteTxtFileMethod').hide();
             $('#websiteDnsRecordMethod').hide();
             return;
+        }
+        
+        // If no method selected, default to txt_file
+        if (!method) {
+            method = 'txt_file';
+            $('#websiteVerificationMethod').val('txt_file');
         }
         
         // Always hide both first, then show the selected one
@@ -1090,13 +1122,13 @@ $(document).ready(function() {
             $('#websiteTxtFileLocation').text('https://' + websiteVerificationData.domain + '/' + (websiteVerificationData.filename || ''));
             $('#websiteTxtFileContent').text(websiteVerificationData.token || '-');
             // Then show
-            $('#websiteTxtFileMethod').show();
+            $('#websiteTxtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
             // Update content first
             $('#websiteDnsRecordName').text(websiteVerificationData.dnsName || '-');
             $('#websiteDnsRecordValue').text(websiteVerificationData.token || '-');
             // Then show
-            $('#websiteDnsRecordMethod').show();
+            $('#websiteDnsRecordMethod').css('display', 'block');
         }
         
         // Update hidden fields
@@ -1249,24 +1281,33 @@ $(document).ready(function() {
             const requireWebsiteVerification = {{ ($marketplaceSettings['require_website_verification'] ?? '1') == '1' ? 'true' : 'false' }};
             
             // Only check verification if it's required AND the business type needs it
+            // If verification is not required, skip the check entirely
             if (businessType === 'domain' && requireDomainVerification) {
-                const domainVerified = $('#domainVerified').length > 0 ? $('#domainVerified').val() : '1';
-                if (domainVerified !== '1') {
-                    e.preventDefault();
-                    notify('error', '@lang("You must verify domain ownership before submitting the listing")');
-                    showStep(2); // Go back to step 2
-                    return false;
+                // Only check if the verification field exists (meaning verification section was shown)
+                if ($('#domainVerified').length > 0) {
+                    const domainVerified = $('#domainVerified').val();
+                    if (domainVerified !== '1') {
+                        e.preventDefault();
+                        notify('error', '@lang("You must verify domain ownership before submitting the listing")');
+                        showStep(2); // Go back to step 2
+                        return false;
+                    }
                 }
+                // If field doesn't exist, verification is not required, so allow submission
             }
             
             if (businessType === 'website' && requireWebsiteVerification) {
-                const websiteVerified = $('#websiteVerified').length > 0 ? $('#websiteVerified').val() : '1';
-                if (websiteVerified !== '1') {
-                    e.preventDefault();
-                    notify('error', '@lang("You must verify website ownership before submitting the listing")');
-                    showStep(2); // Go back to step 2
-                    return false;
+                // Only check if the verification field exists (meaning verification section was shown)
+                if ($('#websiteVerified').length > 0) {
+                    const websiteVerified = $('#websiteVerified').val();
+                    if (websiteVerified !== '1') {
+                        e.preventDefault();
+                        notify('error', '@lang("You must verify website ownership before submitting the listing")');
+                        showStep(2); // Go back to step 2
+                        return false;
+                    }
                 }
+                // If field doesn't exist, verification is not required, so allow submission
             }
             
             // If we get here, allow form submission
