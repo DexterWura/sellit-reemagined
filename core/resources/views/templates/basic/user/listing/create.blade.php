@@ -558,6 +558,47 @@
                                     </div>
                                 </div>
                                 
+                                {{-- Confidential & NDA Section --}}
+                                <div class="mt-4 p-3 border rounded">
+                                    <h6 class="fw-bold mb-3"><i class="las la-shield-alt me-2"></i>@lang('Confidentiality & NDA Settings')</h6>
+                                    <p class="text-muted small mb-3">@lang('Protect sensitive information by making your listing confidential and requiring an NDA before buyers can view details.')</p>
+                                    
+                                    <div class="row g-3">
+                                        <div class="col-12">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" name="is_confidential" id="isConfidential" 
+                                                       value="1" {{ old('is_confidential') ? 'checked' : '' }}>
+                                                <label class="form-check-label fw-semibold" for="isConfidential">
+                                                    @lang('Make this listing confidential')
+                                                </label>
+                                                <small class="text-muted d-block mt-1">
+                                                    @lang('Confidential listings hide sensitive details from unauthorized users.')
+                                                </small>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-12" id="ndaSection" style="display: none;">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" name="requires_nda" id="requiresNda" 
+                                                       value="1" {{ old('requires_nda') ? 'checked' : '' }}>
+                                                <label class="form-check-label fw-semibold" for="requiresNda">
+                                                    @lang('Require NDA before viewing details')
+                                                </label>
+                                                <small class="text-muted d-block mt-1">
+                                                    @lang('Buyers must sign a Non-Disclosure Agreement before they can view confidential details of your listing.')
+                                                </small>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-12" id="confidentialReasonSection" style="display: none;">
+                                            <label class="form-label fw-semibold">@lang('Reason for Confidentiality')</label>
+                                            <textarea name="confidential_reason" class="form-control" rows="3" 
+                                                      placeholder="@lang('Explain why this listing is confidential (e.g., sensitive financial data, proprietary technology, etc.)')">{{ old('confidential_reason') }}</textarea>
+                                            <small class="text-muted">@lang('This information helps buyers understand why an NDA is required.')</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 <div class="step-actions mt-4 d-flex justify-content-between">
                                     <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="1">
                                         <i class="las la-arrow-left me-1"></i> @lang('Back')
@@ -934,6 +975,24 @@ $(document).ready(function() {
     
     // Initialize sale type
     $('input[name="sale_type"]:checked').trigger('change');
+    
+    // Confidential & NDA toggle logic
+    $('#isConfidential').on('change', function() {
+        if ($(this).is(':checked')) {
+            $('#ndaSection').slideDown();
+            $('#confidentialReasonSection').slideDown();
+        } else {
+            $('#ndaSection').slideUp();
+            $('#confidentialReasonSection').slideUp();
+            $('#requiresNda').prop('checked', false);
+        }
+    });
+    
+    // Initialize confidential section if pre-checked
+    if ($('#isConfidential').is(':checked')) {
+        $('#ndaSection').show();
+        $('#confidentialReasonSection').show();
+    }
     
     // Initialize business type if pre-selected
     const preselectedType = $('input[name="business_type"]:checked').val();
