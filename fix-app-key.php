@@ -51,24 +51,50 @@ if (!$hasAppKey || empty(trim($matches[1] ?? ''))) {
     $existingKey = trim($matches[1]);
     echo "<p style='color: green;'>✅ APP_KEY exists: <code>" . htmlspecialchars(substr($existingKey, 0, 30)) . "...</code></p>";
     
-    // Clear config cache
+    // Clear config cache manually
+    $configCacheFile = __DIR__ . '/core/bootstrap/cache/config.php';
+    if (file_exists($configCacheFile)) {
+        if (unlink($configCacheFile)) {
+            echo "<p style='color: green;'>✅ Config cache file deleted</p>";
+        } else {
+            echo "<p style='color: orange;'>⚠️ Could not delete config cache file (permissions?)</p>";
+        }
+    } else {
+        echo "<p style='color: green;'>✅ No config cache file found (good)</p>";
+    }
+    
+    // Also clear other cache files
+    $cacheFiles = [
+        __DIR__ . '/core/bootstrap/cache/services.php',
+        __DIR__ . '/core/bootstrap/cache/packages.php',
+    ];
+    
+    foreach ($cacheFiles as $cacheFile) {
+        if (file_exists($cacheFile)) {
+            @unlink($cacheFile);
+        }
+    }
+    
+    // Try to verify key is readable
     try {
-        define('LARAVEL_START', microtime(true));
+        if (!defined('LARAVEL_START')) {
+            define('LARAVEL_START', microtime(true));
+        }
         require __DIR__ . '/core/vendor/autoload.php';
         $app = require __DIR__ . '/core/bootstrap/app.php';
         
-        \Illuminate\Support\Facades\Artisan::call('config:clear');
-        echo "<p style='color: green;'>✅ Config cache cleared</p>";
+        // Read directly from .env
+        $dotenv = \Dotenv\Dotenv::createImmutable(__DIR__);
+        $dotenv->load();
         
-        // Verify key is readable
-        $key = config('app.key');
-        if ($key) {
-            echo "<p style='color: green;'>✅ Laravel can read APP_KEY</p>";
+        $key = $_ENV['APP_KEY'] ?? null;
+        if ($key && !empty($key)) {
+            echo "<p style='color: green;'>✅ APP_KEY is readable from .env: " . htmlspecialchars(substr($key, 0, 30)) . "...</p>";
         } else {
-            echo "<p style='color: orange;'>⚠️ Laravel still can't read APP_KEY</p>";
+            echo "<p style='color: red;'>❌ APP_KEY not found in environment</p>";
         }
     } catch (Exception $e) {
-        echo "<p style='color: orange;'>⚠️ Could not clear cache: " . $e->getMessage() . "</p>";
+        echo "<p style='color: orange;'>⚠️ Could not verify: " . $e->getMessage() . "</p>";
     }
 }
 
