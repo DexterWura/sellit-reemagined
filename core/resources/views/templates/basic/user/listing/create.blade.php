@@ -139,8 +139,8 @@
                                                                 @if(in_array('dns_record', $allowedMethods))
                                                                     <option value="dns_record" {{ (old('verification_method') == 'dns_record') ? 'selected' : '' }}>@lang('Add DNS TXT Record')</option>
                                                                 @endif
-                                                            </select>
-                                                        </div>
+                                                        </select>
+                                                    </div>
                                                         
                                                         {{-- TXT File Method --}}
                                                         <div id="txtFileMethod" class="verification-method-content" style="display: none;">
@@ -269,8 +269,8 @@
                                                                 @if(in_array('dns_record', $allowedMethods))
                                                                     <option value="dns_record" {{ (old('verification_method') == 'dns_record') ? 'selected' : '' }}>@lang('Add DNS TXT Record')</option>
                                                                 @endif
-                                                            </select>
-                                                        </div>
+                                                        </select>
+                                                    </div>
                                                         
                                                         {{-- TXT File Method --}}
                                                         <div id="websiteTxtFileMethod" class="verification-method-content" style="display: none;">
@@ -525,8 +525,8 @@
                                     </div>
                                 </div>
                                 
-                                {{-- Financials Section --}}
-                                <div class="mt-4 p-3 bg-light rounded">
+                                {{-- Financials Section (Hidden for domain type) --}}
+                                <div class="mt-4 p-3 bg-light rounded financial-section">
                                     <h6 class="fw-bold mb-3"><i class="las la-chart-line me-2"></i>@lang('Financial Information')</h6>
                                     <div class="row g-3">
                                         <div class="col-md-3">
@@ -755,6 +755,24 @@
                                     <p class="text-muted mb-0">@lang('Upload screenshots and images of your business')</p>
                                 </div>
                                 
+                                {{-- Domain Card Preview (for domain type) --}}
+                                <div class="domain-card-preview d-none mb-4">
+                                    <div class="card border" style="max-width: 400px; margin: 0 auto;">
+                                        <div class="card-body text-center p-4">
+                                            <div class="domain-icon mb-3" style="font-size: 48px; color: #3b82f6;">
+                                                <i class="las la-globe"></i>
+                                            </div>
+                                            <h5 class="domain-name-preview mb-2" id="domainNamePreview">example.com</h5>
+                                            <p class="text-muted small mb-0">@lang('This domain will be displayed as a card')</p>
+                                        </div>
+                                    </div>
+                                    <p class="text-center text-muted small mt-3">
+                                        @lang('For domain listings, the domain name will be displayed as a card. Images are optional.')
+                                    </p>
+                                </div>
+                                
+                                {{-- Image Upload (hidden for domain type) --}}
+                                <div class="image-upload-section">
                                 <div class="upload-area" id="uploadArea">
                                     <div class="upload-placeholder">
                                         <i class="las la-cloud-upload-alt"></i>
@@ -781,6 +799,7 @@
                                         <li>@lang('Capture the homepage and key pages')</li>
                                         <li>@lang('First image will be used as the thumbnail')</li>
                                     </ul>
+                                    </div>
                                 </div>
                                 
                                 <div class="step-actions mt-4 d-flex justify-content-between">
@@ -909,11 +928,33 @@ $(document).ready(function() {
         // Show relevant fields and add required attribute
         $(`.${type}-fields`).removeClass('d-none');
         
-        // Add required attribute to the active field
+        // Hide/show financial section based on business type
         if (type === 'domain') {
+            $('.financial-section').addClass('d-none');
             $('#domainNameInput').attr('required', 'required');
-        } else if (type === 'website') {
-            $('#websiteUrlInput').attr('required', 'required');
+        } else {
+            $('.financial-section').removeClass('d-none');
+            if (type === 'website') {
+                $('#websiteUrlInput').attr('required', 'required');
+            }
+        }
+        
+        // Update domain card preview when domain is entered
+        if (type === 'domain') {
+            const domainValue = $('#domainNameInput').val();
+            if (domainValue) {
+                const domainName = domainValue.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+                $('#domainNamePreview').text(domainName || 'example.com');
+            }
+        }
+        
+        // Show/hide image upload section based on business type
+        if (type === 'domain') {
+            $('.domain-card-preview').removeClass('d-none');
+            $('.image-upload-section').addClass('d-none');
+        } else {
+            $('.domain-card-preview').addClass('d-none');
+            $('.image-upload-section').removeClass('d-none');
         }
         
         // If domain is selected and verification is required, ensure verification section is ready
@@ -1000,10 +1041,17 @@ $(document).ready(function() {
         // Set required attribute for pre-selected type
         if (preselectedType === 'domain') {
             $('#domainNameInput').attr('required', 'required');
+            $('.financial-section').addClass('d-none');
+            $('.domain-card-preview').removeClass('d-none');
+            $('.image-upload-section').addClass('d-none');
         } else if (preselectedType === 'website') {
             $('#websiteUrlInput').attr('required', 'required');
         }
         $('input[name="business_type"]:checked').trigger('change');
+    } else {
+        // Hide financial section and domain card by default
+        $('.financial-section').addClass('d-none');
+        $('.domain-card-preview').addClass('d-none');
     }
     
     // ============================================
@@ -1047,11 +1095,12 @@ $(document).ready(function() {
             $(this).removeClass('is-invalid border-warning');
             helpText.html('@lang("Enter domain with http:// or https:// (e.g., https://example.com)")');
             
+            // Update domain card preview
+            let domain = value.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+            $('#domainNamePreview').text(domain || 'example.com');
+            
             // Only show verification section if verification is required
             if (value && requireDomainVerification) {
-                let domain = value;
-                // Remove protocol if present for verification
-                domain = domain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
                 // Generate verification data first
                 generateDomainVerification(domain);
                 // Then show the section and update display after it's visible
@@ -1398,7 +1447,9 @@ $(document).ready(function() {
         let shouldPreventSubmit = false;
         
         // Only check verification if it's required AND the business type needs it
-        if (businessType === 'domain' && requireDomainVerification) {
+        // IMPORTANT: Only check if verification is actually required (setting is ON)
+        if (businessType === 'domain' && requireDomainVerification === true) {
+            // Only check if the verification field exists (meaning verification section was shown)
             if ($('#domainVerified').length > 0) {
                 const domainVerified = $('#domainVerified').val();
                 if (domainVerified !== '1') {
@@ -1408,8 +1459,10 @@ $(document).ready(function() {
                 }
             }
         }
+        // If verification is not required, skip check entirely
         
-        if (businessType === 'website' && requireWebsiteVerification) {
+        if (businessType === 'website' && requireWebsiteVerification === true) {
+            // Only check if the verification field exists (meaning verification section was shown)
             if ($('#websiteVerified').length > 0) {
                 const websiteVerified = $('#websiteVerified').val();
                 if (websiteVerified !== '1') {
@@ -1419,6 +1472,7 @@ $(document).ready(function() {
                 }
             }
         }
+        // If verification is not required, skip check entirely
         
         // If verification failed, prevent submission
         if (shouldPreventSubmit) {
