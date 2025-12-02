@@ -161,6 +161,11 @@ Route::middleware('auth')->name('user.')->group(function () {
                 Route::post('toggle-alerts/{id}', 'toggleAlerts')->name('toggle.alerts');
             });
 
+            // NDA Documents
+            Route::controller('NdaController')->name('nda.')->prefix('nda')->group(function () {
+                Route::get('/', 'myNdas')->name('index');
+            });
+
             // Domain Verification
             Route::controller('DomainVerificationController')->name('verification.')->prefix('verification')->group(function () {
                 Route::get('/', 'index')->name('index');

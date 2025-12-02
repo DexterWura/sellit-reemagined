@@ -7,6 +7,7 @@ use App\Models\Listing;
 use App\Models\ListingCategory;
 use App\Models\ListingQuestion;
 use App\Models\ListingView;
+use App\Models\NdaDocument;
 use App\Models\Review;
 use App\Models\SavedSearch;
 use App\Models\Watchlist;
@@ -74,8 +75,28 @@ class MarketplaceController extends Controller
     {
         $pageTitle = 'Browse Listings';
 
+        // For confidential listings, we need to check NDA access
         $listings = Listing::active()
             ->with(['images', 'seller', 'listingCategory'])
+            ->where(function ($q) {
+                // Show non-confidential listings to everyone
+                $q->where('is_confidential', false);
+                
+                // Show confidential listings only to authorized users
+                if (auth()->check()) {
+                    $q->orWhere(function ($confidentialQ) {
+                        $confidentialQ->where('is_confidential', true)
+                            ->where(function ($accessQ) {
+                                // Seller can see their own
+                                $accessQ->where('user_id', auth()->id())
+                                    // Or user has signed NDA
+                                    ->orWhereHas('signedNdas', function ($ndaQ) {
+                                        $ndaQ->where('user_id', auth()->id());
+                                    });
+                            });
+                    });
+                }
+            })
             // Business Type Filter
             ->when($request->business_type, function ($q, $type) {
                 return $q->where('business_type', $type);
@@ -259,6 +280,23 @@ class MarketplaceController extends Controller
             }
         }
 
+        // Check if listing is confidential and requires NDA
+        if ($listing->is_confidential && $listing->requires_nda) {
+            // Allow seller to view
+            if (auth()->check() && auth()->id() === $listing->user_id) {
+                // Seller can view
+            } 
+            // Allow buyer/winner to view
+            elseif (auth()->check() && ($listing->winner_id === auth()->id() || $listing->highest_bidder_id === auth()->id())) {
+                // Buyer can view
+            }
+            // Check if user has signed NDA
+            elseif (!auth()->check() || !$listing->hasSignedNda()) {
+                // Redirect to NDA signing page
+                return redirect()->route('marketplace.nda.show', $listing->id);
+            }
+        }
+
         $pageTitle = $listing->title;
 
         // Track view
@@ -282,10 +320,24 @@ class MarketplaceController extends Controller
             ->take(5)
             ->get();
 
-        // Similar listings
+        // Similar listings (exclude confidential ones user can't access)
         $similarListings = Listing::active()
             ->where('id', '!=', $listing->id)
             ->where('business_type', $listing->business_type)
+            ->where(function ($q) {
+                $q->where('is_confidential', false);
+                if (auth()->check()) {
+                    $q->orWhere(function ($subQ) {
+                        $subQ->where('is_confidential', true)
+                            ->where(function ($ndaQ) {
+                                $ndaQ->where('user_id', auth()->id())
+                                    ->orWhereHas('signedNdas', function ($signedQ) {
+                                        $signedQ->where('user_id', auth()->id());
+                                    });
+                            });
+                    });
+                }
+            })
             ->with(['images', 'seller'])
             ->inRandomOrder()
             ->take(4)

@@ -391,6 +391,16 @@ Route::middleware('admin')->group(function () {
         Route::get('system-update/log', 'systemUpdateLog')->name('update.log');
     });
 
+    // Database Migrations Management
+    Route::controller('MigrationController')->name('migration.')->prefix('migrations')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('status', 'status')->name('status');
+        Route::post('run', 'run')->name('run');
+        Route::post('run/{migrationName}', 'runSpecific')->name('run.specific');
+        Route::post('rollback', 'rollback')->name('rollback');
+        Route::post('refresh', 'refresh')->name('refresh');
+    });
+
 
     // SEO
     Route::get('seo', 'FrontendController@seoEdit')->name('seo');

@@ -31,6 +31,13 @@ Route::controller('MarketplaceController')->name('marketplace.')->prefix('market
     Route::get('type/{type}', 'businessType')->name('type');
 });
 
+// NDA Routes
+Route::controller('NdaController')->name('marketplace.nda.')->prefix('marketplace/nda')->group(function () {
+    Route::get('listing/{listingId}', 'show')->name('show');
+    Route::post('sign/{listingId}', 'sign')->name('sign')->middleware('auth');
+    Route::get('download/{id}', 'download')->name('download')->middleware('auth');
+});
+
 Route::controller('SiteController')->group(function () {
     Route::get('/contact', 'contact')->name('contact');
     Route::post('/contact', 'contactSubmit');

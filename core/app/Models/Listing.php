@@ -16,6 +16,8 @@ class Listing extends Model
         'revenue_verified' => 'boolean',
         'traffic_verified' => 'boolean',
         'is_featured' => 'boolean',
+        'is_confidential' => 'boolean',
+        'requires_nda' => 'boolean',
         'featured_until' => 'datetime',
         'auction_start' => 'datetime',
         'auction_end' => 'datetime',
@@ -126,6 +128,29 @@ class Listing extends Model
     public function escrow()
     {
         return $this->belongsTo(Escrow::class);
+    }
+
+    public function ndaDocuments()
+    {
+        return $this->hasMany(NdaDocument::class);
+    }
+
+    public function signedNdas()
+    {
+        return $this->hasMany(NdaDocument::class)->active();
+    }
+
+    public function hasSignedNda($userId = null)
+    {
+        $userId = $userId ?? auth()->id();
+        if (!$userId) {
+            return false;
+        }
+        
+        return $this->ndaDocuments()
+            ->where('user_id', $userId)
+            ->active()
+            ->exists();
     }
 
     public function winner()

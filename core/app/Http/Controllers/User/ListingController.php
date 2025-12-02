@@ -122,6 +122,11 @@ class ListingController extends Controller
         $listing->sale_type = $request->sale_type;
         $listing->listing_category_id = $request->listing_category_id;
 
+        // Confidential & NDA Settings
+        $listing->is_confidential = $request->has('is_confidential') ? (bool)$request->is_confidential : false;
+        $listing->requires_nda = $request->has('requires_nda') ? (bool)$request->requires_nda : false;
+        $listing->confidential_reason = $request->confidential_reason ?? null;
+
         // Pricing
         if ($request->sale_type === 'fixed_price') {
             $listing->asking_price = $request->asking_price;
@@ -240,6 +245,11 @@ class ListingController extends Controller
         $listing->tagline = $request->tagline;
         $listing->description = $request->description;
         $listing->listing_category_id = $request->listing_category_id;
+
+        // Confidential & NDA Settings
+        $listing->is_confidential = $request->has('is_confidential') ? (bool)$request->is_confidential : false;
+        $listing->requires_nda = $request->has('requires_nda') ? (bool)$request->requires_nda : false;
+        $listing->confidential_reason = $request->confidential_reason ?? null;
 
         // Pricing
         if ($listing->sale_type === 'fixed_price') {
