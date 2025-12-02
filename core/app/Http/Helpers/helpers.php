@@ -49,14 +49,32 @@ function getNumber($length = 8)
 
 
 function activeTemplate($asset = false) {
-    $template = session('template') ?? gs('active_template');
-    if ($asset) return 'assets/templates/' . $template . '/';
-    return 'templates.' . $template . '.';
+    try {
+        $template = session('template') ?? gs('active_template');
+        // Fallback if gs() returns null
+        if (empty($template)) {
+            $template = 'basic';
+        }
+        if ($asset) return 'assets/templates/' . $template . '/';
+        return 'templates.' . $template . '.';
+    } catch (\Exception $e) {
+        // Fallback template
+        if ($asset) return 'assets/templates/basic/';
+        return 'templates.basic.';
+    }
 }
 
 function activeTemplateName() {
-    $template = session('template') ?? gs('active_template');
-    return $template;
+    try {
+        $template = session('template') ?? gs('active_template');
+        // Fallback if gs() returns null
+        if (empty($template)) {
+            $template = 'basic';
+        }
+        return $template;
+    } catch (\Exception $e) {
+        return 'basic';
+    }
 }
 
 function siteLogo($type = null) {
@@ -435,13 +453,27 @@ function dateSorting($arr)
 
 function gs($key = null)
 {
-    $general = Cache::get('GeneralSetting');
-    if (!$general) {
-        $general = GeneralSetting::first();
-        Cache::put('GeneralSetting', $general);
+    try {
+        $general = Cache::get('GeneralSetting');
+        if (!$general) {
+            // Check if database is available
+            try {
+                \DB::connection()->getPdo();
+                $general = GeneralSetting::first();
+                if ($general) {
+                    Cache::put('GeneralSetting', $general);
+                }
+            } catch (\Exception $e) {
+                // Database not ready, return null
+                return null;
+            }
+        }
+        if ($key) return @$general->$key;
+        return $general;
+    } catch (\Exception $e) {
+        // Return null if anything fails
+        return null;
     }
-    if ($key) return @$general->$key;
-    return $general;
 }
 function isImage($string){
     $allowedExtensions = array('jpg', 'jpeg', 'png', 'gif');

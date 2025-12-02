@@ -15,6 +15,7 @@ use App\Models\SupportTicket;
 use App\Models\User;
 use App\Models\Withdrawal;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
 
@@ -34,75 +35,80 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Don't redirect if we're already on the install page
-        $request = request();
-        if ($request && !$request->is('install*')) {
-            $isInstalled = false;
-            
-            // Try Laravel cache first
-            try {
-                $isInstalled = cache()->get('SystemInstalled');
-            } catch (\Exception $e) {
-                // Cache might not be working, try alternative method
-            }
-            
-            // If not found in cache, check file-based alternative
-            if (!$isInstalled) {
-                // Check both possible locations (relative to core and absolute)
-                $cacheFile1 = base_path('storage/framework/cache/data/SystemInstalled');
-                $cacheFile2 = dirname(base_path()) . '/core/storage/framework/cache/data/SystemInstalled';
+        try {
+            $request = request();
+            if ($request && !$request->is('install*')) {
+                $isInstalled = false;
                 
-                $cacheFile = file_exists($cacheFile1) ? $cacheFile1 : (file_exists($cacheFile2) ? $cacheFile2 : null);
+                // Try Laravel cache first
+                try {
+                    $isInstalled = cache()->get('SystemInstalled');
+                } catch (\Exception $e) {
+                    // Cache might not be working, try alternative method
+                }
                 
-                if ($cacheFile && file_exists($cacheFile)) {
-                    $cacheData = @unserialize(file_get_contents($cacheFile));
-                    if (is_array($cacheData) && isset($cacheData['installed']) && $cacheData['installed']) {
-                        $isInstalled = true;
-                        // Try to set it in Laravel cache for future use
-                        try {
-                            cache()->put('SystemInstalled', true, now()->addYears(10));
-                        } catch (\Exception $e) {
-                            // Ignore if cache still doesn't work
+                // If not found in cache, check file-based alternative
+                if (!$isInstalled) {
+                    // Check both possible locations (relative to core and absolute)
+                    $cacheFile1 = base_path('storage/framework/cache/data/SystemInstalled');
+                    $cacheFile2 = dirname(base_path()) . '/core/storage/framework/cache/data/SystemInstalled';
+                    
+                    $cacheFile = file_exists($cacheFile1) ? $cacheFile1 : (file_exists($cacheFile2) ? $cacheFile2 : null);
+                    
+                    if ($cacheFile && file_exists($cacheFile)) {
+                        $cacheData = @unserialize(file_get_contents($cacheFile));
+                        if (is_array($cacheData) && isset($cacheData['installed']) && $cacheData['installed']) {
+                            $isInstalled = true;
+                            // Try to set it in Laravel cache for future use
+                            try {
+                                cache()->put('SystemInstalled', true, now()->addYears(10));
+                            } catch (\Exception $e) {
+                                // Ignore if cache still doesn't work
+                            }
                         }
                     }
                 }
-            }
-            
-            if (!$isInstalled) {
-                // .env is in the parent directory of core
-                $envFilePath = dirname(base_path()) . '/.env';
-                if (!file_exists($envFilePath)) {
-                    header('Location: /install');
-                    exit;
-                }
-                $envContents = @file_get_contents($envFilePath);
-                if (empty(trim($envContents))) {
-                    header('Location: /install');
-                    exit;
-                } else {
-                    // .env exists and has content, set installation flag
-                    try {
-                        cache()->put('SystemInstalled', true, now()->addYears(10));
-                    } catch (\Exception $e) {
-                        // If cache fails, use file-based method
-                        $cacheFile = base_path('storage/framework/cache/data/SystemInstalled');
-                        $cacheDir = dirname($cacheFile);
-                        if (!is_dir($cacheDir)) {
-                            @mkdir($cacheDir, 0755, true);
-                        }
-                        @file_put_contents($cacheFile, serialize(['installed' => true, 'timestamp' => time()]));
+                
+                if (!$isInstalled) {
+                    // .env is in the parent directory of core
+                    $envFilePath = dirname(base_path()) . '/.env';
+                    if (!file_exists($envFilePath)) {
+                        header('Location: /install');
+                        exit;
+                    }
+                    $envContents = @file_get_contents($envFilePath);
+                    if (empty(trim($envContents))) {
+                        header('Location: /install');
+                        exit;
+                    } else {
+                        // .env exists and has content, assume installed
+                        // Don't try to set cache here to avoid errors
+                        // Just let it through
                     }
                 }
             }
+        } catch (\Exception $e) {
+            // If anything fails in the installation check, just continue
+            // Better to show the site with potential errors than redirect loop
         }
 
         // Only proceed with view composers if database is ready
         try {
             // Check if database connection is available
-            \DB::connection()->getPdo();
+            DB::connection()->getPdo();
             
-            $activeTemplate = activeTemplate();
+            // Try to get active template, with fallback
+            try {
+                $activeTemplate = activeTemplate();
+                $activeTemplateTrue = activeTemplate(true);
+            } catch (\Exception $e) {
+                // Fallback if activeTemplate fails
+                $activeTemplate = 'templates.basic.';
+                $activeTemplateTrue = 'assets/templates/basic/';
+            }
+            
             $viewShare['activeTemplate'] = $activeTemplate;
-            $viewShare['activeTemplateTrue'] = activeTemplate(true);
+            $viewShare['activeTemplateTrue'] = $activeTemplateTrue;
             $viewShare['emptyMessage'] = 'Data not found';
             view()->share($viewShare);
 
