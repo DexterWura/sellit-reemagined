@@ -58,8 +58,7 @@ class MarketplaceController extends Controller
             'featuredListings',
             'endingSoon',
             'latestListings',
-            'categories',
-            'stats'
+            'categories'
         ));
     }
 
