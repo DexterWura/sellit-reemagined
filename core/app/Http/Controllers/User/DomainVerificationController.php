@@ -125,5 +125,125 @@ class DomainVerificationController extends Controller
             ->header('Content-Type', 'text/plain')
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
+
+    /**
+     * AJAX verification endpoint for listing creation page
+     */
+    public function verifyAjax(Request $request)
+    {
+        $request->validate([
+            'domain' => 'required|string',
+            'method' => 'required|in:txt_file,dns_record',
+            'token' => 'required|string',
+            'filename' => 'required_if:method,txt_file|string',
+            'dns_name' => 'required_if:method,dns_record|string',
+        ]);
+
+        // Check if method is allowed
+        $allowedMethods = MarketplaceSetting::getDomainVerificationMethods();
+        if (!in_array($request->method, $allowedMethods)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This verification method is not allowed'
+            ], 400);
+        }
+
+        $domain = $request->domain;
+        $method = $request->method;
+        $token = $request->token;
+
+        try {
+            if ($method === DomainVerification::METHOD_TXT_FILE) {
+                // Verify TXT file
+                $filename = $request->filename;
+                $urls = [
+                    'https://' . $domain . '/' . $filename,
+                    'https://' . $domain . '/.well-known/' . $filename,
+                    'http://' . $domain . '/' . $filename,
+                    'http://' . $domain . '/.well-known/' . $filename,
+                ];
+
+                foreach ($urls as $url) {
+                    try {
+                        $context = stream_context_create([
+                            'http' => [
+                                'timeout' => 10,
+                                'follow_location' => true,
+                            ],
+                            'ssl' => [
+                                'verify_peer' => false,
+                                'verify_peer_name' => false,
+                            ],
+                        ]);
+
+                        $content = @file_get_contents($url, false, $context);
+                        
+                        if ($content !== false && trim($content) === $token) {
+                            return response()->json([
+                                'success' => true,
+                                'message' => 'Domain ownership verified successfully!'
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        continue;
+                    }
+                }
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Verification file not found or token mismatch. Please ensure the file is accessible at: https://' . $domain . '/' . $filename
+                ]);
+
+            } else {
+                // Verify DNS TXT record
+                $dnsName = $request->dns_name;
+                $recordName = $dnsName . '.' . $domain;
+                
+                try {
+                    $records = dns_get_record($recordName, DNS_TXT);
+                    
+                    if ($records) {
+                        foreach ($records as $record) {
+                            if (isset($record['txt']) && trim($record['txt']) === $token) {
+                                return response()->json([
+                                    'success' => true,
+                                    'message' => 'Domain ownership verified successfully!'
+                                ]);
+                            }
+                        }
+                    }
+
+                    // Also try without subdomain prefix
+                    $records = dns_get_record($domain, DNS_TXT);
+                    if ($records) {
+                        foreach ($records as $record) {
+                            if (isset($record['txt']) && trim($record['txt']) === $token) {
+                                return response()->json([
+                                    'success' => true,
+                                    'message' => 'Domain ownership verified successfully!'
+                                ]);
+                            }
+                        }
+                    }
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'DNS TXT record not found. Please add a TXT record with name "' . $dnsName . '" and value "' . $token . '". DNS propagation may take up to 24-48 hours.'
+                    ]);
+
+                } catch (\Exception $e) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'DNS lookup failed: ' . $e->getMessage()
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Verification failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
 

@@ -102,13 +102,28 @@ class ListingController extends Controller
 
         $user = auth()->user();
 
-        // Check if domain/website verification is required
+        // Check if domain/website verification is required and verified
         $requiresVerification = false;
+        $isVerified = false;
+        
         if ($businessType === 'domain' && MarketplaceSetting::requireDomainVerification()) {
             $requiresVerification = true;
+            $isVerified = $request->has('domain_verified') && $request->domain_verified == '1';
+            
+            if (!$isVerified) {
+                $notify[] = ['error', 'You must verify domain ownership before submitting the listing'];
+                return back()->withInput()->withNotify($notify);
+            }
         }
+        
         if ($businessType === 'website' && MarketplaceSetting::requireWebsiteVerification()) {
             $requiresVerification = true;
+            $isVerified = $request->has('domain_verified') && $request->domain_verified == '1';
+            
+            if (!$isVerified) {
+                $notify[] = ['error', 'You must verify website ownership before submitting the listing'];
+                return back()->withInput()->withNotify($notify);
+            }
         }
 
         $listing = new Listing();
@@ -159,10 +174,16 @@ class ListingController extends Controller
         $listing->meta_title = $request->meta_title ?? $request->title;
         $listing->meta_description = $request->meta_description ?? Str::limit(strip_tags($request->description), 160);
 
-        // Status - if requires verification, set to draft first
-        if ($requiresVerification) {
+        // Status - if verification was required and completed, mark as verified
+        if ($requiresVerification && $isVerified) {
+            $listing->status = Status::LISTING_PENDING;
+            $listing->requires_verification = false;
+            $listing->is_verified = true;
+        } else if ($requiresVerification && !$isVerified) {
+            // This shouldn't happen due to validation above, but just in case
             $listing->status = Status::LISTING_DRAFT;
             $listing->requires_verification = true;
+            $listing->is_verified = false;
         } else {
             $listing->status = Status::LISTING_PENDING;
             $listing->requires_verification = false;
@@ -179,25 +200,10 @@ class ListingController extends Controller
         // Update user stats
         $user->increment('total_listings');
 
-        // If requires verification, create verification record and redirect
-        if ($requiresVerification) {
+        // If verification was required and completed, create verification record for audit
+        if ($requiresVerification && $isVerified) {
             $verificationMethod = $request->verification_method ?? 'txt_file';
-            $verification = DomainVerification::createForListing($listing, $verificationMethod);
-            
-            if ($verification) {
-                $notify[] = ['info', 'Listing created! Please verify domain ownership to proceed.'];
-                return redirect()->route('user.verification.show', $verification->id)->withNotify($notify);
-            } else {
-                // Verification couldn't be created (no valid URL/domain found)
-                // Change status to pending without verification requirement
-                $listing->requires_verification = false;
-                $listing->is_verified = false;
-                $listing->status = Status::LISTING_PENDING;
-                $listing->save();
-                
-                $notify[] = ['warning', 'Listing created but domain verification could not be initiated. Please ensure you entered a valid URL.'];
-                return redirect()->route('user.listing.index')->withNotify($notify);
-            }
+            DomainVerification::createForListing($listing, $verificationMethod);
         }
 
         $notify[] = ['success', 'Listing created successfully and pending admin approval'];

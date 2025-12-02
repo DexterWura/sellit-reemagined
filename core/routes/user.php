@@ -173,6 +173,7 @@ Route::middleware('auth')->name('user.')->group(function () {
                 Route::get('show/{id}', 'show')->name('show');
                 Route::post('initiate/{listingId}', 'initiate')->name('initiate');
                 Route::post('verify/{id}', 'verify')->name('verify');
+                Route::post('verify-ajax', 'verifyAjax')->name('verify-ajax');
                 Route::post('change-method/{id}', 'changeMethod')->name('change.method');
                 Route::get('download/{id}', 'downloadFile')->name('download');
             });

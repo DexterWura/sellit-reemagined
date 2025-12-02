@@ -106,16 +106,82 @@
                                         </div>
                                         
                                         @if(($marketplaceSettings['require_domain_verification'] ?? '1') == '1')
+                                            @php
+                                                $allowedMethods = \App\Models\MarketplaceSetting::getDomainVerificationMethods();
+                                            @endphp
                                             <div class="col-12">
-                                                <div class="alert alert-info border-0 d-flex align-items-start">
-                                                    <i class="las la-shield-alt fs-4 me-3 mt-1"></i>
-                                                    <div>
-                                                        <h6 class="alert-heading mb-1">@lang('Verification Required')</h6>
-                                                        <p class="mb-2 small">@lang('You will need to verify ownership of this domain before your listing is approved.')</p>
-                                                        <select name="verification_method" class="form-select form-select-sm" style="max-width: 250px;">
-                                                            <option value="txt_file">@lang('Upload TXT File to Root')</option>
-                                                            <option value="dns_record">@lang('Add DNS TXT Record')</option>
-                                                        </select>
+                                                <div class="card border-warning verification-section" id="domainVerificationSection" style="display: none;">
+                                                    <div class="card-header bg-warning bg-opacity-10">
+                                                        <h6 class="mb-0">
+                                                            <i class="las la-shield-alt me-2"></i>@lang('Verification Required')
+                                                        </h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <p class="mb-3 small">@lang('You must verify ownership of this domain before your listing can be submitted.')</p>
+                                                        
+                                                        <div class="mb-3">
+                                                            <label class="form-label">@lang('Verification Method')</label>
+                                                            <select name="verification_method" id="domainVerificationMethod" class="form-select">
+                                                                @if(in_array('txt_file', $allowedMethods))
+                                                                    <option value="txt_file">@lang('Upload TXT File to Root')</option>
+                                                                @endif
+                                                                @if(in_array('dns_record', $allowedMethods))
+                                                                    <option value="dns_record">@lang('Add DNS TXT Record')</option>
+                                                                @endif
+                                                            </select>
+                                                        </div>
+                                                        
+                                                        {{-- TXT File Method --}}
+                                                        <div id="txtFileMethod" class="verification-method-content">
+                                                            <div class="alert alert-light border">
+                                                                <h6 class="mb-2">@lang('Step 1: Download Verification File')</h6>
+                                                                <p class="mb-2 small">@lang('Download the verification file and upload it to your domain root.')</p>
+                                                                <button type="button" class="btn btn-sm btn-outline-primary" id="downloadTxtFile">
+                                                                    <i class="las la-download me-1"></i>@lang('Download TXT File')
+                                                                </button>
+                                                                <div class="mt-2">
+                                                                    <small class="text-muted">
+                                                                        <strong>@lang('File name'):</strong> <code id="txtFileName">-</code><br>
+                                                                        <strong>@lang('Upload to'):</strong> <code id="txtFileLocation">-</code>
+                                                                    </small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {{-- DNS Record Method --}}
+                                                        <div id="dnsRecordMethod" class="verification-method-content" style="display: none;">
+                                                            <div class="alert alert-light border">
+                                                                <h6 class="mb-2">@lang('Step 1: Add DNS TXT Record')</h6>
+                                                                <p class="mb-2 small">@lang('Add the following TXT record to your domain DNS settings:')</p>
+                                                                <div class="table-responsive">
+                                                                    <table class="table table-sm table-bordered">
+                                                                        <tr>
+                                                                            <th width="30%">@lang('Type')</th>
+                                                                            <th width="35%">@lang('Name/Host')</th>
+                                                                            <th width="35%">@lang('Value/Content')</th>
+                                                                        </tr>
+                                                                        <tr>
+                                                                            <td><code>TXT</code></td>
+                                                                            <td><code id="dnsRecordName">-</code></td>
+                                                                            <td><code id="dnsRecordValue" class="text-break">-</code></td>
+                                                                        </tr>
+                                                                    </table>
+                                                                </div>
+                                                                <small class="text-muted">@lang('DNS propagation may take up to 24-48 hours.')</small>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div class="mt-3">
+                                                            <button type="button" class="btn btn--base btn-sm" id="verifyDomainBtn">
+                                                                <i class="las la-check-circle me-1"></i>@lang('Verify Ownership')
+                                                            </button>
+                                                            <span id="verificationStatus" class="ms-2"></span>
+                                                        </div>
+                                                        
+                                                        <input type="hidden" name="domain_verified" id="domainVerified" value="0">
+                                                        <input type="hidden" name="verification_token" id="domainVerificationToken" value="">
+                                                        <input type="hidden" name="verification_filename" id="domainVerificationFilename" value="">
+                                                        <input type="hidden" name="verification_dns_name" id="domainVerificationDnsName" value="">
                                                     </div>
                                                 </div>
                                             </div>
@@ -146,16 +212,82 @@
                                         </div>
                                         
                                         @if(($marketplaceSettings['require_website_verification'] ?? '1') == '1')
+                                            @php
+                                                $allowedMethods = \App\Models\MarketplaceSetting::getDomainVerificationMethods();
+                                            @endphp
                                             <div class="col-12">
-                                                <div class="alert alert-info border-0 d-flex align-items-start">
-                                                    <i class="las la-shield-alt fs-4 me-3 mt-1"></i>
-                                                    <div>
-                                                        <h6 class="alert-heading mb-1">@lang('Verification Required')</h6>
-                                                        <p class="mb-2 small">@lang('You will need to verify ownership of this website before your listing is approved.')</p>
-                                                        <select name="verification_method" class="form-select form-select-sm" style="max-width: 250px;">
-                                                            <option value="txt_file">@lang('Upload TXT File to Root')</option>
-                                                            <option value="dns_record">@lang('Add DNS TXT Record')</option>
-                                                        </select>
+                                                <div class="card border-warning verification-section" id="websiteVerificationSection" style="display: none;">
+                                                    <div class="card-header bg-warning bg-opacity-10">
+                                                        <h6 class="mb-0">
+                                                            <i class="las la-shield-alt me-2"></i>@lang('Verification Required')
+                                                        </h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <p class="mb-3 small">@lang('You must verify ownership of this website before your listing can be submitted.')</p>
+                                                        
+                                                        <div class="mb-3">
+                                                            <label class="form-label">@lang('Verification Method')</label>
+                                                            <select name="verification_method" id="websiteVerificationMethod" class="form-select">
+                                                                @if(in_array('txt_file', $allowedMethods))
+                                                                    <option value="txt_file">@lang('Upload TXT File to Root')</option>
+                                                                @endif
+                                                                @if(in_array('dns_record', $allowedMethods))
+                                                                    <option value="dns_record">@lang('Add DNS TXT Record')</option>
+                                                                @endif
+                                                            </select>
+                                                        </div>
+                                                        
+                                                        {{-- TXT File Method --}}
+                                                        <div id="websiteTxtFileMethod" class="verification-method-content">
+                                                            <div class="alert alert-light border">
+                                                                <h6 class="mb-2">@lang('Step 1: Download Verification File')</h6>
+                                                                <p class="mb-2 small">@lang('Download the verification file and upload it to your website root.')</p>
+                                                                <button type="button" class="btn btn-sm btn-outline-primary" id="downloadWebsiteTxtFile">
+                                                                    <i class="las la-download me-1"></i>@lang('Download TXT File')
+                                                                </button>
+                                                                <div class="mt-2">
+                                                                    <small class="text-muted">
+                                                                        <strong>@lang('File name'):</strong> <code id="websiteTxtFileName">-</code><br>
+                                                                        <strong>@lang('Upload to'):</strong> <code id="websiteTxtFileLocation">-</code>
+                                                                    </small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {{-- DNS Record Method --}}
+                                                        <div id="websiteDnsRecordMethod" class="verification-method-content" style="display: none;">
+                                                            <div class="alert alert-light border">
+                                                                <h6 class="mb-2">@lang('Step 1: Add DNS TXT Record')</h6>
+                                                                <p class="mb-2 small">@lang('Add the following TXT record to your domain DNS settings:')</p>
+                                                                <div class="table-responsive">
+                                                                    <table class="table table-sm table-bordered">
+                                                                        <tr>
+                                                                            <th width="30%">@lang('Type')</th>
+                                                                            <th width="35%">@lang('Name/Host')</th>
+                                                                            <th width="35%">@lang('Value/Content')</th>
+                                                                        </tr>
+                                                                        <tr>
+                                                                            <td><code>TXT</code></td>
+                                                                            <td><code id="websiteDnsRecordName">-</code></td>
+                                                                            <td><code id="websiteDnsRecordValue" class="text-break">-</code></td>
+                                                                        </tr>
+                                                                    </table>
+                                                                </div>
+                                                                <small class="text-muted">@lang('DNS propagation may take up to 24-48 hours.')</small>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div class="mt-3">
+                                                            <button type="button" class="btn btn--base btn-sm" id="verifyWebsiteBtn">
+                                                                <i class="las la-check-circle me-1"></i>@lang('Verify Ownership')
+                                                            </button>
+                                                            <span id="websiteVerificationStatus" class="ms-2"></span>
+                                                        </div>
+                                                        
+                                                        <input type="hidden" name="domain_verified" id="websiteVerified" value="0">
+                                                        <input type="hidden" name="verification_token" id="websiteVerificationToken" value="">
+                                                        <input type="hidden" name="verification_filename" id="websiteVerificationFilename" value="">
+                                                        <input type="hidden" name="verification_dns_name" id="websiteVerificationDnsName" value="">
                                                     </div>
                                                 </div>
                                             </div>
@@ -699,6 +831,280 @@ $(document).ready(function() {
     if (preselectedType) {
         $('input[name="business_type"]:checked').trigger('change');
     }
+    
+    // ============================================
+    // Domain/Website Verification Logic
+    // ============================================
+    let domainVerificationData = {
+        token: null,
+        filename: null,
+        dnsName: null,
+        domain: null
+    };
+    
+    let websiteVerificationData = {
+        token: null,
+        filename: null,
+        dnsName: null,
+        domain: null
+    };
+    
+    // Show verification section when domain/website is entered
+    $('input[name="domain_name"]').on('input', function() {
+        const domain = $(this).val().trim();
+        if (domain) {
+            $('#domainVerificationSection').slideDown();
+            generateDomainVerification(domain);
+        } else {
+            $('#domainVerificationSection').slideUp();
+        }
+    });
+    
+    $('input[name="website_url"]').on('input', function() {
+        const url = $(this).val().trim();
+        if (url) {
+            try {
+                const urlObj = new URL(url);
+                const domain = urlObj.hostname.replace(/^www\./, '');
+                $('#websiteVerificationSection').slideDown();
+                generateWebsiteVerification(domain);
+            } catch(e) {
+                // Invalid URL, hide verification
+                $('#websiteVerificationSection').slideUp();
+            }
+        } else {
+            $('#websiteVerificationSection').slideUp();
+        }
+    });
+    
+    // Generate verification data for domain
+    function generateDomainVerification(domain) {
+        domainVerificationData.domain = domain;
+        domainVerificationData.token = 'escrow-verify-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        domainVerificationData.filename = 'escrow-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
+        domainVerificationData.dnsName = '_escrow-verify';
+        
+        updateDomainVerificationDisplay();
+    }
+    
+    // Generate verification data for website
+    function generateWebsiteVerification(domain) {
+        websiteVerificationData.domain = domain;
+        websiteVerificationData.token = 'escrow-verify-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        websiteVerificationData.filename = 'escrow-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
+        websiteVerificationData.dnsName = '_escrow-verify';
+        
+        updateWebsiteVerificationDisplay();
+    }
+    
+    // Update domain verification display
+    function updateDomainVerificationDisplay() {
+        const method = $('#domainVerificationMethod').val();
+        
+        if (method === 'txt_file') {
+            $('#txtFileMethod').show();
+            $('#dnsRecordMethod').hide();
+            $('#txtFileName').text(domainVerificationData.filename);
+            $('#txtFileLocation').text('https://' + domainVerificationData.domain + '/' + domainVerificationData.filename);
+        } else {
+            $('#txtFileMethod').hide();
+            $('#dnsRecordMethod').show();
+            $('#dnsRecordName').text(domainVerificationData.dnsName);
+            $('#dnsRecordValue').text(domainVerificationData.token);
+        }
+        
+        // Update hidden fields
+        $('#domainVerificationToken').val(domainVerificationData.token);
+        $('#domainVerificationFilename').val(domainVerificationData.filename);
+        $('#domainVerificationDnsName').val(domainVerificationData.dnsName);
+        
+        // Reset verification status
+        $('#domainVerified').val('0');
+        $('#verificationStatus').html('');
+    }
+    
+    // Update website verification display
+    function updateWebsiteVerificationDisplay() {
+        const method = $('#websiteVerificationMethod').val();
+        
+        if (method === 'txt_file') {
+            $('#websiteTxtFileMethod').show();
+            $('#websiteDnsRecordMethod').hide();
+            $('#websiteTxtFileName').text(websiteVerificationData.filename);
+            $('#websiteTxtFileLocation').text('https://' + websiteVerificationData.domain + '/' + websiteVerificationData.filename);
+        } else {
+            $('#websiteTxtFileMethod').hide();
+            $('#websiteDnsRecordMethod').show();
+            $('#websiteDnsRecordName').text(websiteVerificationData.dnsName);
+            $('#websiteDnsRecordValue').text(websiteVerificationData.token);
+        }
+        
+        // Update hidden fields
+        $('#websiteVerificationToken').val(websiteVerificationData.token);
+        $('#websiteVerificationFilename').val(websiteVerificationData.filename);
+        $('#websiteVerificationDnsName').val(websiteVerificationData.dnsName);
+        
+        // Reset verification status
+        $('#websiteVerified').val('0');
+        $('#websiteVerificationStatus').html('');
+    }
+    
+    // Change verification method
+    $('#domainVerificationMethod').on('change', updateDomainVerificationDisplay);
+    $('#websiteVerificationMethod').on('change', updateWebsiteVerificationDisplay);
+    
+    // Download TXT file for domain
+    $('#downloadTxtFile').on('click', function() {
+        if (!domainVerificationData.token) return;
+        
+        const blob = new Blob([domainVerificationData.token], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = domainVerificationData.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    });
+    
+    // Download TXT file for website
+    $('#downloadWebsiteTxtFile').on('click', function() {
+        if (!websiteVerificationData.token) return;
+        
+        const blob = new Blob([websiteVerificationData.token], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = websiteVerificationData.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    });
+    
+    // Verify domain ownership
+    $('#verifyDomainBtn').on('click', function() {
+        const btn = $(this);
+        const method = $('#domainVerificationMethod').val();
+        const domain = domainVerificationData.domain;
+        const token = domainVerificationData.token;
+        
+        if (!domain || !token) {
+            notify('error', '@lang("Please enter a domain name first")');
+            return;
+        }
+        
+        btn.prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i>@lang("Verifying...")');
+        $('#verificationStatus').html('');
+        
+        $.ajax({
+            url: '{{ route("user.verification.verify-ajax") }}',
+            method: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                domain: domain,
+                method: method,
+                token: token,
+                filename: domainVerificationData.filename,
+                dns_name: domainVerificationData.dnsName
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#domainVerified').val('1');
+                    $('#verificationStatus').html('<span class="badge badge--success"><i class="las la-check-circle"></i> @lang("Verified")</span>');
+                    notify('success', '@lang("Domain ownership verified successfully!")');
+                } else {
+                    $('#domainVerified').val('0');
+                    $('#verificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Not Verified")</span>');
+                    notify('error', response.message || '@lang("Verification failed. Please check and try again.")');
+                }
+            },
+            error: function(xhr) {
+                $('#domainVerified').val('0');
+                $('#verificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Error")</span>');
+                const message = xhr.responseJSON?.message || '@lang("An error occurred during verification")';
+                notify('error', message);
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="las la-check-circle me-1"></i>@lang("Verify Ownership")');
+            }
+        });
+    });
+    
+    // Verify website ownership
+    $('#verifyWebsiteBtn').on('click', function() {
+        const btn = $(this);
+        const method = $('#websiteVerificationMethod').val();
+        const domain = websiteVerificationData.domain;
+        const token = websiteVerificationData.token;
+        
+        if (!domain || !token) {
+            notify('error', '@lang("Please enter a website URL first")');
+            return;
+        }
+        
+        btn.prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i>@lang("Verifying...")');
+        $('#websiteVerificationStatus').html('');
+        
+        $.ajax({
+            url: '{{ route("user.verification.verify-ajax") }}',
+            method: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                domain: domain,
+                method: method,
+                token: token,
+                filename: websiteVerificationData.filename,
+                dns_name: websiteVerificationData.dnsName
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#websiteVerified').val('1');
+                    $('#websiteVerificationStatus').html('<span class="badge badge--success"><i class="las la-check-circle"></i> @lang("Verified")</span>');
+                    notify('success', '@lang("Website ownership verified successfully!")');
+                } else {
+                    $('#websiteVerified').val('0');
+                    $('#websiteVerificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Not Verified")</span>');
+                    notify('error', response.message || '@lang("Verification failed. Please check and try again.")');
+                }
+            },
+            error: function(xhr) {
+                $('#websiteVerified').val('0');
+                $('#websiteVerificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Error")</span>');
+                const message = xhr.responseJSON?.message || '@lang("An error occurred during verification")';
+                notify('error', message);
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="las la-check-circle me-1"></i>@lang("Verify Ownership")');
+            }
+        });
+    });
+    
+    // Validate verification before form submission
+    $('#listingForm').on('submit', function(e) {
+        const businessType = $('input[name="business_type"]:checked').val();
+        const requireDomainVerification = {{ ($marketplaceSettings['require_domain_verification'] ?? '1') == '1' ? 'true' : 'false' }};
+        const requireWebsiteVerification = {{ ($marketplaceSettings['require_website_verification'] ?? '1') == '1' ? 'true' : 'false' }};
+        
+        if (businessType === 'domain' && requireDomainVerification) {
+            if ($('#domainVerified').val() !== '1') {
+                e.preventDefault();
+                notify('error', '@lang("You must verify domain ownership before submitting the listing")');
+                showStep(2); // Go back to step 2
+                return false;
+            }
+        }
+        
+        if (businessType === 'website' && requireWebsiteVerification) {
+            if ($('#websiteVerified').val() !== '1') {
+                e.preventDefault();
+                notify('error', '@lang("You must verify website ownership before submitting the listing")');
+                showStep(2); // Go back to step 2
+                return false;
+            }
+        }
+    });
     
     // Image upload preview
     const imageInput = document.getElementById('imageInput');
