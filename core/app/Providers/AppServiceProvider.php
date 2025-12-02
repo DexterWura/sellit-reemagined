@@ -92,10 +92,24 @@ class AppServiceProvider extends ServiceProvider
             // Better to show the site with potential errors than redirect loop
         }
 
+        // Only proceed with view composers if view service is available
+        if (!$this->app->bound('view')) {
+            return; // View service not ready yet, skip view operations
+        }
+        
         // Only proceed with view composers if database is ready
         try {
             // Check if database connection is available
-            DB::connection()->getPdo();
+            try {
+                DB::connection()->getPdo();
+            } catch (\Exception $e) {
+                // Database not ready, use fallbacks
+                $viewShare['activeTemplate'] = 'templates.basic.';
+                $viewShare['activeTemplateTrue'] = 'assets/templates/basic/';
+                $viewShare['emptyMessage'] = 'Data not found';
+                $this->app->make('view')->share($viewShare);
+                return;
+            }
             
             // Try to get active template, with fallback
             try {
@@ -110,10 +124,10 @@ class AppServiceProvider extends ServiceProvider
             $viewShare['activeTemplate'] = $activeTemplate;
             $viewShare['activeTemplateTrue'] = $activeTemplateTrue;
             $viewShare['emptyMessage'] = 'Data not found';
-            view()->share($viewShare);
+            $this->app->make('view')->share($viewShare);
 
 
-            view()->composer('admin.partials.sidenav', function ($view) {
+            $this->app->make('view')->composer('admin.partials.sidenav', function ($view) {
                 try {
                     $view->with([
                         'bannedUsersCount'           => User::banned()->count(),
@@ -150,7 +164,7 @@ class AppServiceProvider extends ServiceProvider
                 }
             });
 
-            view()->composer('admin.partials.topnav', function ($view) {
+            $this->app->make('view')->composer('admin.partials.topnav', function ($view) {
                 try {
                     $view->with([
                         'adminNotifications' => AdminNotification::where('is_read', Status::NO)->with('user')->orderBy('id', 'desc')->take(10)->get(),
@@ -164,7 +178,7 @@ class AppServiceProvider extends ServiceProvider
                 }
             });
 
-            view()->composer('partials.seo', function ($view) {
+            $this->app->make('view')->composer('partials.seo', function ($view) {
                 try {
                     $seo = Frontend::where('data_keys', 'seo.data')->first();
                     $view->with([
@@ -183,11 +197,17 @@ class AppServiceProvider extends ServiceProvider
                 // Ignore if gs() fails
             }
         } catch (\Exception $e) {
-            // Database not ready, set minimal view shares
-            $viewShare['activeTemplate'] = 'templates.basic.';
-            $viewShare['activeTemplateTrue'] = 'assets/templates/basic/';
-            $viewShare['emptyMessage'] = 'Data not found';
-            view()->share($viewShare);
+            // Database not ready, set minimal view shares if view service is available
+            if ($this->app->bound('view')) {
+                try {
+                    $viewShare['activeTemplate'] = 'templates.basic.';
+                    $viewShare['activeTemplateTrue'] = 'assets/templates/basic/';
+                    $viewShare['emptyMessage'] = 'Data not found';
+                    $this->app->make('view')->share($viewShare);
+                } catch (\Exception $e2) {
+                    // Ignore if view sharing fails
+                }
+            }
         }
 
 

@@ -52,7 +52,7 @@ echo "<hr>";
 // Test 4: Database Connection
 echo "<h2>Test 4: Database Connection</h2>";
 try {
-    \DB::connection()->getPdo();
+    \Illuminate\Support\Facades\DB::connection()->getPdo();
     echo "✅ Database connected<br>";
 } catch (Exception $e) {
     echo "❌ Database error: " . $e->getMessage() . "<br>";
