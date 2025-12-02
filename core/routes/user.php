@@ -92,6 +92,7 @@ Route::middleware('auth')->name('user.')->group(function () {
                 Route::post('accept/{id}', 'accept')->name('accept');
                 Route::post('dispute/{id}', 'dispute')->name('dispute');
                 Route::post('dispatch/{id}', 'dispatchEscrow')->name('dispatch');
+                Route::post('pay-full/{id}', 'payFull')->name('pay.full');
 
                 Route::post('message-reply', 'replyMessage')->name('message.reply');
                 Route::get('get-messages', 'getMessages')->name('message.get');

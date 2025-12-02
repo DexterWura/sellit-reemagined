@@ -532,4 +532,106 @@ class EscrowController extends Controller
 
         return $charge;
     }
+
+    /**
+     * Pay full escrow amount (without milestones)
+     */
+    public function payFull(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'pay_via' => 'required|in:1,2',
+            ]);
+
+            $escrow = Escrow::lockForUpdate()
+                ->where('buyer_id', auth()->id())
+                ->accepted()
+                ->with(['seller', 'milestones'])
+                ->findOrFail($id);
+
+            // Check if escrow has milestones
+            if ($escrow->milestones->count() > 0) {
+                $notify[] = ['error', 'This escrow has milestones. Please pay through milestones or delete milestones first.'];
+                return back()->withNotify($notify);
+            }
+
+            $totalAmount = $escrow->amount + $escrow->buyer_charge;
+            $remainingAmount = $totalAmount - $escrow->paid_amount;
+
+            if ($remainingAmount <= 0) {
+                $notify[] = ['error', 'Escrow is already fully paid'];
+                return back()->withNotify($notify);
+            }
+
+            $user = auth()->user();
+
+            // Pay via direct payment (gateway)
+            if ($request->pay_via == 2) {
+                session()->put('checkout', encrypt([
+                    'amount' => $remainingAmount,
+                    'escrow_id' => $escrow->id,
+                    'type' => 'escrow_full_payment',
+                ]));
+
+                return redirect()->route('user.deposit.index', 'checkout');
+            }
+
+            // Pay via wallet
+            if ($user->balance < $remainingAmount) {
+                $notify[] = ['error', 'You have insufficient balance. Please deposit funds first.'];
+                return back()->withNotify($notify);
+            }
+
+            DB::beginTransaction();
+            
+            try {
+                // Deduct from buyer balance
+                $user->balance -= $remainingAmount;
+                $user->save();
+
+                // Update escrow paid amount
+                $escrow->paid_amount += $remainingAmount;
+                $escrow->save();
+
+                // Create transaction record
+                $trx = getTrx();
+                $transaction = new Transaction();
+                $transaction->user_id = $user->id;
+                $transaction->amount = $remainingAmount;
+                $transaction->post_balance = $user->balance;
+                $transaction->charge = 0;
+                $transaction->trx_type = '-';
+                $transaction->remark = 'escrow_payment';
+                $transaction->details = 'Full payment for escrow: ' . $escrow->escrow_number;
+                $transaction->trx = $trx;
+                $transaction->save();
+
+                DB::commit();
+
+                // Notify seller
+                notify($escrow->seller, 'ESCROW_FULLY_PAID', [
+                    'escrow_number' => $escrow->escrow_number,
+                    'amount' => showAmount($remainingAmount, currencyFormat: false),
+                    'currency' => gs()->cur_text,
+                ]);
+
+                $notify[] = ['success', 'Payment completed successfully. You can now release payment when the transaction is complete.'];
+                return back()->withNotify($notify);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Full escrow payment failed: ' . $e->getMessage(), [
+                    'escrow_id' => $id,
+                    'user_id' => auth()->id(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Full escrow payment error: ' . $e->getMessage());
+            $notify[] = ['error', 'An error occurred while processing payment. Please try again.'];
+            return back()->withNotify($notify);
+        }
+    }
 }

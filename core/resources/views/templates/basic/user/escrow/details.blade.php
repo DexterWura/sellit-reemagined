@@ -50,10 +50,27 @@
                                 @endif
                             </h6>
 
-                            @if ($escrow->status != Status::ESCROW_NOT_ACCEPTED)
-                                <a href="{{ route('user.escrow.milestone.index', $escrow->id) }}" class="btn btn-sm btn--dark">
-                                    @lang('Payment Milestones') <i class="las la-arrow-right"></i>
-                                </a>
+                            @if ($escrow->status != Status::ESCROW_NOT_ACCEPTED && $escrow->buyer_id == auth()->user()->id)
+                                @php
+                                    $hasMilestones = $escrow->milestones->count() > 0;
+                                    $totalAmount = $escrow->amount + $escrow->buyer_charge;
+                                    $remainingAmount = $totalAmount - $escrow->paid_amount;
+                                    $canPayFull = !$hasMilestones && $remainingAmount > 0;
+                                @endphp
+                                @if($canPayFull)
+                                    <button type="button" class="btn btn-sm btn--success" data-bs-toggle="modal" data-bs-target="#payFullModal">
+                                        <i class="las la-money-bill-wave"></i> @lang('Pay Full Amount')
+                                    </button>
+                                @endif
+                                @if(!$hasMilestones)
+                                    <a href="{{ route('user.escrow.milestone.index', $escrow->id) }}" class="btn btn-sm btn--dark">
+                                        <i class="las la-tasks"></i> @lang('Set Up Milestones')
+                                    </a>
+                                @else
+                                    <a href="{{ route('user.escrow.milestone.index', $escrow->id) }}" class="btn btn-sm btn--dark">
+                                        <i class="las la-list"></i> @lang('View Milestones')
+                                    </a>
+                                @endif
                             @endif
                         </div>
 
@@ -299,6 +316,55 @@
     </div>
 
     <x-confirmation-modal />
+
+    {{-- Pay Full Amount Modal --}}
+    @if($escrow->status == Status::ESCROW_ACCEPTED && $escrow->buyer_id == auth()->user()->id && $escrow->milestones->count() == 0)
+        @php
+            $totalAmount = $escrow->amount + $escrow->buyer_charge;
+            $remainingAmount = $totalAmount - $escrow->paid_amount;
+        @endphp
+        @if($remainingAmount > 0)
+        <div class="modal fade" id="payFullModal">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">@lang('Pay Full Amount')</h5>
+                        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                            <i class="las la-times"></i>
+                        </button>
+                    </div>
+                    <form action="{{ route('user.escrow.pay.full', $escrow->id) }}" method="POST">
+                        @csrf
+                        <div class="modal-body">
+                            <div class="alert alert-info">
+                                <p class="mb-2"><strong>@lang('Total Amount'):</strong> {{ showAmount($totalAmount) }}</p>
+                                <p class="mb-2"><strong>@lang('Already Paid'):</strong> {{ showAmount($escrow->paid_amount) }}</p>
+                                <p class="mb-0"><strong>@lang('Remaining'):</strong> <span class="text--base fw-bold">{{ showAmount($remainingAmount) }}</span></p>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">@lang('Payment Method')</label>
+                                <select name="pay_via" class="form-select form--select" required>
+                                    <option value="1">@lang('Wallet') - {{ showAmount(auth()->user()->balance) }}</option>
+                                    <option value="2">@lang('Direct Payment')</option>
+                                </select>
+                            </div>
+                            <div class="alert alert-warning mt-3">
+                                <small>
+                                    <i class="las la-info-circle"></i> 
+                                    @lang('By paying the full amount, you are committing to complete the entire transaction. You can release payment to the seller once the transaction is complete.')
+                                </small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn--secondary" data-bs-dismiss="modal">@lang('Cancel')</button>
+                            <button type="submit" class="btn btn--base">@lang('Pay Now')</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        @endif
+    @endif
 @endsection
 
 @push('style-lib')

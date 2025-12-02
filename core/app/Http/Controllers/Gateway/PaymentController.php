@@ -9,6 +9,7 @@ use App\Models\AdminNotification;
 use App\Models\Deposit;
 use App\Models\GatewayCurrency;
 use App\Models\Milestone;
+use App\Models\Escrow;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -85,6 +86,10 @@ class PaymentController extends Controller
         $data                  = new Deposit();
         $data->user_id         = $user->id;
         $data->milestone_id    = @$checkOutData['milestone_id'] ?? 0;
+        // Store escrow_id in btc_wallet field temporarily if it's a full escrow payment
+        if (isset($checkOutData['type']) && $checkOutData['type'] == 'escrow_full_payment') {
+            $data->btc_wallet = 'escrow_' . (@$checkOutData['escrow_id'] ?? 0);
+        }
         $data->method_code     = $gate->method_code;
         $data->method_currency = strtoupper($gate->currency);
         $data->amount          = $amount;
@@ -182,6 +187,7 @@ class PaymentController extends Controller
                 'post_balance'    => showAmount($user->balance)
             ]);
 
+            // Handle milestone payment
             if ($deposit->milestone_id) {
 
                 $milestone = Milestone::where('payment_status', Status::MILESTONE_UNFUNDED)->where('status', Status::NO)->whereHas('escrow', function ($query) {
@@ -209,6 +215,46 @@ class PaymentController extends Controller
                     $escrow               = $milestone->escrow;
                     $escrow->paid_amount += $milestone->amount;
                     $escrow->save();
+                }
+            }
+
+            // Handle full escrow payment
+            if (strpos($deposit->btc_wallet, 'escrow_') === 0) {
+                $escrowId = (int) str_replace('escrow_', '', $deposit->btc_wallet);
+                $escrow = Escrow::where('id', $escrowId)
+                    ->where('buyer_id', $user->id)
+                    ->accepted()
+                    ->where('status', '!=', Status::ESCROW_DISPUTED)
+                    ->where('status', '!=', Status::ESCROW_CANCELLED)
+                    ->first();
+
+                if ($escrow && $escrow->milestones->count() == 0) {
+                    $totalAmount = $escrow->amount + $escrow->buyer_charge;
+                    $remainingAmount = $totalAmount - $escrow->paid_amount;
+
+                    if ($remainingAmount > 0 && $user->balance >= $remainingAmount) {
+                        $user->balance -= $remainingAmount;
+                        $user->save();
+
+                        $transaction               = new Transaction();
+                        $transaction->user_id      = $user->id;
+                        $transaction->amount       = $remainingAmount;
+                        $transaction->post_balance = $user->balance;
+                        $transaction->charge       = 0;
+                        $transaction->trx_type     = '-';
+                        $transaction->details      = 'Full payment for escrow: ' . $escrow->escrow_number;
+                        $transaction->trx          = getTrx();
+                        $transaction->save();
+
+                        $escrow->paid_amount += $remainingAmount;
+                        $escrow->save();
+
+                        notify($escrow->seller, 'ESCROW_FULLY_PAID', [
+                            'escrow_number' => $escrow->escrow_number,
+                            'amount' => showAmount($remainingAmount, currencyFormat: false),
+                            'currency' => gs()->cur_text,
+                        ]);
+                    }
                 }
             }
         }
