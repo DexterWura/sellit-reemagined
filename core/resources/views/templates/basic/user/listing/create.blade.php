@@ -11,7 +11,7 @@
                     <div class="progress-steps">
                         <div class="step active" data-step="1">
                             <span class="step-number">1</span>
-                            <span class="step-text">@lang('Business Type')</span>
+                            <span class="step-text">@lang('Domain & Verification')</span>
                         </div>
                         <div class="step" data-step="2">
                             <span class="step-number">2</span>
@@ -24,10 +24,6 @@
                         <div class="step" data-step="4">
                             <span class="step-number">4</span>
                             <span class="step-text">@lang('Media')</span>
-                        </div>
-                        <div class="step" data-step="5">
-                            <span class="step-number">5</span>
-                            <span class="step-text">@lang('Verification')</span>
                         </div>
                     </div>
                 </div>
@@ -57,15 +53,15 @@
                             @csrf
                             
                             {{-- ============================================
-                                 STEP 1: Business Type Selection
+                                 STEP 1: Business Type, Domain/Website Entry & Verification
                                  ============================================ --}}
                             <div class="form-step" data-step="1">
                                 <div class="step-header mb-4">
                                     <h5 class="fw-bold mb-1">@lang('What are you selling?')</h5>
-                                    <p class="text-muted mb-0">@lang('Select the type of online business you want to list')</p>
+                                    <p class="text-muted mb-0">@lang('Select the type of online business and verify ownership')</p>
                                 </div>
                                 
-                                <div class="business-type-grid">
+                                <div class="business-type-grid mb-4">
                                     @php
                                         $typeIcons = [
                                             'domain' => ['icon' => 'las la-globe', 'color' => '#3b82f6'],
@@ -93,8 +89,360 @@
                                     @endforeach
                                 </div>
                                 
-                                <div class="step-actions mt-4 text-end">
-                                    <button type="button" class="btn btn--base btn-next" data-next="2">
+                                {{-- Domain Input Section --}}
+                                <div id="domainInputSection" class="mb-4" style="display: none;">
+                                    <div class="card border-primary">
+                                        <div class="card-header bg-primary bg-opacity-10">
+                                            <h6 class="mb-0">
+                                                <i class="las la-globe me-2"></i>@lang('Domain Information')
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold">@lang('Domain Name') <span class="text-danger">*</span></label>
+                                                <div class="input-group input-group-lg">
+                                                    <span class="input-group-text bg-light"><i class="las la-globe"></i></span>
+                                                    <input type="text" name="domain_name" id="domainNameInput" class="form-control" 
+                                                           value="{{ old('domain_name', $draftData['domain_name'] ?? '') }}" placeholder="https://example.com">
+                                                </div>
+                                                <small class="text-muted d-block mt-1">
+                                                    <i class="las la-info-circle"></i> 
+                                                    <span id="domainHelpText">@lang('Enter domain with http:// or https:// (e.g., https://example.com)')</span>
+                                                </small>
+                                                <div id="domainProtocolWarning" class="alert alert-warning alert-sm mt-2 mb-0" style="display: none;">
+                                                    <i class="las la-exclamation-triangle"></i> 
+                                                    <strong>@lang('Protocol Required'):</strong> 
+                                                    @lang('Please start with http:// or https://')
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label">@lang('Domain Registrar')</label>
+                                                    <input type="text" name="domain_registrar" class="form-control" 
+                                                           value="{{ old('domain_registrar', $draftData['domain_registrar'] ?? '') }}" placeholder="@lang('e.g., GoDaddy, Namecheap')">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">@lang('Expiry Date')</label>
+                                                    <input type="date" name="domain_expiry" class="form-control" value="{{ old('domain_expiry', $draftData['domain_expiry'] ?? '') }}">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {{-- Website Input Section --}}
+                                <div id="websiteInputSection" class="mb-4" style="display: none;">
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success bg-opacity-10">
+                                            <h6 class="mb-0">
+                                                <i class="las la-laptop-code me-2"></i>@lang('Website Information')
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold">@lang('Website URL') <span class="text-danger">*</span></label>
+                                                <div class="input-group input-group-lg">
+                                                    <span class="input-group-text bg-light"><i class="las la-link"></i></span>
+                                                    <input type="url" name="website_url" id="websiteUrlInput" class="form-control" 
+                                                           value="{{ old('website_url', $draftData['website_url'] ?? '') }}" placeholder="https://example.com">
+                                                </div>
+                                                <small class="text-muted d-block mt-1">
+                                                    <i class="las la-info-circle"></i> 
+                                                    <span id="websiteHelpText">@lang('Enter full URL starting with http:// or https://')</span>
+                                                </small>
+                                                <div id="websiteProtocolWarning" class="alert alert-warning alert-sm mt-2 mb-0" style="display: none;">
+                                                    <i class="las la-exclamation-triangle"></i> 
+                                                    <strong>@lang('Protocol Required'):</strong> 
+                                                    @lang('Please start with http:// or https://')
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label">@lang('Website Niche')</label>
+                                                    <input type="text" name="niche" class="form-control" 
+                                                           value="{{ old('niche', $draftData['niche'] ?? '') }}" placeholder="@lang('e.g., Technology, Health, Finance')">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">@lang('Tech Stack / Platform')</label>
+                                                    <input type="text" name="tech_stack" class="form-control" 
+                                                           value="{{ old('tech_stack', $draftData['tech_stack'] ?? '') }}" placeholder="@lang('e.g., WordPress, Shopify, Laravel')">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">@lang('Domain Registrar')</label>
+                                                    <input type="text" name="domain_registrar" class="form-control" 
+                                                           value="{{ old('domain_registrar', $draftData['domain_registrar'] ?? '') }}" placeholder="@lang('e.g., GoDaddy, Namecheap')">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">@lang('Domain Expiry')</label>
+                                                    <input type="date" name="domain_expiry" class="form-control" value="{{ old('domain_expiry', $draftData['domain_expiry'] ?? '') }}">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {{-- Verification Section (for domain/website only) --}}
+                                @php
+                                    $requireWebsiteVerification = \App\Models\MarketplaceSetting::requireWebsiteVerification();
+                                    $requireDomainVerification = \App\Models\MarketplaceSetting::requireDomainVerification();
+                                    $allowedMethods = \App\Models\MarketplaceSetting::getDomainVerificationMethods();
+                                @endphp
+                                
+                                {{-- Domain Verification Section --}}
+                                <div id="domainVerificationSection" class="mb-4" style="display: none;">
+                                    <div class="card border-warning">
+                                        <div class="card-header bg-warning bg-opacity-10">
+                                            <h6 class="mb-0">
+                                                <i class="las la-shield-alt me-2"></i>@lang('Verify Domain Ownership')
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="text-muted small mb-3">@lang('You must verify ownership of this domain before you can continue.')</p>
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold">@lang('Verification Method')</label>
+                                                <select name="verification_method" id="verificationMethodSelect" class="form-select">
+                                                    @if(in_array('txt_file', $allowedMethods))
+                                                        <option value="txt_file">@lang('Upload TXT File to Root')</option>
+                                                    @endif
+                                                    @if(in_array('dns_record', $allowedMethods))
+                                                        <option value="dns_record">@lang('Add DNS TXT Record')</option>
+                                                    @endif
+                                                </select>
+                                            </div>
+                                            
+                                            {{-- TXT File Method --}}
+                                            <div id="txtFileVerificationMethod" class="verification-method-content">
+                                                <div class="alert alert-info border">
+                                                    <h6 class="mb-3"><i class="las la-file-alt me-2"></i>@lang('File Upload Method')</h6>
+                                                    
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">@lang('Step 1: Download the verification file')</label>
+                                                        <button type="button" class="btn btn-sm btn-primary" id="downloadVerificationFile">
+                                                            <i class="las la-download me-1"></i>@lang('Download File')
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div class="mb-3 p-3 bg-light rounded">
+                                                        <small class="text-muted d-block mb-2"><strong>@lang('File Details'):</strong></small>
+                                                        <table class="table table-sm table-bordered mb-0">
+                                                            <tr>
+                                                                <td width="40%" class="fw-semibold">@lang('File Name'):</td>
+                                                                <td><code id="verificationFileName" class="text-break">-</code></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td class="fw-semibold">@lang('Upload Location'):</td>
+                                                                <td><code id="verificationFileLocation" class="text-break">-</code></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td class="fw-semibold">@lang('File Content'):</td>
+                                                                <td><code id="verificationFileContent" class="text-break small">-</code></td>
+                                                            </tr>
+                                                        </table>
+                                                    </div>
+                                                    
+                                                    <div class="mb-0">
+                                                        <label class="form-label fw-semibold">@lang('Step 2: Upload the file')</label>
+                                                        <ol class="small mb-0">
+                                                            <li>@lang('Upload the downloaded file to your domain root directory')</li>
+                                                            <li>@lang('Common locations:') <code>public_html/</code>, <code>www/</code>, <code>public/</code>, or <code>htdocs/</code></li>
+                                                            <li>@lang('The file must be accessible at:') <code id="verificationFileUrl">-</code></li>
+                                                            <li>@lang('Make sure the file contains ONLY the verification token (no extra text)')</li>
+                                                        </ol>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            {{-- DNS Record Method --}}
+                                            <div id="dnsRecordVerificationMethod" class="verification-method-content" style="display: none;">
+                                                <div class="alert alert-info border">
+                                                    <h6 class="mb-3"><i class="las la-server me-2"></i>@lang('DNS TXT Record Method')</h6>
+                                                    
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">@lang('Step 1: Add DNS TXT Record')</label>
+                                                        <p class="small mb-2">@lang('Go to your domain registrar or DNS provider and add the following TXT record:')</p>
+                                                        
+                                                        <div class="table-responsive">
+                                                            <table class="table table-bordered">
+                                                                <thead class="table-light">
+                                                                    <tr>
+                                                                        <th width="20%">@lang('Type')</th>
+                                                                        <th width="30%">@lang('Name/Host')</th>
+                                                                        <th width="50%">@lang('Value/Content')</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td><code>TXT</code></td>
+                                                                        <td><code id="verificationDnsName" class="text-break">-</code></td>
+                                                                        <td><code id="verificationDnsValue" class="text-break small">-</code></td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="mb-0">
+                                                        <label class="form-label fw-semibold">@lang('Step 2: Wait for DNS propagation')</label>
+                                                        <ul class="small mb-0">
+                                                            <li>@lang('DNS changes typically take 5-30 minutes, but can take up to 48 hours')</li>
+                                                            <li>@lang('After adding the record, wait a few minutes before clicking "Verify Ownership"')</li>
+                                                            <li>@lang('You can check if the record is live using online DNS lookup tools')</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="mt-4 pt-3 border-top">
+                                                <button type="button" class="btn btn--base" id="verifyOwnershipBtn">
+                                                    <i class="las la-check-circle me-1"></i>@lang('Verify Ownership')
+                                                </button>
+                                                <span id="verificationStatus" class="ms-3"></span>
+                                            </div>
+                                            
+                                            <input type="hidden" name="domain_verified" id="domainVerified" value="0">
+                                            <input type="hidden" name="verification_token" id="verificationToken" value="">
+                                            <input type="hidden" name="verification_filename" id="verificationFilename" value="">
+                                            <input type="hidden" name="verification_dns_name" id="verificationDnsNameInput" value="">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {{-- Website Verification Section --}}
+                                <div id="websiteVerificationSection" class="mb-4" style="display: none;">
+                                    <div class="card border-warning">
+                                        <div class="card-header bg-warning bg-opacity-10">
+                                            <h6 class="mb-0">
+                                                <i class="las la-shield-alt me-2"></i>@lang('Verify Website Ownership')
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="text-muted small mb-3">@lang('You must verify ownership of this website before you can continue.')</p>
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold">@lang('Verification Method')</label>
+                                                <select name="website_verification_method" id="websiteVerificationMethodSelect" class="form-select">
+                                                    @if(in_array('txt_file', $allowedMethods))
+                                                        <option value="txt_file">@lang('Upload TXT File to Root')</option>
+                                                    @endif
+                                                    @if(in_array('dns_record', $allowedMethods))
+                                                        <option value="dns_record">@lang('Add DNS TXT Record')</option>
+                                                    @endif
+                                                </select>
+                                            </div>
+                                            
+                                            {{-- Same verification methods UI as domain --}}
+                                            <div id="websiteTxtFileVerificationMethod" class="verification-method-content">
+                                                <div class="alert alert-info border">
+                                                    <h6 class="mb-3"><i class="las la-file-alt me-2"></i>@lang('File Upload Method')</h6>
+                                                    
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">@lang('Step 1: Download the verification file')</label>
+                                                        <button type="button" class="btn btn-sm btn-primary" id="downloadWebsiteVerificationFile">
+                                                            <i class="las la-download me-1"></i>@lang('Download File')
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div class="mb-3 p-3 bg-light rounded">
+                                                        <small class="text-muted d-block mb-2"><strong>@lang('File Details'):</strong></small>
+                                                        <table class="table table-sm table-bordered mb-0">
+                                                            <tr>
+                                                                <td width="40%" class="fw-semibold">@lang('File Name'):</td>
+                                                                <td><code id="websiteVerificationFileName" class="text-break">-</code></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td class="fw-semibold">@lang('Upload Location'):</td>
+                                                                <td><code id="websiteVerificationFileLocation" class="text-break">-</code></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td class="fw-semibold">@lang('File Content'):</td>
+                                                                <td><code id="websiteVerificationFileContent" class="text-break small">-</code></td>
+                                                            </tr>
+                                                        </table>
+                                                    </div>
+                                                    
+                                                    <div class="mb-0">
+                                                        <label class="form-label fw-semibold">@lang('Step 2: Upload the file')</label>
+                                                        <ol class="small mb-0">
+                                                            <li>@lang('Upload the downloaded file to your website root directory')</li>
+                                                            <li>@lang('Common locations:') <code>public_html/</code>, <code>www/</code>, <code>public/</code>, or <code>htdocs/</code></li>
+                                                            <li>@lang('The file must be accessible at:') <code id="websiteVerificationFileUrl">-</code></li>
+                                                            <li>@lang('Make sure the file contains ONLY the verification token (no extra text)')</li>
+                                                        </ol>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div id="websiteDnsRecordVerificationMethod" class="verification-method-content" style="display: none;">
+                                                <div class="alert alert-info border">
+                                                    <h6 class="mb-3"><i class="las la-server me-2"></i>@lang('DNS TXT Record Method')</h6>
+                                                    
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">@lang('Step 1: Add DNS TXT Record')</label>
+                                                        <p class="small mb-2">@lang('Go to your domain registrar or DNS provider and add the following TXT record:')</p>
+                                                        
+                                                        <div class="table-responsive">
+                                                            <table class="table table-bordered">
+                                                                <thead class="table-light">
+                                                                    <tr>
+                                                                        <th width="20%">@lang('Type')</th>
+                                                                        <th width="30%">@lang('Name/Host')</th>
+                                                                        <th width="50%">@lang('Value/Content')</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td><code>TXT</code></td>
+                                                                        <td><code id="websiteVerificationDnsName" class="text-break">-</code></td>
+                                                                        <td><code id="websiteVerificationDnsValue" class="text-break small">-</code></td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="mb-0">
+                                                        <label class="form-label fw-semibold">@lang('Step 2: Wait for DNS propagation')</label>
+                                                        <ul class="small mb-0">
+                                                            <li>@lang('DNS changes typically take 5-30 minutes, but can take up to 48 hours')</li>
+                                                            <li>@lang('After adding the record, wait a few minutes before clicking "Verify Ownership"')</li>
+                                                            <li>@lang('You can check if the record is live using online DNS lookup tools')</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="mt-4 pt-3 border-top">
+                                                <button type="button" class="btn btn--base" id="verifyWebsiteOwnershipBtn">
+                                                    <i class="las la-check-circle me-1"></i>@lang('Verify Ownership')
+                                                </button>
+                                                <span id="websiteVerificationStatus" class="ms-3"></span>
+                                            </div>
+                                            
+                                            <input type="hidden" name="website_verified" id="websiteVerified" value="0">
+                                            <input type="hidden" name="website_verification_token" id="websiteVerificationToken" value="">
+                                            <input type="hidden" name="website_verification_filename" id="websiteVerificationFilename" value="">
+                                            <input type="hidden" name="website_verification_dns_name" id="websiteVerificationDnsNameInput" value="">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {{-- Verification Not Required Message --}}
+                                <div id="verificationNotRequired" class="alert alert-success mb-4" style="display: none;">
+                                    <div class="d-flex align-items-start">
+                                        <i class="las la-check-circle fs-4 me-3 mt-1"></i>
+                                        <div>
+                                            <h6 class="fw-bold mb-2">@lang('Verification Not Required')</h6>
+                                            <p class="mb-0 small">@lang('Verification is not required for this type of listing. You can proceed to the next step.')</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="step-actions mt-4 d-flex justify-content-between">
+                                    <div></div>
+                                    <button type="button" class="btn btn--base btn-next" data-next="2" id="step1ContinueBtn" disabled>
                                         @lang('Continue') <i class="las la-arrow-right ms-1"></i>
                                     </button>
                                 </div>
@@ -107,82 +455,6 @@
                                 <div class="step-header mb-4">
                                     <h5 class="fw-bold mb-1">@lang('Business Details')</h5>
                                     <p class="text-muted mb-0">@lang('Provide information about your business')</p>
-                                </div>
-                                
-                                {{-- Domain Fields --}}
-                                <div class="business-fields domain-fields d-none">
-                                    <div class="row g-3">
-                                        <div class="col-12">
-                                            <label class="form-label fw-semibold">@lang('Domain Name') <span class="text-danger">*</span></label>
-                                            <div class="input-group input-group-lg">
-                                                <span class="input-group-text bg-light"><i class="las la-globe"></i></span>
-                                                <input type="text" name="domain_name" id="domainNameInput" class="form-control" 
-                                                       value="{{ old('domain_name', $draftData['domain_name'] ?? '') }}" placeholder="https://example.com">
-                                            </div>
-                                            <small class="text-muted d-block mt-1">
-                                                <i class="las la-info-circle"></i> 
-                                                <span id="domainHelpText">@lang('Enter domain with http:// or https:// (e.g., https://example.com)')</span>
-                                            </small>
-                                            <div id="domainProtocolWarning" class="alert alert-warning alert-sm mt-2 mb-0" style="display: none;">
-                                                <i class="las la-exclamation-triangle"></i> 
-                                                <strong>@lang('Protocol Required'):</strong> 
-                                                @lang('Please start with http:// or https://')
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="col-md-6">
-                                            <label class="form-label">@lang('Domain Registrar')</label>
-                                            <input type="text" name="domain_registrar" class="form-control" 
-                                                   value="{{ old('domain_registrar') }}" placeholder="@lang('e.g., GoDaddy, Namecheap')">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">@lang('Expiry Date')</label>
-                                            <input type="date" name="domain_expiry" class="form-control" value="{{ old('domain_expiry') }}">
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {{-- Website Fields --}}
-                                <div class="business-fields website-fields d-none">
-                                    <div class="row g-3">
-                                        <div class="col-12">
-                                            <label class="form-label fw-semibold">@lang('Website URL') <span class="text-danger">*</span></label>
-                                            <div class="input-group input-group-lg">
-                                                <span class="input-group-text bg-light"><i class="las la-link"></i></span>
-                                                <input type="url" name="website_url" id="websiteUrlInput" class="form-control" 
-                                                       value="{{ old('website_url', $draftData['website_url'] ?? '') }}" placeholder="https://example.com">
-                                            </div>
-                                            <small class="text-muted d-block mt-1">
-                                                <i class="las la-info-circle"></i> 
-                                                <span id="websiteHelpText">@lang('Enter full URL starting with http:// or https://')</span>
-                                            </small>
-                                            <div id="websiteProtocolWarning" class="alert alert-warning alert-sm mt-2 mb-0" style="display: none;">
-                                                <i class="las la-exclamation-triangle"></i> 
-                                                <strong>@lang('Protocol Required'):</strong> 
-                                                @lang('Please start with http:// or https://')
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="col-md-6">
-                                            <label class="form-label">@lang('Website Niche')</label>
-                                            <input type="text" name="niche" class="form-control" 
-                                                   value="{{ old('niche') }}" placeholder="@lang('e.g., Technology, Health, Finance')">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">@lang('Tech Stack / Platform')</label>
-                                            <input type="text" name="tech_stack" class="form-control" 
-                                                   value="{{ old('tech_stack') }}" placeholder="@lang('e.g., WordPress, Shopify, Laravel')">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">@lang('Domain Registrar')</label>
-                                            <input type="text" name="domain_registrar" class="form-control" 
-                                                   value="{{ old('domain_registrar') }}" placeholder="@lang('e.g., GoDaddy, Namecheap')">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">@lang('Domain Expiry')</label>
-                                            <input type="date" name="domain_expiry" class="form-control" value="{{ old('domain_expiry') }}">
-                                        </div>
-                                    </div>
                                 </div>
                                 
                                 {{-- Social Media Fields --}}
@@ -658,10 +930,8 @@
                                 </div>
                             </div>
                             
-                            {{-- ============================================
-                                 STEP 5: Ownership Verification
-                                 ============================================ --}}
-                            <div class="form-step d-none" data-step="5">
+                            {{-- Step 5 removed - verification is now in Step 1 --}}
+                            <div class="form-step d-none" data-step="5" style="display: none !important;">
                                 <div class="step-header mb-4">
                                     <h5 class="fw-bold mb-1">@lang('Verify Ownership')</h5>
                                     <p class="text-muted mb-0">@lang('Verify that you own this domain or website before submitting your listing')</p>
@@ -992,7 +1262,7 @@
 <script>
 $(document).ready(function() {
     let currentStep = {{ $currentStage ?? 1 }};
-    const totalSteps = 5;
+    const totalSteps = 4;
     let autoSaveTimer = null;
     const autoSaveDelay = 2000; // 2 seconds after user stops typing
     
@@ -1130,6 +1400,41 @@ $(document).ready(function() {
                 notify('error', '@lang("Please select a business type")');
                 return;
             }
+            
+            const businessType = $('input[name="business_type"]:checked').val();
+            const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
+            const requireWebsiteVerification = {{ \App\Models\MarketplaceSetting::requireWebsiteVerification() ? 'true' : 'false' }};
+            
+            // Check if domain/website is entered
+            if (businessType === 'domain') {
+                const domainInput = $('#domainNameInput').val().trim();
+                if (!domainInput) {
+                    notify('error', '@lang("Please enter a domain name")');
+                    return;
+                }
+                // Check verification if required
+                if (requireDomainVerification) {
+                    const verified = $('#domainVerified').val();
+                    if (!verified || verified !== '1') {
+                        notify('error', '@lang("You must verify domain ownership before continuing")');
+                        return;
+                    }
+                }
+            } else if (businessType === 'website') {
+                const websiteInput = $('#websiteUrlInput').val().trim();
+                if (!websiteInput) {
+                    notify('error', '@lang("Please enter a website URL")');
+                    return;
+                }
+                // Check verification if required
+                if (requireWebsiteVerification) {
+                    const verified = $('#websiteVerified').val();
+                    if (!verified || verified !== '1') {
+                        notify('error', '@lang("You must verify website ownership before continuing")');
+                        return;
+                    }
+                }
+            }
         }
         
         // Validation for step 2
@@ -1153,11 +1458,6 @@ $(document).ready(function() {
             }
         }
         
-        // Initialize step 5 (verification) when entering it
-        if (nextStep === 5) {
-            initializeVerificationStep();
-        }
-        
         showStep(nextStep);
         saveDraft(); // Save draft when moving to next step
     });
@@ -1169,31 +1469,54 @@ $(document).ready(function() {
         saveDraft(); // Save draft when going back
     });
     
-    // Business type change - show relevant fields
+    // Business type change - show relevant fields in Step 1
     $('input[name="business_type"]').on('change', function() {
         const type = $(this).val();
         const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
         const requireWebsiteVerification = {{ \App\Models\MarketplaceSetting::requireWebsiteVerification() ? 'true' : 'false' }};
         
-        // Remove required attribute from all business-specific fields first
-        $('#domainNameInput').removeAttr('required');
-        $('#websiteUrlInput').removeAttr('required');
+        // Hide all input sections
+        $('#domainInputSection').hide();
+        $('#websiteInputSection').hide();
+        $('#domainVerificationSection').hide();
+        $('#websiteVerificationSection').hide();
+        $('#verificationNotRequired').hide();
         
-        // Hide all business fields
-        $('.business-fields').addClass('d-none');
+        // Reset verification status
+        $('#domainVerified').val('0');
+        $('#websiteVerified').val('0');
+        $('#step1ContinueBtn').prop('disabled', true);
         
-        // Show relevant fields and add required attribute
-        $(`.${type}-fields`).removeClass('d-none');
+        // Show relevant input section
+        if (type === 'domain') {
+            $('#domainInputSection').show();
+            $('#domainNameInput').attr('required', 'required');
+            if (requireDomainVerification) {
+                // Will show verification section when domain is entered
+            } else {
+                $('#verificationNotRequired').show();
+                $('#step1ContinueBtn').prop('disabled', false);
+            }
+        } else if (type === 'website') {
+            $('#websiteInputSection').show();
+            $('#websiteUrlInput').attr('required', 'required');
+            if (requireWebsiteVerification) {
+                // Will show verification section when website is entered
+            } else {
+                $('#verificationNotRequired').show();
+                $('#step1ContinueBtn').prop('disabled', false);
+            }
+        } else {
+            // Other business types don't need verification
+            $('#verificationNotRequired').show();
+            $('#step1ContinueBtn').prop('disabled', false);
+        }
         
-        // Hide/show financial section based on business type
+        // Hide/show financial section based on business type (for Step 2)
         if (type === 'domain') {
             $('.financial-section').addClass('d-none');
-            $('#domainNameInput').attr('required', 'required');
         } else {
             $('.financial-section').removeClass('d-none');
-            if (type === 'website') {
-                $('#websiteUrlInput').attr('required', 'required');
-            }
         }
         
         // Update domain card preview when domain is entered
@@ -1203,7 +1526,7 @@ $(document).ready(function() {
             }, 100);
         }
         
-        // Show/hide image upload section based on business type
+        // Show/hide image upload section based on business type (for Step 4)
         if (type === 'domain') {
             $('.domain-card-preview').removeClass('d-none');
             $('.image-upload-section').addClass('d-none');
@@ -1212,9 +1535,7 @@ $(document).ready(function() {
             $('.image-upload-section').removeClass('d-none');
         }
         
-        // Verification is now handled in step 5, not step 2
-        
-        // Filter categories
+        // Filter categories (for Step 2)
         $('#listingCategory option').each(function() {
             const optionType = $(this).data('type');
             if (!optionType || optionType === type) {
@@ -1381,6 +1702,8 @@ $(document).ready(function() {
             warning.slideDown();
             $(this).addClass('is-invalid border-warning');
             helpText.html('<span class="text-danger"><i class="las la-exclamation-circle"></i> @lang("URL must start with http:// or https://")</span>');
+            $('#domainVerificationSection').hide();
+            $('#step1ContinueBtn').prop('disabled', true);
         } else {
             warning.slideUp();
             $(this).removeClass('is-invalid border-warning');
@@ -1388,7 +1711,17 @@ $(document).ready(function() {
             
             updateDomainCardPreview();
             
-            // Verification is now handled in step 5, not step 2
+            // Setup verification if required
+            if (value && requireDomainVerification) {
+                try {
+                    const urlObj = new URL(value);
+                    const domain = urlObj.hostname.replace(/^www\./, '');
+                    setupDomainVerification(domain);
+                } catch(e) {
+                    $('#domainVerificationSection').hide();
+                    $('#step1ContinueBtn').prop('disabled', true);
+                }
+            }
         }
     });
     
@@ -1402,12 +1735,24 @@ $(document).ready(function() {
             warning.slideDown();
             $(this).addClass('is-invalid border-warning');
             helpText.html('<span class="text-danger"><i class="las la-exclamation-circle"></i> @lang("URL must start with http:// or https://")</span>');
+            $('#websiteVerificationSection').hide();
+            $('#step1ContinueBtn').prop('disabled', true);
         } else {
             warning.slideUp();
             $(this).removeClass('is-invalid border-warning');
             helpText.html('@lang("Enter full URL starting with http:// or https://")');
             
-            // Verification is now handled in step 5, not step 2
+            // Setup verification if required
+            if (value && requireWebsiteVerification) {
+                try {
+                    const urlObj = new URL(value);
+                    const domain = urlObj.hostname.replace(/^www\./, '');
+                    setupWebsiteVerification(value, domain);
+                } catch(e) {
+                    $('#websiteVerificationSection').hide();
+                    $('#step1ContinueBtn').prop('disabled', true);
+                }
+            }
         }
     });
     
@@ -1462,13 +1807,13 @@ $(document).ready(function() {
         
         let shouldPreventSubmit = false;
         
-        // Check verification from step 5 (new verification fields)
+        // Check verification from step 1
         if (businessType === 'domain' && requireDomainVerification === true) {
             const verified = $('#domainVerified').val();
             if (!verified || verified !== '1') {
                 shouldPreventSubmit = true;
                 notify('error', '@lang("You must verify domain ownership before submitting the listing")');
-                showStep(5);
+                showStep(1);
             }
         }
         
@@ -1477,7 +1822,7 @@ $(document).ready(function() {
             if (!verified || verified !== '1') {
                 shouldPreventSubmit = true;
                 notify('error', '@lang("You must verify website ownership before submitting the listing")');
-                showStep(5);
+                showStep(1);
             }
         }
         
@@ -1614,92 +1959,51 @@ $(document).ready(function() {
     const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
     const requireWebsiteVerification = {{ \App\Models\MarketplaceSetting::requireWebsiteVerification() ? 'true' : 'false' }};
     
-    function initializeVerificationStep() {
-        const businessType = $('input[name="business_type"]:checked').val();
-        
-        // Hide all verification sections first
-        $('#domainVerificationSection').hide();
-        $('#websiteVerificationSection').hide();
-        $('#verificationNotRequired').hide();
-        $('#verificationRequiredNotice').hide();
-        
-        // Check if verification is required
-        if (businessType === 'domain' && requireDomainVerification) {
-            setupDomainVerification();
-        } else if (businessType === 'website' && requireWebsiteVerification) {
-            setupWebsiteVerification();
-        } else {
-            // Verification not required
-            $('#verificationNotRequired').show();
-            $('#verificationRequiredNotice').hide();
-            $('#submitListingBtn').prop('disabled', false);
+    function setupDomainVerification(domain) {
+        if (!domain) {
+            $('#domainVerificationSection').hide();
+            $('#step1ContinueBtn').prop('disabled', true);
             return;
         }
         
-        // Show verification required notice
-        $('#verificationRequiredNotice').show();
-        $('#submitListingBtn').prop('disabled', true);
+        verificationData.domain = domain;
+        verificationData.type = 'domain';
+        
+        // Generate verification token
+        generateVerificationToken('domain', domain);
+        
+        // Show domain verification section
+        $('#domainVerificationSection').show();
+        
+        // Update verification display
+        updateVerificationDisplay();
+        
+        // Keep continue button disabled until verified
+        $('#step1ContinueBtn').prop('disabled', true);
     }
     
-    function setupDomainVerification() {
-        const domainInput = $('#domainNameInput').val().trim();
-        if (!domainInput) {
-            notify('error', '@lang("Please enter a domain name first")');
-            showStep(2);
+    function setupWebsiteVerification(websiteUrl, domain) {
+        if (!domain || !websiteUrl) {
+            $('#websiteVerificationSection').hide();
+            $('#step1ContinueBtn').prop('disabled', true);
             return;
         }
         
-        try {
-            const urlObj = new URL(domainInput);
-            const domain = urlObj.hostname.replace(/^www\./, '');
-            
-            verificationData.domain = domain;
-            verificationData.type = 'domain';
-            
-            // Generate verification token
-            generateVerificationToken('domain', domain);
-            
-            // Show domain verification section
-            $('#domainVerificationSection').show();
-            $('#verificationDomainInput').val(domain);
-            
-            // Update verification display
-            updateVerificationDisplay();
-        } catch(e) {
-            notify('error', '@lang("Invalid domain URL. Please check and try again.")');
-            showStep(2);
-        }
-    }
-    
-    function setupWebsiteVerification() {
-        const websiteInput = $('#websiteUrlInput').val().trim();
-        if (!websiteInput) {
-            notify('error', '@lang("Please enter a website URL first")');
-            showStep(2);
-            return;
-        }
+        verificationData.website = websiteUrl;
+        verificationData.domain = domain;
+        verificationData.type = 'website';
         
-        try {
-            const urlObj = new URL(websiteInput);
-            const domain = urlObj.hostname.replace(/^www\./, '');
-            
-            verificationData.website = websiteInput;
-            verificationData.domain = domain;
-            verificationData.type = 'website';
-            
-            // Generate verification token
-            generateVerificationToken('website', domain);
-            
-            // Show website verification section
-            $('#websiteVerificationSection').show();
-            $('#verificationWebsiteInput').val(websiteInput);
-            
-            // Update verification display
-            updateWebsiteVerificationDisplay();
-        } catch(e) {
-            notify('error', '@lang("Invalid website URL. Please check and try again.")');
-            showStep(2);
-        }
+        // Generate verification token
+        generateVerificationToken('website', domain);
+        
+        // Show website verification section
+        $('#websiteVerificationSection').show();
+        
+        // Update verification display
+        updateWebsiteVerificationDisplay();
+        
+        // Keep continue button disabled until verified
+        $('#step1ContinueBtn').prop('disabled', true);
     }
     
     function generateVerificationToken(type, domain) {
@@ -1843,7 +2147,8 @@ $(document).ready(function() {
                     }
                     
                     notify('success', '@lang("Ownership verified successfully!")');
-                    $('#submitListingBtn').prop('disabled', false);
+                    // Enable continue button in Step 1
+                    $('#step1ContinueBtn').prop('disabled', false);
                 } else {
                     if (isWebsite) {
                         $('#websiteVerified').val('0');
