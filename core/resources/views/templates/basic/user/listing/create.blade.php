@@ -1160,9 +1160,7 @@ $(document).ready(function() {
     }
     
     function updateWebsiteVerificationDisplay() {
-        const businessType = $('input[name="business_type"]:checked').val();
-        const container = businessType === 'domain' ? '.domain-fields' : '.website-fields';
-        const $container = $(container);
+        const $container = $('.website-fields');
         if ($container.length === 0) return;
         
         const $method = $container.find('#websiteVerificationMethod');
