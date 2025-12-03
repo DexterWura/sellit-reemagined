@@ -134,10 +134,10 @@
                                                             <label class="form-label">@lang('Verification Method')</label>
                                                             <select name="verification_method" id="domainVerificationMethod" class="form-select">
                                                                 @if(in_array('txt_file', $allowedMethods))
-                                                                    <option value="txt_file" {{ (old('verification_method', 'txt_file') == 'txt_file') ? 'selected' : '' }}>@lang('Upload TXT File to Root')</option>
+                                                                    <option value="txt_file" selected>@lang('Upload TXT File to Root')</option>
                                                                 @endif
                                                                 @if(in_array('dns_record', $allowedMethods))
-                                                                    <option value="dns_record" {{ (old('verification_method') == 'dns_record') ? 'selected' : '' }}>@lang('Add DNS TXT Record')</option>
+                                                                    <option value="dns_record">@lang('Add DNS TXT Record')</option>
                                                                 @endif
                                                         </select>
                                                     </div>
@@ -1193,13 +1193,30 @@ $(document).ready(function() {
             
             // Only show verification section if verification is required
             if (value && requireDomainVerification) {
-                // Generate verification data first
-                generateDomainVerification(domain);
-                // Then show the section and update display after it's visible
-                $('#domainVerificationSection').slideDown(300, function() {
-                    // After section is fully visible, update display
-                    updateDomainVerificationDisplay();
-                });
+                try {
+                    // Extract domain from URL
+                    const urlObj = new URL(value);
+                    const domain = urlObj.hostname.replace(/^www\./, '');
+                    // Generate verification data first
+                    generateDomainVerification(domain);
+                    // Then show the section and update display after it's visible
+                    $('#domainVerificationSection').slideDown(300, function() {
+                        // After section is fully visible, update display
+                        updateDomainVerificationDisplay();
+                    });
+                } catch(e) {
+                    // Invalid URL format, try to extract domain from value directly
+                    // Remove protocol if present
+                    let domain = value.replace(/^https?:\/\//i, '').replace(/^www\./, '').split('/')[0];
+                    if (domain) {
+                        generateDomainVerification(domain);
+                        $('#domainVerificationSection').slideDown(300, function() {
+                            updateDomainVerificationDisplay();
+                        });
+                    } else {
+                        $('#domainVerificationSection').slideUp();
+                    }
+                }
             } else {
                 $('#domainVerificationSection').slideUp();
             }
@@ -1277,10 +1294,8 @@ $(document).ready(function() {
         domainVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
         domainVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
         
-        // Ensure default method is selected if none is selected
-        if (!$('#domainVerificationMethod').val()) {
-            $('#domainVerificationMethod').val('txt_file');
-        }
+        // Ensure default method is txt_file (TXT record)
+        $('#domainVerificationMethod').val('txt_file');
         
         // Update display with the current selected method
         updateDomainVerificationDisplay();
@@ -1316,8 +1331,14 @@ $(document).ready(function() {
             return;
         }
         
-        // If no method selected, default to txt_file
+        // If no method selected, default to txt_file (TXT record)
         if (!method) {
+            method = 'txt_file';
+            $('#domainVerificationMethod').val('txt_file');
+        }
+        
+        // Always default to txt_file if method is empty or invalid
+        if (method !== 'txt_file' && method !== 'dns_record') {
             method = 'txt_file';
             $('#domainVerificationMethod').val('txt_file');
         }
