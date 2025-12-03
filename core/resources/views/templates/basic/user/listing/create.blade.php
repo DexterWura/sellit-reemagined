@@ -1195,11 +1195,7 @@ $(document).ready(function() {
                     const domain = urlObj.hostname.replace(/^www\./, '');
                     generateDomainVerification(domain);
                     if (!$('#domainVerificationSection').is(':visible')) {
-                        $('#domainVerificationSection').slideDown(300, function() {
-                            updateDomainVerificationDisplay();
-                        });
-                    } else {
-                        updateDomainVerificationDisplay();
+                        $('#domainVerificationSection').slideDown(300);
                     }
                 } catch(e) {
                     if ($('#domainVerificationSection').is(':visible')) {
@@ -1271,7 +1267,6 @@ $(document).ready(function() {
         }
     });
     
-    // Generate verification data for domain
     function generateDomainVerification(domain) {
         if (!domain) return;
         
