@@ -137,10 +137,10 @@
                                                                     <option value="txt_file" selected>@lang('Upload TXT File to Root')</option>
                                                                 @endif
                                                                 @if(in_array('dns_record', $allowedMethods))
-                                                            <option value="dns_record">@lang('Add DNS TXT Record')</option>
+                                                                    <option value="dns_record">@lang('Add DNS TXT Record')</option>
                                                                 @endif
-                                                        </select>
-                                                    </div>
+                                                            </select>
+                                                        </div>
                                                         
                                                         {{-- TXT File Method --}}
                                                         <div id="txtFileMethod" class="verification-method-content" style="display: none;">
