@@ -74,7 +74,7 @@ class RegisterController extends Controller
         $validate = Validator::make($data, [
             'fullname'  => $fullnameRules,
             'email'     => 'required|string|email|unique:users',
-            'mobile'     => ['required', 'regex:/^[0-9]+$/', 'min:6', 'max:15'],
+            'mobile'     => ['required', 'regex:/^[0-9]+$/', 'min:6', 'max:15', 'unique:users,mobile'],
             'mobile_code' => 'required|string',
             'country'   => 'required|string',
             'country_code' => 'required|string',

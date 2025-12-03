@@ -27,7 +27,31 @@ class FileTypeValidate implements Rule
      */
     public function passes($attribute, $value)
     {
-        return in_array($value->getClientOriginalExtension(), $this->extensions);
+        // Check extension first
+        $extension = strtolower($value->getClientOriginalExtension());
+        if (!in_array($extension, $this->extensions)) {
+            return false;
+        }
+
+        // Check MIME type for additional security
+        $mimeType = $value->getMimeType();
+        $allowedMimeTypes = [
+            'jpg' => ['image/jpeg', 'image/jpg'],
+            'jpeg' => ['image/jpeg', 'image/jpg'],
+            'png' => ['image/png'],
+            'gif' => ['image/gif'],
+            'pdf' => ['application/pdf'],
+            'doc' => ['application/msword'],
+            'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+            'xls' => ['application/vnd.ms-excel'],
+            'xlsx' => ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+        ];
+
+        if (isset($allowedMimeTypes[$extension])) {
+            return in_array($mimeType, $allowedMimeTypes[$extension]);
+        }
+
+        return true;
     }
 
     /**
