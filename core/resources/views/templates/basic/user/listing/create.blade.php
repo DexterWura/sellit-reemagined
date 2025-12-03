@@ -931,306 +931,10 @@
                             </div>
                             
                             {{-- Step 5 removed - verification is now in Step 1 --}}
-                            <div class="form-step d-none" data-step="5" style="display: none !important;">
-                                <div class="step-header mb-4">
-                                    <h5 class="fw-bold mb-1">@lang('Verify Ownership')</h5>
-                                    <p class="text-muted mb-0">@lang('Verify that you own this domain or website before submitting your listing')</p>
-                                </div>
-                                
-                                @php
-                                    $requireWebsiteVerification = \App\Models\MarketplaceSetting::requireWebsiteVerification();
-                                    $requireDomainVerification = \App\Models\MarketplaceSetting::requireDomainVerification();
-                                    $allowedMethods = \App\Models\MarketplaceSetting::getDomainVerificationMethods();
-                                @endphp
-                                
-                                {{-- Verification Required Notice --}}
-                                <div class="alert alert-warning border-warning mb-4" id="verificationRequiredNotice">
-                                    <div class="d-flex align-items-start">
-                                        <i class="las la-exclamation-triangle fs-4 me-3 mt-1"></i>
-                                        <div>
-                                            <h6 class="fw-bold mb-2">@lang('Verification Required')</h6>
-                                            <p class="mb-0 small" id="verificationNoticeText">
-                                                @lang('You must verify ownership of your domain or website before your listing can be submitted.')
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {{-- Domain Verification Section --}}
-                                <div id="domainVerificationSection" style="display: none;">
-                                    <div class="card border-primary mb-4">
-                                        <div class="card-header bg-primary bg-opacity-10">
-                                            <h6 class="mb-0">
-                                                <i class="las la-globe me-2"></i>@lang('Domain Verification')
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="mb-3">
-                                                <label class="form-label fw-semibold">@lang('Domain to Verify')</label>
-                                                <div class="input-group">
-                                                    <span class="input-group-text"><i class="las la-link"></i></span>
-                                                    <input type="text" class="form-control" id="verificationDomainInput" readonly>
-                                                </div>
-                                                <small class="text-muted">@lang('This is the domain extracted from your listing')</small>
-                                            </div>
-                                            
-                                            <div class="mb-3">
-                                                <label class="form-label fw-semibold">@lang('Verification Method')</label>
-                                                <select name="verification_method" id="verificationMethodSelect" class="form-select">
-                                                    @if(in_array('txt_file', $allowedMethods))
-                                                        <option value="txt_file">@lang('Upload TXT File to Root')</option>
-                                                    @endif
-                                                    @if(in_array('dns_record', $allowedMethods))
-                                                        <option value="dns_record">@lang('Add DNS TXT Record')</option>
-                                                    @endif
-                                                </select>
-                                            </div>
-                                            
-                                            {{-- TXT File Method --}}
-                                            <div id="txtFileVerificationMethod" class="verification-method-content">
-                                                <div class="alert alert-info border">
-                                                    <h6 class="mb-3"><i class="las la-file-alt me-2"></i>@lang('File Upload Method')</h6>
-                                                    
-                                                    <div class="mb-3">
-                                                        <label class="form-label fw-semibold">@lang('Step 1: Download the verification file')</label>
-                                                        <button type="button" class="btn btn-sm btn-primary" id="downloadVerificationFile">
-                                                            <i class="las la-download me-1"></i>@lang('Download File')
-                                                        </button>
-                                                    </div>
-                                                    
-                                                    <div class="mb-3 p-3 bg-light rounded">
-                                                        <small class="text-muted d-block mb-2"><strong>@lang('File Details'):</strong></small>
-                                                        <table class="table table-sm table-bordered mb-0">
-                                                            <tr>
-                                                                <td width="40%" class="fw-semibold">@lang('File Name'):</td>
-                                                                <td><code id="verificationFileName" class="text-break">-</code></td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td class="fw-semibold">@lang('Upload Location'):</td>
-                                                                <td><code id="verificationFileLocation" class="text-break">-</code></td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td class="fw-semibold">@lang('File Content'):</td>
-                                                                <td><code id="verificationFileContent" class="text-break small">-</code></td>
-                                                            </tr>
-                                                        </table>
-                                                    </div>
-                                                    
-                                                    <div class="mb-0">
-                                                        <label class="form-label fw-semibold">@lang('Step 2: Upload the file')</label>
-                                                        <ol class="small mb-0">
-                                                            <li>@lang('Upload the downloaded file to your domain root directory')</li>
-                                                            <li>@lang('Common locations:') <code>public_html/</code>, <code>www/</code>, <code>public/</code>, or <code>htdocs/</code></li>
-                                                            <li>@lang('The file must be accessible at:') <code id="verificationFileUrl">-</code></li>
-                                                            <li>@lang('Make sure the file contains ONLY the verification token (no extra text)')</li>
-                                                        </ol>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            {{-- DNS Record Method --}}
-                                            <div id="dnsRecordVerificationMethod" class="verification-method-content" style="display: none;">
-                                                <div class="alert alert-info border">
-                                                    <h6 class="mb-3"><i class="las la-server me-2"></i>@lang('DNS TXT Record Method')</h6>
-                                                    
-                                                    <div class="mb-3">
-                                                        <label class="form-label fw-semibold">@lang('Step 1: Add DNS TXT Record')</label>
-                                                        <p class="small mb-2">@lang('Go to your domain registrar or DNS provider and add the following TXT record:')</p>
-                                                        
-                                                        <div class="table-responsive">
-                                                            <table class="table table-bordered">
-                                                                <thead class="table-light">
-                                                                    <tr>
-                                                                        <th width="20%">@lang('Type')</th>
-                                                                        <th width="30%">@lang('Name/Host')</th>
-                                                                        <th width="50%">@lang('Value/Content')</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    <tr>
-                                                                        <td><code>TXT</code></td>
-                                                                        <td><code id="verificationDnsName" class="text-break">-</code></td>
-                                                                        <td><code id="verificationDnsValue" class="text-break small">-</code></td>
-                                                                    </tr>
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <div class="mb-0">
-                                                        <label class="form-label fw-semibold">@lang('Step 2: Wait for DNS propagation')</label>
-                                                        <ul class="small mb-0">
-                                                            <li>@lang('DNS changes typically take 5-30 minutes, but can take up to 48 hours')</li>
-                                                            <li>@lang('After adding the record, wait a few minutes before clicking "Verify Ownership"')</li>
-                                                            <li>@lang('You can check if the record is live using online DNS lookup tools')</li>
-                                                        </ul>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="mt-4 pt-3 border-top">
-                                                <button type="button" class="btn btn--base" id="verifyOwnershipBtn">
-                                                    <i class="las la-check-circle me-1"></i>@lang('Verify Ownership')
-                                                </button>
-                                                <span id="verificationStatus" class="ms-3"></span>
-                                            </div>
-                                            
-                                            <input type="hidden" name="domain_verified" id="domainVerified" value="0">
-                                            <input type="hidden" name="verification_token" id="verificationToken" value="">
-                                            <input type="hidden" name="verification_filename" id="verificationFilename" value="">
-                                            <input type="hidden" name="verification_dns_name" id="verificationDnsNameInput" value="">
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {{-- Website Verification Section --}}
-                                <div id="websiteVerificationSection" style="display: none;">
-                                    <div class="card border-success mb-4">
-                                        <div class="card-header bg-success bg-opacity-10">
-                                            <h6 class="mb-0">
-                                                <i class="las la-laptop-code me-2"></i>@lang('Website Verification')
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="mb-3">
-                                                <label class="form-label fw-semibold">@lang('Website to Verify')</label>
-                                                <div class="input-group">
-                                                    <span class="input-group-text"><i class="las la-link"></i></span>
-                                                    <input type="text" class="form-control" id="verificationWebsiteInput" readonly>
-                                                </div>
-                                                <small class="text-muted">@lang('This is the website URL from your listing')</small>
-                                            </div>
-                                            
-                                            <div class="mb-3">
-                                                <label class="form-label fw-semibold">@lang('Verification Method')</label>
-                                                <select name="website_verification_method" id="websiteVerificationMethodSelect" class="form-select">
-                                                    @if(in_array('txt_file', $allowedMethods))
-                                                        <option value="txt_file">@lang('Upload TXT File to Root')</option>
-                                                    @endif
-                                                    @if(in_array('dns_record', $allowedMethods))
-                                                        <option value="dns_record">@lang('Add DNS TXT Record')</option>
-                                                    @endif
-                                                </select>
-                                            </div>
-                                            
-                                            {{-- Same verification methods UI as domain --}}
-                                            <div id="websiteTxtFileVerificationMethod" class="verification-method-content" style="display: none;">
-                                                <div class="alert alert-info border">
-                                                    <h6 class="mb-3"><i class="las la-file-alt me-2"></i>@lang('File Upload Method')</h6>
-                                                    
-                                                    <div class="mb-3">
-                                                        <label class="form-label fw-semibold">@lang('Step 1: Download the verification file')</label>
-                                                        <button type="button" class="btn btn-sm btn-primary" id="downloadWebsiteVerificationFile">
-                                                            <i class="las la-download me-1"></i>@lang('Download File')
-                                                        </button>
-                                                    </div>
-                                                    
-                                                    <div class="mb-3 p-3 bg-light rounded">
-                                                        <small class="text-muted d-block mb-2"><strong>@lang('File Details'):</strong></small>
-                                                        <table class="table table-sm table-bordered mb-0">
-                                                            <tr>
-                                                                <td width="40%" class="fw-semibold">@lang('File Name'):</td>
-                                                                <td><code id="websiteVerificationFileName" class="text-break">-</code></td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td class="fw-semibold">@lang('Upload Location'):</td>
-                                                                <td><code id="websiteVerificationFileLocation" class="text-break">-</code></td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td class="fw-semibold">@lang('File Content'):</td>
-                                                                <td><code id="websiteVerificationFileContent" class="text-break small">-</code></td>
-                                                            </tr>
-                                                        </table>
-                                                    </div>
-                                                    
-                                                    <div class="mb-0">
-                                                        <label class="form-label fw-semibold">@lang('Step 2: Upload the file')</label>
-                                                        <ol class="small mb-0">
-                                                            <li>@lang('Upload the downloaded file to your website root directory')</li>
-                                                            <li>@lang('Common locations:') <code>public_html/</code>, <code>www/</code>, <code>public/</code>, or <code>htdocs/</code></li>
-                                                            <li>@lang('The file must be accessible at:') <code id="websiteVerificationFileUrl">-</code></li>
-                                                            <li>@lang('Make sure the file contains ONLY the verification token (no extra text)')</li>
-                                                        </ol>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div id="websiteDnsRecordVerificationMethod" class="verification-method-content" style="display: none;">
-                                                <div class="alert alert-info border">
-                                                    <h6 class="mb-3"><i class="las la-server me-2"></i>@lang('DNS TXT Record Method')</h6>
-                                                    
-                                                    <div class="mb-3">
-                                                        <label class="form-label fw-semibold">@lang('Step 1: Add DNS TXT Record')</label>
-                                                        <p class="small mb-2">@lang('Go to your domain registrar or DNS provider and add the following TXT record:')</p>
-                                                        
-                                                        <div class="table-responsive">
-                                                            <table class="table table-bordered">
-                                                                <thead class="table-light">
-                                                                    <tr>
-                                                                        <th width="20%">@lang('Type')</th>
-                                                                        <th width="30%">@lang('Name/Host')</th>
-                                                                        <th width="50%">@lang('Value/Content')</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    <tr>
-                                                                        <td><code>TXT</code></td>
-                                                                        <td><code id="websiteVerificationDnsName" class="text-break">-</code></td>
-                                                                        <td><code id="websiteVerificationDnsValue" class="text-break small">-</code></td>
-                                                                    </tr>
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <div class="mb-0">
-                                                        <label class="form-label fw-semibold">@lang('Step 2: Wait for DNS propagation')</label>
-                                                        <ul class="small mb-0">
-                                                            <li>@lang('DNS changes typically take 5-30 minutes, but can take up to 48 hours')</li>
-                                                            <li>@lang('After adding the record, wait a few minutes before clicking "Verify Ownership"')</li>
-                                                            <li>@lang('You can check if the record is live using online DNS lookup tools')</li>
-                                                        </ul>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="mt-4 pt-3 border-top">
-                                                <button type="button" class="btn btn--base" id="verifyWebsiteOwnershipBtn">
-                                                    <i class="las la-check-circle me-1"></i>@lang('Verify Ownership')
-                                                </button>
-                                                <span id="websiteVerificationStatus" class="ms-3"></span>
-                                            </div>
-                                            
-                                            <input type="hidden" name="website_verified" id="websiteVerified" value="0">
-                                            <input type="hidden" name="website_verification_token" id="websiteVerificationToken" value="">
-                                            <input type="hidden" name="website_verification_filename" id="websiteVerificationFilename" value="">
-                                            <input type="hidden" name="website_verification_dns_name" id="websiteVerificationDnsNameInput" value="">
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {{-- Verification Not Required --}}
-                                <div id="verificationNotRequired" class="alert alert-success" style="display: none;">
-                                    <div class="d-flex align-items-start">
-                                        <i class="las la-check-circle fs-4 me-3 mt-1"></i>
-                                        <div>
-                                            <h6 class="fw-bold mb-2">@lang('Verification Not Required')</h6>
-                                            <p class="mb-0 small">@lang('Verification is not required for this type of listing. You can proceed to submit your listing.')</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="step-actions mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="4">
-                                        <i class="las la-arrow-left me-1"></i> @lang('Back')
-                                    </button>
-                                    <button type="submit" class="btn btn--base btn-lg" id="submitListingBtn" disabled>
-                                        <i class="las la-paper-plane me-1"></i> @lang('Submit for Review')
-                                    </button>
-                                </div>
-                            </div>
+                            {{-- All Step 5 content has been moved to Step 1 to prevent duplicate IDs --}}
                             
                         </form>
+                    </div>
                     </div>
                 </div>
                 
@@ -2030,6 +1734,11 @@ $(document).ready(function() {
     }
     
     function updateVerificationDisplay() {
+        // Check if verification section is visible
+        if (!$('#domainVerificationSection').is(':visible')) {
+            return; // Don't update if section is hidden
+        }
+        
         if (!verificationData.token || !verificationData.domain) {
             return; // Don't update if data not ready
         }
@@ -2041,27 +1750,17 @@ $(document).ready(function() {
             $('#dnsRecordVerificationMethod').hide();
             
             // Update file details
-            if (verificationData.filename) {
-                $('#verificationFileName').text(verificationData.filename);
-            }
-            if (verificationData.domain) {
-                $('#verificationFileLocation').text(verificationData.domain + '/' + verificationData.filename);
-                $('#verificationFileUrl').text('https://' + verificationData.domain + '/' + verificationData.filename);
-            }
-            if (verificationData.token) {
-                $('#verificationFileContent').text(verificationData.token);
-            }
-        } else {
+            $('#verificationFileName').text(verificationData.filename || '-');
+            $('#verificationFileLocation').text(verificationData.domain + '/' + verificationData.filename);
+            $('#verificationFileUrl').text('https://' + verificationData.domain + '/' + verificationData.filename);
+            $('#verificationFileContent').text(verificationData.token || '-');
+        } else if (method === 'dns_record') {
             $('#txtFileVerificationMethod').hide();
             $('#dnsRecordVerificationMethod').show();
             
             // Update DNS details
-            if (verificationData.dnsName) {
-                $('#verificationDnsName').text(verificationData.dnsName);
-            }
-            if (verificationData.token) {
-                $('#verificationDnsValue').text(verificationData.token);
-            }
+            $('#verificationDnsName').text(verificationData.dnsName || '-');
+            $('#verificationDnsValue').text(verificationData.token || '-');
         }
         
         // Update hidden fields
@@ -2071,6 +1770,11 @@ $(document).ready(function() {
     }
     
     function updateWebsiteVerificationDisplay() {
+        // Check if verification section is visible
+        if (!$('#websiteVerificationSection').is(':visible')) {
+            return; // Don't update if section is hidden
+        }
+        
         if (!verificationData.token || !verificationData.domain) {
             return; // Don't update if data not ready
         }
@@ -2082,27 +1786,17 @@ $(document).ready(function() {
             $('#websiteDnsRecordVerificationMethod').hide();
             
             // Update file details
-            if (verificationData.filename) {
-                $('#websiteVerificationFileName').text(verificationData.filename);
-            }
-            if (verificationData.domain) {
-                $('#websiteVerificationFileLocation').text(verificationData.domain + '/' + verificationData.filename);
-                $('#websiteVerificationFileUrl').text('https://' + verificationData.domain + '/' + verificationData.filename);
-            }
-            if (verificationData.token) {
-                $('#websiteVerificationFileContent').text(verificationData.token);
-            }
-        } else {
+            $('#websiteVerificationFileName').text(verificationData.filename || '-');
+            $('#websiteVerificationFileLocation').text(verificationData.domain + '/' + verificationData.filename);
+            $('#websiteVerificationFileUrl').text('https://' + verificationData.domain + '/' + verificationData.filename);
+            $('#websiteVerificationFileContent').text(verificationData.token || '-');
+        } else if (method === 'dns_record') {
             $('#websiteTxtFileVerificationMethod').hide();
             $('#websiteDnsRecordVerificationMethod').show();
             
             // Update DNS details
-            if (verificationData.dnsName) {
-                $('#websiteVerificationDnsName').text(verificationData.dnsName);
-            }
-            if (verificationData.token) {
-                $('#websiteVerificationDnsValue').text(verificationData.token);
-            }
+            $('#websiteVerificationDnsName').text(verificationData.dnsName || '-');
+            $('#websiteVerificationDnsValue').text(verificationData.token || '-');
         }
         
         // Update hidden fields
@@ -2111,12 +1805,12 @@ $(document).ready(function() {
         $('#websiteVerificationDnsNameInput').val(verificationData.dnsName);
     }
     
-    // Verification method change
-    $('#verificationMethodSelect').on('change', function() {
+    // Verification method change - use event delegation to handle dynamically added elements
+    $(document).on('change', '#verificationMethodSelect', function() {
         updateVerificationDisplay();
     });
     
-    $('#websiteVerificationMethodSelect').on('change', function() {
+    $(document).on('change', '#websiteVerificationMethodSelect', function() {
         updateWebsiteVerificationDisplay();
     });
     
