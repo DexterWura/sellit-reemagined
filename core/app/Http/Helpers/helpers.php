@@ -17,9 +17,11 @@ use Laramin\Utility\VugiChugi;
 
 function systemDetails()
 {
-    $system['name']          = 'escrowlab';
-    $system['version']       = '3.0';
-    $system['build_version'] = '5.0.7';
+    // Get system name from general settings, fallback to default
+    $systemName = gs('site_name') ?? 'sellit';
+    $system['name']          = $systemName;
+    $system['version']       = '1.0';
+    $system['build_version'] = '1.0.0';
     return $system;
 }
 

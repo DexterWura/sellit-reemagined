@@ -389,8 +389,9 @@ Route::middleware('admin')->group(function () {
         Route::get('optimize', 'optimize')->name('optimize');
         Route::get('optimize-clear', 'optimizeClear')->name('optimize.clear');
         Route::get('system-update', 'systemUpdate')->name('update');
-        Route::post('system-update', 'systemUpdateProcess')->name('update.process');
-        Route::get('system-update/log', 'systemUpdateLog')->name('update.log');
+        // Update process route disabled - functionality removed
+        // Route::post('system-update', 'systemUpdateProcess')->name('update.process');
+        // Route::get('system-update/log', 'systemUpdateLog')->name('update.log');
     });
 
     // Database Migrations Management
