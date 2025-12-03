@@ -22,20 +22,40 @@ class PaymentController extends Controller
         if ($type == 'checkout') {
             $checkOutData = session('checkout');
             if (!$checkOutData) {
-                $notify[] = ['error', 'Invalid session'];
+                $notify[] = ['error', 'Checkout session expired. Please try again.'];
                 return redirect()->route('user.home')->withNotify($notify);
             }
-            $pageTitle    = 'Checkout';
-            $checkOutData = decrypt($checkOutData);
-            $amount       = $checkOutData['amount'];
+            
+            try {
+                $checkOutData = decrypt($checkOutData);
+                $amount = $checkOutData['amount'] ?? null;
+                
+                if (!$amount || $amount <= 0) {
+                    session()->forget('checkout');
+                    $notify[] = ['error', 'Invalid checkout amount'];
+                    return redirect()->route('user.home')->withNotify($notify);
+                }
+            } catch (\Exception $e) {
+                session()->forget('checkout');
+                $notify[] = ['error', 'Invalid checkout session. Please try again.'];
+                return redirect()->route('user.home')->withNotify($notify);
+            }
+            
+            $pageTitle = 'Checkout';
         } else {
             session()->forget('checkout');
+            $pageTitle = 'Deposit Money';
         }
 
         $gatewayCurrency = GatewayCurrency::whereHas('method', function ($gate) {
             $gate->where('status', Status::ENABLE);
         })->with('method')->orderby('name')->get();
-        $pageTitle = 'Deposit Methods';
+
+        if ($gatewayCurrency->isEmpty()) {
+            $notify[] = ['error', 'No payment methods are currently available. Please contact support.'];
+            return redirect()->route('user.home')->withNotify($notify);
+        }
+
         return view('Template::user.payment.deposit', compact('gatewayCurrency', 'pageTitle', 'amount'));
     }
 
@@ -70,13 +90,25 @@ class PaymentController extends Controller
         })->where('method_code', $request->gateway)->where('currency', $request->currency)->first();
 
         if (!$gate) {
-            $notify[] = ['error', 'Invalid gateway'];
-            return back()->withNotify($notify);
+            $notify[] = ['error', 'Selected payment method is not available. Please choose another method.'];
+            return back()->withInput()->withNotify($notify);
         }
 
-        if ($gate->min_amount > $amount || $gate->max_amount < $amount) {
-            $notify[] = ['error', 'Please follow the minimum limit and the maximum limit'];
-            return back()->withNotify($notify);
+        // Validate amount limits with helpful messages
+        if ($gate->min_amount > $amount) {
+            $notify[] = ['error', 'Minimum deposit amount is ' . showAmount($gate->min_amount) . '. You entered ' . showAmount($amount)];
+            return back()->withInput()->withNotify($notify);
+        }
+        
+        if ($gate->max_amount < $amount) {
+            $notify[] = ['error', 'Maximum deposit amount is ' . showAmount($gate->max_amount) . '. You entered ' . showAmount($amount)];
+            return back()->withInput()->withNotify($notify);
+        }
+
+        // Warn if depositing a very large amount
+        if ($amount > 10000) {
+            $notify[] = ['info', 'You are depositing a large amount. Please ensure all details are correct before proceeding.'];
+            // Don't block, just inform
         }
 
         $charge      = $gate->fixed_charge + ($request->amount * $gate->percent_charge / 100);
@@ -111,8 +143,29 @@ class PaymentController extends Controller
 
     public function depositConfirm()
     {
-        $track   = session()->get('Track');
-        $deposit = Deposit::where('trx', $track)->where('status', Status::PAYMENT_INITIATE)->orderBy('id', 'DESC')->with('gateway')->firstOrFail();
+        $track = session()->get('Track');
+        
+        if (!$track) {
+            $notify[] = ['error', 'Payment session expired. Please start over.'];
+            return redirect()->route('user.deposit')->withNotify($notify);
+        }
+
+        $deposit = Deposit::where('trx', $track)
+            ->where('status', Status::PAYMENT_INITIATE)
+            ->orderBy('id', 'DESC')
+            ->with('gateway')
+            ->firstOrFail();
+
+        // Verify deposit belongs to current user
+        if ($deposit->user_id !== auth()->id()) {
+            abort(403, 'Unauthorized access to deposit');
+        }
+
+        // Check if gateway is still active
+        if (!$deposit->gateway || $deposit->gateway->status != Status::ENABLE) {
+            $notify[] = ['error', 'Payment method is no longer available. Please choose another method.'];
+            return redirect()->route('user.deposit')->withNotify($notify);
+        }
 
         if ($deposit->method_code >= 1000) {
             return to_route('user.deposit.manual.confirm');

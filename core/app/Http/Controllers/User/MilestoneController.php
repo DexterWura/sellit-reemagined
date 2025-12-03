@@ -76,9 +76,23 @@ class MilestoneController extends Controller
 
         $request->validate([
             'amount' => 'required|numeric|gt:0|lte:' . $restAmount,
-            'note'   => 'required|max:500',
+            'note'   => 'required|string|min:10|max:500',
             'milestone_type' => 'nullable|string|max:50',
+        ], [
+            'amount.required' => 'Milestone amount is required',
+            'amount.gt' => 'Milestone amount must be greater than 0',
+            'amount.lte' => 'Milestone amount cannot exceed remaining escrow amount of ' . showAmount($restAmount),
+            'note.required' => 'Milestone description is required',
+            'note.min' => 'Milestone description must be at least 10 characters',
+            'note.max' => 'Milestone description cannot exceed 500 characters',
         ]);
+
+        // Validate amount is reasonable (at least 1% of escrow amount)
+        $minAmount = ($escrow->amount + $escrow->buyer_charge) * 0.01;
+        if ($request->amount < $minAmount) {
+            $notify[] = ['error', 'Milestone amount is too small. Minimum amount is ' . showAmount($minAmount) . ' (1% of escrow amount)'];
+            return back()->withInput()->withNotify($notify);
+        }
 
         DB::beginTransaction();
         
@@ -469,9 +483,18 @@ class MilestoneController extends Controller
                 return redirect()->route('user.deposit.index', 'checkout');
             }
 
+            // Check balance with helpful message
             if ($user->balance < $milestone->amount) {
-                $notify[] = ['error', 'You have no sufficient balance'];
+                $shortfall = $milestone->amount - $user->balance;
+                $notify[] = ['error', 'Insufficient balance. You need ' . showAmount($milestone->amount) . ' but only have ' . showAmount($user->balance) . '. Please deposit ' . showAmount($shortfall) . ' more.'];
                 return back()->withNotify($notify);
+            }
+
+            // Warn if paying most of balance
+            $balanceAfter = $user->balance - $milestone->amount;
+            if ($balanceAfter < ($user->balance * 0.1) && $balanceAfter > 0) {
+                $notify[] = ['warning', 'This payment will leave you with ' . showAmount($balanceAfter) . ' remaining balance'];
+                // Don't block, just warn
             }
 
             // Lock user and milestone to prevent concurrent payments
@@ -481,10 +504,11 @@ class MilestoneController extends Controller
                 // Reload user with lock
                 $user = \App\Models\User::lockForUpdate()->find($user->id);
                 
-                // Re-check balance after lock
+                // Re-check balance after lock (may have changed)
                 if ($user->balance < $milestone->amount) {
                     DB::rollBack();
-                    $notify[] = ['error', 'Insufficient balance'];
+                    $shortfall = $milestone->amount - $user->balance;
+                    $notify[] = ['error', 'Insufficient balance. Your balance changed. You need ' . showAmount($milestone->amount) . ' but only have ' . showAmount($user->balance) . '. Please deposit ' . showAmount($shortfall) . ' more.'];
                     return back()->withNotify($notify);
                 }
 

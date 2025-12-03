@@ -250,7 +250,7 @@ class ListingController extends Controller
         $listing->requires_nda = $request->has('requires_nda') ? (bool)$request->requires_nda : false;
         $listing->confidential_reason = $request->confidential_reason ?? null;
 
-        // Pricing
+        // Pricing with validation
         if ($request->sale_type === 'fixed_price') {
             $listing->asking_price = $request->asking_price;
         } else {
@@ -258,6 +258,33 @@ class ListingController extends Controller
             $listing->reserve_price = $request->reserve_price ?? 0;
             $listing->buy_now_price = $request->buy_now_price ?? 0;
             $listing->bid_increment = $request->bid_increment ?? 1;
+            
+            // Common sense validations
+            // Reserve price should not exceed buy now price (if set)
+            if ($listing->buy_now_price > 0 && $listing->reserve_price > $listing->buy_now_price) {
+                $notify[] = ['error', 'Reserve price cannot be higher than Buy Now price'];
+                return back()->withInput()->withNotify($notify);
+            }
+            
+            // Reserve price should not be lower than starting bid
+            if ($listing->reserve_price > 0 && $listing->reserve_price < $listing->starting_bid) {
+                $notify[] = ['error', 'Reserve price cannot be lower than starting bid'];
+                return back()->withInput()->withNotify($notify);
+            }
+            
+            // Buy now price should be reasonable compared to starting bid
+            if ($listing->buy_now_price > 0 && $listing->buy_now_price < $listing->starting_bid) {
+                $notify[] = ['error', 'Buy Now price cannot be lower than starting bid'];
+                return back()->withInput()->withNotify($notify);
+            }
+            
+            // Bid increment should be reasonable (at least 1% of starting bid or minimum $1)
+            $minIncrement = max($listing->starting_bid * 0.01, 1);
+            if ($listing->bid_increment < $minIncrement) {
+                $notify[] = ['warning', 'Bid increment is very small. Recommended minimum: ' . showAmount($minIncrement)];
+                // Don't block, just warn
+            }
+            
             // Don't start auction until verified and approved
             $listing->auction_duration_days = $request->auction_duration;
         }
@@ -303,6 +330,9 @@ class ListingController extends Controller
         // Handle images
         if ($request->hasFile('images')) {
             $this->uploadImages($listing, $request->file('images'));
+        } else {
+            // Warn if no images uploaded
+            $notify[] = ['warning', 'No images uploaded. Listings with images get more views.'];
         }
 
         // Update user stats
@@ -314,7 +344,18 @@ class ListingController extends Controller
             DomainVerification::createForListing($listing, $verificationMethod);
         }
 
-        $notify[] = ['success', 'Listing created successfully and pending admin approval'];
+        // Provide helpful next steps
+        $nextSteps = [];
+        if ($listing->status === Status::LISTING_PENDING) {
+            $nextSteps[] = 'Your listing is pending admin approval';
+            if ($listing->sale_type === 'auction') {
+                $nextSteps[] = 'Once approved, your auction will start automatically';
+            }
+        } elseif ($listing->status === Status::LISTING_DRAFT) {
+            $nextSteps[] = 'Complete verification to submit your listing for approval';
+        }
+
+        $notify[] = ['success', 'Listing created successfully' . (!empty($nextSteps) ? '. ' . implode('. ', $nextSteps) : '')];
         return redirect()->route('user.listing.index')->withNotify($notify);
     }
 
@@ -410,7 +451,7 @@ class ListingController extends Controller
         $listing->requires_nda = $request->has('requires_nda') ? (bool)$request->requires_nda : false;
         $listing->confidential_reason = $request->confidential_reason ?? null;
 
-        // Pricing
+        // Pricing with validation
         if ($listing->sale_type === 'fixed_price') {
             $listing->asking_price = $request->asking_price;
         } else {
@@ -418,6 +459,22 @@ class ListingController extends Controller
             $listing->reserve_price = $request->reserve_price ?? 0;
             $listing->buy_now_price = $request->buy_now_price ?? 0;
             $listing->bid_increment = $request->bid_increment ?? 1;
+            
+            // Common sense validations (same as create)
+            if ($listing->buy_now_price > 0 && $listing->reserve_price > $listing->buy_now_price) {
+                $notify[] = ['error', 'Reserve price cannot be higher than Buy Now price'];
+                return back()->withInput()->withNotify($notify);
+            }
+            
+            if ($listing->reserve_price > 0 && $listing->reserve_price < $listing->starting_bid) {
+                $notify[] = ['error', 'Reserve price cannot be lower than starting bid'];
+                return back()->withInput()->withNotify($notify);
+            }
+            
+            if ($listing->buy_now_price > 0 && $listing->buy_now_price < $listing->starting_bid) {
+                $notify[] = ['error', 'Buy Now price cannot be lower than starting bid'];
+                return back()->withInput()->withNotify($notify);
+            }
         }
 
         // Business-specific fields

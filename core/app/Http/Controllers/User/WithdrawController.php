@@ -25,31 +25,53 @@ class WithdrawController extends Controller
     {
         $request->validate([
             'method_code' => 'required',
-            'amount' => 'required|numeric'
+            'amount' => 'required|numeric|min:0.01'
+        ], [
+            'method_code.required' => 'Please select a withdrawal method',
+            'amount.required' => 'Please enter withdrawal amount',
+            'amount.numeric' => 'Amount must be a valid number',
+            'amount.min' => 'Amount must be at least 0.01',
         ]);
+
         $method = WithdrawMethod::where('id', $request->method_code)->active()->firstOrFail();
         $user = auth()->user();
+        
+        // Validate amount limits with helpful messages
         if ($request->amount < $method->min_limit) {
-            $notify[] = ['error', 'Your requested amount is smaller than minimum amount'];
+            $notify[] = ['error', 'Minimum withdrawal amount is ' . showAmount($method->min_limit) . '. You entered ' . showAmount($request->amount)];
             return back()->withNotify($notify)->withInput($request->all());
         }
+        
         if ($request->amount > $method->max_limit) {
-            $notify[] = ['error', 'Your requested amount is larger than maximum amount'];
+            $notify[] = ['error', 'Maximum withdrawal amount is ' . showAmount($method->max_limit) . '. You entered ' . showAmount($request->amount)];
             return back()->withNotify($notify)->withInput($request->all());
         }
 
-        if ($request->amount > $user->balance) {
-            $notify[] = ['error', 'Insufficient balance for withdrawal'];
-            return back()->withNotify($notify)->withInput($request->all());
-        }
-
-
+        // Calculate charges first to show user what they'll receive
         $charge = $method->fixed_charge + ($request->amount * $method->percent_charge / 100);
         $afterCharge = $request->amount - $charge;
 
         if ($afterCharge <= 0) {
-            $notify[] = ['error', 'Withdraw amount must be sufficient for charges'];
+            // Calculate minimum needed to receive at least $1 after fees
+            $minNeeded = ($method->fixed_charge + 1) / (1 - $method->percent_charge / 100);
+            $notify[] = ['error', 'Withdrawal amount is too small. After fees (' . showAmount($charge) . '), you would receive nothing. Minimum amount needed: ' . showAmount(max($method->min_limit, $minNeeded))];
             return back()->withNotify($notify)->withInput($request->all());
+        }
+
+        // Show user what they'll receive before proceeding
+        $notify[] = ['info', 'You will receive ' . showAmount($afterCharge * $method->rate) . ' ' . $method->currency . ' after fees (' . showAmount($charge) . ')'];
+
+        // Check balance including charges
+        if ($request->amount > $user->balance) {
+            $notify[] = ['error', 'Insufficient balance. You have ' . showAmount($user->balance) . ' but need ' . showAmount($request->amount)];
+            return back()->withNotify($notify)->withInput($request->all());
+        }
+
+        // Warn if withdrawing most of balance
+        $balanceAfter = $user->balance - $request->amount;
+        if ($balanceAfter < ($user->balance * 0.1) && $balanceAfter > 0) {
+            $notify[] = ['warning', 'You are withdrawing most of your balance. Remaining balance will be ' . showAmount($balanceAfter)];
+            // Don't block, just warn
         }
 
         $finalAmount = $afterCharge * $method->rate;
@@ -71,7 +93,36 @@ class WithdrawController extends Controller
 
     public function withdrawPreview()
     {
-        $withdraw = Withdrawal::with('method','user')->where('trx', session()->get('wtrx'))->where('status', Status::PAYMENT_INITIATE)->orderBy('id','desc')->firstOrFail();
+        $trx = session()->get('wtrx');
+        
+        if (!$trx) {
+            $notify[] = ['error', 'Session expired. Please start over.'];
+            return redirect()->route('user.withdraw.money')->withNotify($notify);
+        }
+
+        $withdraw = Withdrawal::with('method','user')
+            ->where('trx', $trx)
+            ->where('status', Status::PAYMENT_INITIATE)
+            ->orderBy('id','desc')
+            ->firstOrFail();
+
+        // Re-validate balance hasn't changed
+        $user = auth()->user();
+        if ($withdraw->amount > $user->balance) {
+            $withdraw->delete(); // Remove invalid withdrawal
+            session()->forget('wtrx');
+            $notify[] = ['error', 'Your balance has changed. Please start over.'];
+            return redirect()->route('user.withdraw.money')->withNotify($notify);
+        }
+
+        // Check if method is still active
+        if ($withdraw->method->status == Status::DISABLE) {
+            $withdraw->delete();
+            session()->forget('wtrx');
+            $notify[] = ['error', 'Withdrawal method is no longer available. Please select another method.'];
+            return redirect()->route('user.withdraw.money')->withNotify($notify);
+        }
+
         $pageTitle = 'Withdraw Preview';
         return view('Template::user.withdraw.preview', compact('pageTitle','withdraw'));
     }
@@ -101,8 +152,16 @@ class WithdrawController extends Controller
             }
         }
 
+        // Final balance check before processing
+        $user->refresh(); // Get latest balance
         if ($withdraw->amount > $user->balance) {
-            $notify[] = ['error', 'Your request amount is larger then your current balance.'];
+            $notify[] = ['error', 'Insufficient balance. Your balance is ' . showAmount($user->balance) . ' but you requested ' . showAmount($withdraw->amount)];
+            return back()->withNotify($notify)->withInput($request->all());
+        }
+
+        // Check if method is still active
+        if ($method->status == Status::DISABLE) {
+            $notify[] = ['error', 'This withdrawal method is no longer available'];
             return back()->withNotify($notify)->withInput($request->all());
         }
 

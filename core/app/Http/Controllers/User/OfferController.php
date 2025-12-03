@@ -19,6 +19,9 @@ class OfferController extends Controller
         $pageTitle = 'My Offers';
         $user = auth()->user();
 
+        // Auto-expire old offers
+        $this->expireOldOffers();
+
         $offers = Offer::where('buyer_id', $user->id)
             ->with(['listing.images', 'seller'])
             ->when($request->status, function ($q, $status) {
@@ -34,6 +37,9 @@ class OfferController extends Controller
     {
         $pageTitle = 'Received Offers';
         $user = auth()->user();
+
+        // Auto-expire old offers
+        $this->expireOldOffers();
 
         $offers = Offer::where('seller_id', $user->id)
             ->with(['listing.images', 'buyer'])
@@ -60,10 +66,32 @@ class OfferController extends Controller
             return back()->withNotify($notify);
         }
 
+        // Check if user account is fully verified
+        if (!$user->ev || !$user->sv) {
+            $notify[] = ['error', 'Please verify your email and mobile number before making offers'];
+            return back()->withNotify($notify);
+        }
+
         $request->validate([
             'amount' => 'required|numeric|min:1',
             'message' => 'nullable|string|max:1000',
         ]);
+
+        // Validate offer amount is reasonable
+        if ($listing->asking_price > 0) {
+            // Offer should be at least 10% of asking price (common sense)
+            $minimumOffer = $listing->asking_price * 0.1;
+            if ($request->amount < $minimumOffer) {
+                $notify[] = ['error', 'Offer amount is too low. Minimum offer should be at least ' . showAmount($minimumOffer) . ' (10% of asking price)'];
+                return back()->withInput()->withNotify($notify);
+            }
+
+            // Warn if offer is significantly higher than asking price
+            if ($request->amount > $listing->asking_price * 1.1) {
+                $notify[] = ['warning', 'Your offer is higher than the asking price. Consider using Buy Now instead.'];
+                // Don't block, just warn
+            }
+        }
 
         // Check for pending offer from same user
         $existingOffer = Offer::where('listing_id', $listing->id)
@@ -74,6 +102,19 @@ class OfferController extends Controller
         if ($existingOffer) {
             $notify[] = ['error', 'You already have a pending offer on this listing'];
             return back()->withNotify($notify);
+        }
+
+        // Check user balance (rough estimate for potential acceptance)
+        $general = gs();
+        $charge = ($request->amount * ($general->percent_charge ?? 0) / 100) + ($general->fixed_charge ?? 0);
+        if ($charge > ($general->charge_cap ?? 0) && $general->charge_cap > 0) {
+            $charge = $general->charge_cap;
+        }
+        $totalNeeded = $request->amount + $charge;
+
+        if ($user->balance < $totalNeeded) {
+            $notify[] = ['warning', 'You may need to deposit funds if your offer is accepted. Required: ' . showAmount($totalNeeded) . ' (including fees). Current balance: ' . showAmount($user->balance)];
+            // Don't block, just warn
         }
 
         $offer = new Offer();
@@ -116,9 +157,31 @@ class OfferController extends Controller
 
             $listing = $offer->listing;
 
+            // Check if offer has expired
+            if ($offer->expires_at && $offer->expires_at < now()) {
+                $offer->status = Status::OFFER_EXPIRED;
+                $offer->save();
+                $notify[] = ['error', 'This offer has expired'];
+                return back()->withNotify($notify);
+            }
+
             // Check if listing is already in escrow or sold
             if ($listing->status === Status::LISTING_SOLD || $listing->escrow_id) {
                 $notify[] = ['error', 'This listing is no longer available'];
+                return back()->withNotify($notify);
+            }
+
+            // Check buyer balance
+            $finalAmount = $offer->counter_amount > 0 ? $offer->counter_amount : $offer->amount;
+            $general = gs();
+            $charge = ($finalAmount * ($general->percent_charge ?? 0) / 100) + ($general->fixed_charge ?? 0);
+            if ($charge > ($general->charge_cap ?? 0) && $general->charge_cap > 0) {
+                $charge = $general->charge_cap;
+            }
+            $totalNeeded = $finalAmount + $charge;
+
+            if ($offer->buyer->balance < $totalNeeded) {
+                $notify[] = ['error', 'Buyer has insufficient balance. They need ' . showAmount($totalNeeded) . ' (including fees). Current balance: ' . showAmount($offer->buyer->balance)];
                 return back()->withNotify($notify);
             }
 
@@ -225,6 +288,17 @@ class OfferController extends Controller
             'counter_message' => 'nullable|string|max:1000',
         ]);
 
+        // Validate counter offer is reasonable
+        if ($request->counter_amount < $offer->amount) {
+            $notify[] = ['error', 'Counter offer must be higher than the original offer'];
+            return back()->withInput()->withNotify($notify);
+        }
+
+        if ($offer->listing->asking_price > 0 && $request->counter_amount > $offer->listing->asking_price * 1.2) {
+            $notify[] = ['warning', 'Counter offer is significantly higher than asking price'];
+            // Don't block, just warn
+        }
+
         $offer->status = Status::OFFER_COUNTERED;
         $offer->counter_amount = $request->counter_amount;
         $offer->counter_message = $request->counter_message;
@@ -246,55 +320,105 @@ class OfferController extends Controller
 
     public function acceptCounter($id)
     {
-        $user = auth()->user();
-        $offer = Offer::where('buyer_id', $user->id)
-            ->where('status', Status::OFFER_COUNTERED)
-            ->with(['listing', 'seller'])
-            ->findOrFail($id);
+        try {
+            $user = auth()->user();
+            
+            // Lock offer and listing to prevent concurrent acceptances
+            $offer = Offer::lockForUpdate()
+                ->where('buyer_id', $user->id)
+                ->where('status', Status::OFFER_COUNTERED)
+                ->with(['listing' => function($q) {
+                    $q->lockForUpdate();
+                }, 'seller'])
+                ->findOrFail($id);
 
-        $listing = $offer->listing;
-        $finalAmount = $offer->counter_amount;
+            $listing = $offer->listing;
+            $finalAmount = $offer->counter_amount;
 
-        // Accept counter offer
-        $offer->status = Status::OFFER_ACCEPTED;
-        $offer->responded_at = now();
-        $offer->save();
+            // Check if offer has expired
+            if ($offer->expires_at && $offer->expires_at < now()) {
+                $notify[] = ['error', 'This offer has expired'];
+                return back()->withNotify($notify);
+            }
 
-        // Update listing - don't mark as SOLD yet, just set escrow_id to hide from public
-        // Keep status as LISTING_ACTIVE - it will be hidden from public because escrow_id is set
-        $listing->winner_id = $user->id;
-        $listing->final_price = $finalAmount;
-        // Don't set sold_at yet - will be set when escrow is completed
+            // Check if listing is still available
+            if ($listing->status === Status::LISTING_SOLD || $listing->escrow_id) {
+                $notify[] = ['error', 'This listing is no longer available'];
+                return back()->withNotify($notify);
+            }
 
-        // Reject other offers
-        Offer::where('listing_id', $listing->id)
-            ->where('id', '!=', $offer->id)
-            ->whereIn('status', [Status::OFFER_PENDING, Status::OFFER_COUNTERED])
-            ->update([
-                'status' => Status::OFFER_REJECTED,
-                'rejection_reason' => 'Another offer was accepted',
-                'responded_at' => now(),
-            ]);
+            // Check user balance
+            $general = gs();
+            $charge = ($finalAmount * ($general->percent_charge ?? 0) / 100) + ($general->fixed_charge ?? 0);
+            if ($charge > ($general->charge_cap ?? 0) && $general->charge_cap > 0) {
+                $charge = $general->charge_cap;
+            }
+            $totalNeeded = $finalAmount + $charge;
 
-        // Create escrow
-        $escrow = $this->createEscrow($listing, $user, $finalAmount);
-        $listing->escrow_id = $escrow->id;
-        $listing->save();
+            if ($user->balance < $totalNeeded) {
+                $notify[] = ['error', 'Insufficient balance. You need ' . showAmount($totalNeeded) . ' (including fees). Current balance: ' . showAmount($user->balance)];
+                return back()->withNotify($notify);
+            }
 
-        $offer->escrow_id = $escrow->id;
-        $offer->save();
+            DB::beginTransaction();
+            
+            try {
 
-        // Don't update user stats yet - will be updated when escrow is completed
+                // Accept counter offer
+                $offer->status = Status::OFFER_ACCEPTED;
+                $offer->responded_at = now();
 
-        // Notify seller
-        notify($offer->seller, 'COUNTER_OFFER_ACCEPTED', [
-            'listing_title' => $listing->title,
-            'amount' => showAmount($finalAmount),
-            'buyer' => $user->username,
-        ]);
+                // Update listing - don't mark as SOLD yet, just set escrow_id to hide from public
+                // Keep status as LISTING_ACTIVE - it will be hidden from public because escrow_id is set
+                $listing->winner_id = $user->id;
+                $listing->final_price = $finalAmount;
+                // Don't set sold_at yet - will be set when escrow is completed
 
-        $notify[] = ['success', 'Counter offer accepted. Escrow has been created.'];
-        return redirect()->route('user.escrow.details', $escrow->id)->withNotify($notify);
+                // Reject other offers
+                Offer::where('listing_id', $listing->id)
+                    ->where('id', '!=', $offer->id)
+                    ->whereIn('status', [Status::OFFER_PENDING, Status::OFFER_COUNTERED])
+                    ->update([
+                        'status' => Status::OFFER_REJECTED,
+                        'rejection_reason' => 'Another offer was accepted',
+                        'responded_at' => now(),
+                    ]);
+
+                // Create escrow
+                $escrow = $this->createEscrow($listing, $user, $finalAmount);
+                $listing->escrow_id = $escrow->id;
+                $listing->save();
+
+                $offer->escrow_id = $escrow->id;
+                $offer->save();
+
+                DB::commit();
+
+                // Notify seller (outside transaction)
+                notify($offer->seller, 'COUNTER_OFFER_ACCEPTED', [
+                    'listing_title' => $listing->title,
+                    'amount' => showAmount($finalAmount),
+                    'buyer' => $user->username,
+                ]);
+
+                $notify[] = ['success', 'Counter offer accepted. Escrow has been created.'];
+                return redirect()->route('user.escrow.details', $escrow->id)->withNotify($notify);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Counter offer acceptance failed: ' . $e->getMessage(), [
+                    'offer_id' => $id,
+                    'user_id' => $user->id,
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Counter offer acceptance error: ' . $e->getMessage());
+            $notify[] = ['error', 'An error occurred while accepting the counter offer. Please try again.'];
+            return back()->withNotify($notify);
+        }
     }
 
     public function cancel($id)
@@ -348,6 +472,23 @@ class OfferController extends Controller
         $conversation->save();
 
         return $escrow;
+    }
+
+    /**
+     * Expire old offers that have passed their expiration date
+     */
+    private function expireOldOffers()
+    {
+        $expiredCount = Offer::whereIn('status', [Status::OFFER_PENDING, Status::OFFER_COUNTERED])
+            ->where('expires_at', '<', now())
+            ->update([
+                'status' => Status::OFFER_EXPIRED,
+                'responded_at' => now(),
+            ]);
+
+        if ($expiredCount > 0) {
+            Log::info("Expired {$expiredCount} offers");
+        }
     }
 }
 

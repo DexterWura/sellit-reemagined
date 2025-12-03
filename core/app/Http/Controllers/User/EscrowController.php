@@ -56,16 +56,33 @@ class EscrowController extends Controller
 
     public function submitStepOne(Request $request)
     {
-
         $request->validate([
             'type'        => 'required|in:1,2',
-            'amount'      => 'required|numeric|gt:0',
+            'amount'      => 'required|numeric|gt:0|min:1',
             'category_id' => 'required|exists:categories,id',
         ]);
 
-        $charge         = $this->getCharge($request->amount);
-        $data           = $request->except('_token');
+        // Validate amount is reasonable (minimum $1)
+        if ($request->amount < 1) {
+            $notify[] = ['error', 'Escrow amount must be at least $1'];
+            return back()->withInput()->withNotify($notify);
+        }
+
+        // Check user balance if they're the buyer
+        $user = auth()->user();
+        $charge = $this->getCharge($request->amount);
+        $totalNeeded = $request->amount + $charge;
+        
+        if ($request->type == 2) { // User is buyer
+            if ($user->balance < $totalNeeded) {
+                $notify[] = ['error', 'Insufficient balance. You need ' . showAmount($totalNeeded) . ' (including fees). Current balance: ' . showAmount($user->balance)];
+                return back()->withInput()->withNotify($notify);
+            }
+        }
+
+        $data = $request->except('_token');
         $data['charge'] = $charge;
+        $data['created_at'] = now()->toDateTimeString(); // Track when session was created
 
         session()->put('escrow_info', $data);
 
@@ -77,12 +94,19 @@ class EscrowController extends Controller
         $escrowInfo = session('escrow_info');
         $pageTitle  = "New Escrow - Step Two";
 
-        $escrowInfo['charge'] = $this->getCharge($escrowInfo['amount']);
-
         if (!$escrowInfo) {
-            $notify[] = ['error', 'Session invalidated'];
+            $notify[] = ['error', 'Session expired. Please start over.'];
             return redirect()->route('user.escrow.step.one')->withNotify($notify);
         }
+
+        // Validate session data is still valid
+        if (!isset($escrowInfo['amount']) || $escrowInfo['amount'] <= 0) {
+            $notify[] = ['error', 'Invalid escrow amount. Please start over.'];
+            return redirect()->route('user.escrow.step.one')->withNotify($notify);
+        }
+
+        // Recalculate charge in case settings changed
+        $escrowInfo['charge'] = $this->getCharge($escrowInfo['amount']);
 
         return view('Template::user.escrow.step_two', compact('pageTitle', 'escrowInfo'));
     }
@@ -309,36 +333,50 @@ class EscrowController extends Controller
     {
         try {
             $escrow = Escrow::checkUser()->where('creator_id', '!=', auth()->id())->notAccepted()->findOrFail($id);
+            $user = auth()->user();
 
-        // Check if already accepted
-        if ($escrow->status === Status::ESCROW_ACCEPTED) {
-            $notify[] = ['error', 'Escrow has already been accepted'];
-            return back()->withNotify($notify);
-        }
+            // Check if already accepted
+            if ($escrow->status === Status::ESCROW_ACCEPTED) {
+                $notify[] = ['error', 'Escrow has already been accepted'];
+                return back()->withNotify($notify);
+            }
 
-        DB::beginTransaction();
-        
-        try {
-            $escrow->status = Status::ESCROW_ACCEPTED;
-            $escrow->save();
+            // For buyers: Check balance before accepting
+            if ($escrow->buyer_id == $user->id) {
+                $totalNeeded = $escrow->amount + $escrow->buyer_charge;
+                if ($user->balance < $totalNeeded) {
+                    $shortfall = $totalNeeded - $user->balance;
+                    $notify[] = ['error', 'Insufficient balance to accept escrow. You need ' . showAmount($totalNeeded) . ' (including fees) but only have ' . showAmount($user->balance) . '. Please deposit ' . showAmount($shortfall) . ' more.'];
+                    return back()->withNotify($notify);
+                }
+            }
 
-            DB::commit();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Escrow acceptance failed: ' . $e->getMessage(), [
-                'escrow_id' => $id,
-                'user_id' => auth()->id(),
-            ]);
-            throw $e;
-        }
+            DB::beginTransaction();
+            
+            try {
+                $escrow->status = Status::ESCROW_ACCEPTED;
+                if (\Illuminate\Support\Facades\Schema::hasColumn('escrows', 'accepted_at')) {
+                    $escrow->accepted_at = now();
+                }
+                $escrow->save();
 
-        if ($escrow->buyer_id == auth()->id()) {
-            $mailReceiver = $escrow->seller;
-            $accepter     = 'buyer';
-        } else {
-            $mailReceiver = $escrow->buyer;
-            $accepter     = 'seller';
-        }
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Escrow acceptance failed: ' . $e->getMessage(), [
+                    'escrow_id' => $id,
+                    'user_id' => auth()->id(),
+                ]);
+                throw $e;
+            }
+
+            if ($escrow->buyer_id == auth()->id()) {
+                $mailReceiver = $escrow->seller;
+                $accepter     = 'buyer';
+            } else {
+                $mailReceiver = $escrow->buyer;
+                $accepter     = 'seller';
+            }
 
             notify($mailReceiver, 'ESCROW_ACCEPTED', [
                 'title'      => $escrow->title,
@@ -348,7 +386,7 @@ class EscrowController extends Controller
                 'currency'   => gs()->cur_text,
             ]);
 
-            $notify[] = ['success', 'Escrow accepted successfully'];
+            $notify[] = ['success', 'Escrow accepted successfully. You can now proceed with payment.'];
             return back()->withNotify($notify);
             
         } catch (\Exception $e) {
@@ -364,14 +402,31 @@ class EscrowController extends Controller
     public function dispute(Request $request, $id)
     {
         $request->validate([
-            'dispute_reason' => 'required|string',
+            'dispute_reason' => 'required|string|min:20|max:2000',
+        ], [
+            'dispute_reason.required' => 'Dispute reason is required',
+            'dispute_reason.min' => 'Please provide a detailed reason (at least 20 characters)',
+            'dispute_reason.max' => 'Dispute reason cannot exceed 2000 characters',
         ]);
 
         $escrow = Escrow::checkUser()->accepted()->findOrFail($id);
 
+        // Check if already disputed
+        if ($escrow->status == Status::ESCROW_DISPUTED) {
+            $notify[] = ['error', 'This escrow is already in dispute'];
+            return back()->withNotify($notify);
+        }
+
+        // Check if already completed
+        if ($escrow->status == Status::ESCROW_COMPLETED) {
+            $notify[] = ['error', 'Cannot dispute a completed escrow'];
+            return back()->withNotify($notify);
+        }
+
         $escrow->status       = Status::ESCROW_DISPUTED;
         $escrow->disputer_id  = auth()->id();
-        $escrow->dispute_note = $request->dispute_reason;
+        $escrow->dispute_note = trim($request->dispute_reason);
+        $escrow->disputed_at  = now();
         $escrow->save();
 
         $conversation           = $escrow->conversation;
@@ -511,17 +566,47 @@ class EscrowController extends Controller
         $escrowInfo = session('escrow_info');
 
         if (!$escrowInfo) {
-            throw ValidationException::withMessages(['error' => 'Session invalidated']);
+            throw ValidationException::withMessages(['error' => 'Session expired. Please start over.']);
+        }
+
+        // Check if session is too old (more than 30 minutes)
+        if (isset($escrowInfo['created_at'])) {
+            $createdAt = \Carbon\Carbon::parse($escrowInfo['created_at']);
+            if ($createdAt->diffInMinutes(now()) > 30) {
+                session()->forget('escrow_info');
+                throw ValidationException::withMessages(['error' => 'Session expired. Please start over.']);
+            }
         }
 
         if ($user->email == $email) {
-            throw ValidationException::withMessages(['error' => 'You can not create escrow with yourself']);
+            throw ValidationException::withMessages(['error' => 'You cannot create escrow with yourself']);
+        }
+
+        // Validate email format
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw ValidationException::withMessages(['error' => 'Invalid email address']);
+        }
+
+        // Check if user exists
+        $otherUser = User::where('email', $email)->first();
+        if (!$otherUser) {
+            throw ValidationException::withMessages(['error' => 'User with this email does not exist']);
+        }
+
+        // Check if user is active
+        if ($otherUser->status != Status::USER_ACTIVE) {
+            throw ValidationException::withMessages(['error' => 'Cannot create escrow with a banned or inactive user']);
         }
 
         $category = Category::active()->where('id', $escrowInfo['category_id'])->first();
 
         if (!$category) {
             throw ValidationException::withMessages(['error' => 'Invalid escrow type']);
+        }
+
+        // Validate amount is still reasonable
+        if (!isset($escrowInfo['amount']) || $escrowInfo['amount'] <= 0) {
+            throw ValidationException::withMessages(['error' => 'Invalid escrow amount']);
         }
     }
 

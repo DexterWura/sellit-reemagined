@@ -105,38 +105,55 @@ class UserController extends Controller
         $user = auth()->user();
         $request->validate([
             'key' => 'required',
-            'code' => 'required',
+            'code' => 'required|numeric|digits:6',
+        ], [
+            'key.required' => 'Secret key is required',
+            'code.required' => 'Verification code is required',
+            'code.numeric' => 'Verification code must be numeric',
+            'code.digits' => 'Verification code must be 6 digits',
         ]);
-        $response = verifyG2fa($user,$request->code,$request->key);
+
+        $response = verifyG2fa($user, $request->code, $request->key);
         if ($response) {
             $user->tsc = $request->key;
             $user->ts = Status::ENABLE;
             $user->save();
-            $notify[] = ['success', 'Two factor authenticator activated successfully'];
+            $notify[] = ['success', 'Two-factor authentication enabled successfully. Your account is now more secure.'];
             return back()->withNotify($notify);
         } else {
-            $notify[] = ['error', 'Wrong verification code'];
-            return back()->withNotify($notify);
+            $notify[] = ['error', 'Invalid verification code. Please check your authenticator app and try again.'];
+            return back()->withInput()->withNotify($notify);
         }
     }
 
     public function disable2fa(Request $request)
     {
         $request->validate([
-            'code' => 'required',
+            'code' => 'required|numeric|digits:6',
+        ], [
+            'code.required' => 'Verification code is required',
+            'code.numeric' => 'Verification code must be numeric',
+            'code.digits' => 'Verification code must be 6 digits',
         ]);
 
         $user = auth()->user();
-        $response = verifyG2fa($user,$request->code);
+        
+        // Check if 2FA is actually enabled
+        if (!$user->ts) {
+            $notify[] = ['error', 'Two-factor authentication is not enabled'];
+            return back()->withNotify($notify);
+        }
+
+        $response = verifyG2fa($user, $request->code);
         if ($response) {
             $user->tsc = null;
             $user->ts = Status::DISABLE;
             $user->save();
-            $notify[] = ['success', 'Two factor authenticator deactivated successfully'];
+            $notify[] = ['success', 'Two-factor authentication disabled successfully. Your account security has been reduced.'];
         } else {
-            $notify[] = ['error', 'Wrong verification code'];
+            $notify[] = ['error', 'Invalid verification code. Please check your authenticator app and try again.'];
         }
-        return back()->withNotify($notify);
+        return back()->withInput()->withNotify($notify);
     }
 
     public function transactions()
@@ -240,22 +257,44 @@ class UserController extends Controller
             return back()->withNotify($notify)->withInput($request->all());
         }
 
+        // Validate username is not a reserved word
+        $reservedUsernames = ['admin', 'administrator', 'root', 'system', 'support', 'help', 'info', 'contact', 'api', 'www', 'mail', 'email'];
+        if (in_array(strtolower(trim($request->username)), $reservedUsernames)) {
+            $notify[] = ['error', 'This username is reserved and cannot be used'];
+            return back()->withNotify($notify)->withInput($request->all());
+        }
+
+        // Validate mobile number format
+        $mobile = trim($request->mobile);
+        if (strlen($mobile) < 6 || strlen($mobile) > 15) {
+            $notify[] = ['error', 'Mobile number must be between 6 and 15 digits'];
+            return back()->withNotify($notify)->withInput($request->all());
+        }
+
         $user->country_code = $request->country_code;
-        $user->mobile       = $request->mobile;
-        $user->username     = $request->username;
+        $user->mobile       = $mobile;
+        $user->username     = strtolower(trim($request->username)); // Normalize username
 
 
-        $user->address = $request->address;
-        $user->city = $request->city;
-        $user->state = $request->state;
-        $user->zip = $request->zip;
+        // Clean and format address fields
+        $user->address = $request->address ? trim($request->address) : null;
+        $user->city = $request->city ? ucwords(strtolower(trim($request->city))) : null;
+        $user->state = $request->state ? ucwords(strtolower(trim($request->state))) : null;
+        $user->zip = $request->zip ? strtoupper(trim($request->zip)) : null;
         $user->country_name = $request->country ?? null;
         $user->dial_code = $request->mobile_code;
+
+        // Validate ZIP code format if provided
+        if ($user->zip && !preg_match('/^[A-Z0-9\s\-]{3,10}$/i', $user->zip)) {
+            $notify[] = ['error', 'Invalid ZIP/postal code format'];
+            return back()->withInput()->withNotify($notify);
+        }
 
         $user->profile_complete = Status::YES;
         $user->save();
 
-        return to_route('user.home');
+        $notify[] = ['success', 'Profile information saved successfully'];
+        return to_route('user.home')->withNotify($notify);
     }
 
 
@@ -287,18 +326,51 @@ class UserController extends Controller
 
     public function downloadAttachment($fileHash)
     {
-        $filePath = decrypt($fileHash);
-        $extension = pathinfo($filePath, PATHINFO_EXTENSION);
-        $title = slug(gs('site_name')).'- attachments.'.$extension;
         try {
+            $filePath = decrypt($fileHash);
+            
+            if (!file_exists($filePath)) {
+                $notify[] = ['error', 'File does not exist or has been removed'];
+                return back()->withNotify($notify);
+            }
+
+            // Security check: ensure file is within allowed directories
+            $allowedPaths = [
+                storage_path('app'),
+                public_path('assets'),
+            ];
+            
+            $isAllowed = false;
+            foreach ($allowedPaths as $allowedPath) {
+                if (strpos($filePath, $allowedPath) === 0) {
+                    $isAllowed = true;
+                    break;
+                }
+            }
+            
+            if (!$isAllowed) {
+                abort(403, 'Unauthorized file access');
+            }
+
+            $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+            $title = slug(gs('site_name')) . '- attachments.' . $extension;
+            
             $mimetype = mime_content_type($filePath);
+            if (!$mimetype) {
+                $mimetype = 'application/octet-stream';
+            }
+
+            return response()->download($filePath, $title, [
+                'Content-Type' => $mimetype,
+            ]);
         } catch (\Exception $e) {
-            $notify[] = ['error','File does not exists'];
+            \Log::error('File download error: ' . $e->getMessage(), [
+                'file_hash' => $fileHash,
+                'user_id' => auth()->id(),
+            ]);
+            $notify[] = ['error', 'Unable to download file. Please contact support if this persists.'];
             return back()->withNotify($notify);
         }
-        header('Content-Disposition: attachment; filename="' . $title);
-        header("Content-Type: " . $mimetype);
-        return readfile($filePath);
     }
 
     /**

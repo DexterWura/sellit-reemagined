@@ -130,6 +130,73 @@ function checkDomainAccessibility($url, $timeout = 5)
     }
 }
 
+/**
+ * Format amount with helpful context
+ */
+function formatAmountWithContext($amount, $currency = null)
+{
+    $currency = $currency ?? gs('cur_text') ?? 'USD';
+    $formatted = showAmount($amount);
+    
+    // Add helpful context for large amounts
+    if ($amount >= 1000000) {
+        return $formatted . ' (' . number_format($amount / 1000000, 2) . 'M)';
+    } elseif ($amount >= 1000) {
+        return $formatted . ' (' . number_format($amount / 1000, 2) . 'K)';
+    }
+    
+    return $formatted;
+}
+
+/**
+ * Get helpful tip based on context
+ */
+function getHelpfulTip($context, $data = [])
+{
+    $tips = [
+        'low_balance' => 'Consider depositing funds to avoid payment delays',
+        'high_bid' => 'Make sure you have sufficient funds if you win this auction',
+        'first_listing' => 'Complete your profile and verify your account for better visibility',
+        'expired_offer' => 'Offers expire after 7 days. Make a new offer if still interested',
+        'pending_verification' => 'Domain verification usually takes a few minutes after uploading the file',
+    ];
+    
+    return $tips[$context] ?? null;
+}
+
+/**
+ * Validate and suggest better input
+ */
+function suggestBetterInput($field, $value, $type = 'text')
+{
+    $suggestions = [];
+    
+    switch ($type) {
+        case 'email':
+            $value = strtolower(trim($value));
+            if (strpos($value, '@gmail.com') !== false) {
+                // Remove dots before @ for Gmail
+                $value = str_replace('.', '', substr($value, 0, strpos($value, '@'))) . '@gmail.com';
+            }
+            break;
+            
+        case 'phone':
+            // Remove common formatting
+            $value = preg_replace('/[^0-9+]/', '', $value);
+            break;
+            
+        case 'url':
+            $value = normalizeUrl($value);
+            break;
+            
+        case 'name':
+            $value = ucwords(strtolower(trim($value)));
+            break;
+    }
+    
+    return $value;
+}
+
 function verificationCode($length)
 {
     if ($length == 0) return 0;

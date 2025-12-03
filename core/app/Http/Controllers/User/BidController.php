@@ -50,6 +50,12 @@ class BidController extends Controller
                 return back()->withNotify($notify);
             }
 
+            // Check if user account is fully verified (common sense)
+            if (!$user->ev || !$user->sv) {
+                $notify[] = ['error', 'Please verify your email and mobile number before placing bids'];
+                return back()->withNotify($notify);
+            }
+
             $request->validate([
                 'amount' => 'required|numeric|min:' . $listing->minimum_bid,
                 'max_bid' => 'nullable|numeric|min:' . $request->amount,
@@ -62,6 +68,29 @@ class BidController extends Controller
             if ($amount < $listing->minimum_bid) {
                 $notify[] = ['error', 'Bid must be at least ' . showAmount($listing->minimum_bid)];
                 return back()->withNotify($notify);
+            }
+
+            // Check minimum bid increment
+            if ($listing->bid_increment > 0 && $listing->current_bid > 0) {
+                $minimumBid = $listing->current_bid + $listing->bid_increment;
+                if ($amount < $minimumBid) {
+                    $notify[] = ['error', 'Bid must be at least ' . showAmount($minimumBid) . ' (current bid + increment of ' . showAmount($listing->bid_increment) . ')'];
+                    return back()->withNotify($notify);
+                }
+            }
+
+            // Check if auction has ended
+            if ($listing->auction_end && $listing->auction_end <= now()) {
+                $notify[] = ['error', 'This auction has ended'];
+                return back()->withNotify($notify);
+            }
+
+            // Check user balance (for buy now, not for bids - bids don't require immediate payment)
+            // But check if user has sufficient balance for potential win
+            $totalNeeded = $amount + ($listing->buy_now_price > 0 ? 0 : $amount * 0.1); // Rough estimate
+            if ($user->balance < $totalNeeded) {
+                $notify[] = ['warning', 'You may need to deposit funds if you win this auction. Current balance: ' . showAmount($user->balance)];
+                // Don't block, just warn
             }
 
             // Use database transaction for atomicity
@@ -97,14 +126,26 @@ class BidController extends Controller
                 $bid->ip_address = $request->ip();
                 $bid->save();
 
-                // Check for auto-extend on last-minute bids
-                $this->checkAutoExtend($listing);
+            // Prevent duplicate bids from same user within short time (spam prevention)
+            $recentBid = Bid::where('listing_id', $listing->id)
+                ->where('user_id', $user->id)
+                ->where('created_at', '>', now()->subSeconds(5))
+                ->first();
+            
+            if ($recentBid) {
+                DB::rollBack();
+                $notify[] = ['error', 'Please wait a moment before placing another bid'];
+                return back()->withNotify($notify);
+            }
 
-                // Update listing
-                $listing->current_bid = $amount;
-                $listing->highest_bidder_id = $user->id;
-                $listing->total_bids = $listing->bids()->count();
-                $listing->save();
+            // Check for auto-extend on last-minute bids
+            $this->checkAutoExtend($listing);
+
+            // Update listing
+            $listing->current_bid = $amount;
+            $listing->highest_bidder_id = $user->id;
+            $listing->total_bids = $listing->bids()->whereNotIn('status', [Status::BID_CANCELLED])->count();
+            $listing->save();
 
                 DB::commit();
 
@@ -175,6 +216,26 @@ class BidController extends Controller
             // Check if already sold or in escrow
             if ($listing->status === Status::LISTING_SOLD || $listing->escrow_id) {
                 $notify[] = ['error', 'This listing is no longer available'];
+                return back()->withNotify($notify);
+            }
+
+            // Check if buy now price is set
+            if (!$listing->buy_now_price || $listing->buy_now_price <= 0) {
+                $notify[] = ['error', 'Buy Now option is not available for this listing'];
+                return back()->withNotify($notify);
+            }
+
+            // Check user balance
+            $totalNeeded = $listing->buy_now_price;
+            $general = gs();
+            $charge = ($totalNeeded * ($general->percent_charge ?? 0) / 100) + ($general->fixed_charge ?? 0);
+            if ($charge > ($general->charge_cap ?? 0) && $general->charge_cap > 0) {
+                $charge = $general->charge_cap;
+            }
+            $totalNeeded += $charge;
+
+            if ($user->balance < $totalNeeded) {
+                $notify[] = ['error', 'Insufficient balance. You need ' . showAmount($totalNeeded) . ' (including fees). Current balance: ' . showAmount($user->balance)];
                 return back()->withNotify($notify);
             }
 
