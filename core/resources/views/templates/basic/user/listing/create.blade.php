@@ -1065,10 +1065,13 @@ $(document).ready(function() {
     function generateDomainVerification(domain) {
         if (!domain) return;
         
-        domainVerificationData.domain = domain;
-        domainVerificationData.token = siteNamePrefix + '-verify-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        domainVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
-        domainVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
+        // Only regenerate token if domain changed or token doesn't exist
+        if (domainVerificationData.domain !== domain || !domainVerificationData.token) {
+            domainVerificationData.domain = domain;
+            domainVerificationData.token = siteNamePrefix + '-verify-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            domainVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
+            domainVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
+        }
         
         const $domainContainer = $('.domain-fields');
         if (!$domainContainer.find('#websiteVerificationMethod').val()) {
@@ -1081,10 +1084,13 @@ $(document).ready(function() {
     function generateWebsiteVerification(domain) {
         if (!domain) return;
         
-        websiteVerificationData.domain = domain;
-        websiteVerificationData.token = siteNamePrefix + '-verify-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        websiteVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
-        websiteVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
+        // Only regenerate token if domain changed or token doesn't exist
+        if (websiteVerificationData.domain !== domain || !websiteVerificationData.token) {
+            websiteVerificationData.domain = domain;
+            websiteVerificationData.token = siteNamePrefix + '-verify-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            websiteVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
+            websiteVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
+        }
         
         const container = '.website-fields';
         if (!$(container + ' #websiteVerificationMethod').val()) {
@@ -1309,13 +1315,42 @@ $(document).ready(function() {
                 } else {
                     $(container + ' #websiteVerified').val('0');
                     $(container + ' #websiteVerificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Not Verified")</span>');
-                    notify('error', response.message || '@lang("Verification failed. Please check and try again.")');
+                    // Show detailed error message, or fallback to generic message
+                    const errorMsg = response.message || '@lang("Verification failed. Please check and try again.")';
+                    // Log the token being sent for debugging
+                    console.log('Verification failed. Token sent:', token);
+                    console.log('Filename:', filename);
+                    console.log('Domain:', domain);
+                    console.log('Error details:', errorMsg);
+                    notify('error', errorMsg);
                 }
             },
             error: function(xhr) {
                 $(container + ' #websiteVerified').val('0');
                 $(container + ' #websiteVerificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Error")</span>');
-                const message = xhr.responseJSON?.message || '@lang("An error occurred during verification")';
+                // Try to get error message from response
+                let message = '@lang("An error occurred during verification")';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                } else if (xhr.responseText) {
+                    try {
+                        const parsed = JSON.parse(xhr.responseText);
+                        if (parsed.message) {
+                            message = parsed.message;
+                        }
+                    } catch(e) {
+                        // Not JSON, use default message
+                    }
+                }
+                // Log for debugging
+                console.log('Verification AJAX error:', {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    response: xhr.responseJSON || xhr.responseText,
+                    token: token,
+                    filename: filename,
+                    domain: domain
+                });
                 notify('error', message);
             },
             complete: function() {
