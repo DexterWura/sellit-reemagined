@@ -786,14 +786,11 @@ $(document).ready(function() {
         
         if (type === 'domain' && requireDomainVerification) {
             setTimeout(function() {
-                const $domainInput = $('#domainNameInput');
-                if ($domainInput.length) {
-                    const domainValue = $domainInput.val();
-                    if (domainValue && typeof domainValue === 'string' && domainValue.trim()) {
-                        $domainInput.trigger('input');
-                    } else {
-                        $('.domain-fields').find('#websiteVerificationSection').first().slideUp();
-                    }
+                const domainValue = $('#domainNameInput').val().trim();
+                if (domainValue) {
+                    $('#domainNameInput').trigger('input');
+                } else {
+                    $('.domain-fields').find('#websiteVerificationSection').first().slideUp();
                 }
             }, 200);
         } else if (type === 'domain' && !requireDomainVerification) {
@@ -803,14 +800,11 @@ $(document).ready(function() {
         }
         
         if (type === 'website' && requireWebsiteVerification) {
-            const $websiteInput = $('#websiteUrlInput');
-            if ($websiteInput.length) {
-                const websiteValue = $websiteInput.val();
-                if (websiteValue && typeof websiteValue === 'string' && websiteValue.trim()) {
-                    $websiteInput.trigger('input');
-                } else {
-                    $('.website-fields #websiteVerificationSection').slideUp();
-                }
+            const websiteValue = $('#websiteUrlInput').val().trim();
+            if (websiteValue) {
+                $('#websiteUrlInput').trigger('input');
+            } else {
+                $('.website-fields #websiteVerificationSection').slideUp();
             }
         } else if (type === 'website' && !requireWebsiteVerification) {
             $('.website-fields #websiteVerificationSection').slideUp();
@@ -1008,7 +1002,7 @@ $(document).ready(function() {
                     });
                 } catch(e) {
                     $('.domain-fields #websiteVerificationSection').slideUp();
-                }
+                    }
             } else {
                 $('.domain-fields #websiteVerificationSection').slideUp();
             }
@@ -1105,12 +1099,7 @@ $(document).ready(function() {
         if ($container.length === 0) {
             $container = $('.domain-fields');
         }
-        if ($container.length === 0) return;
-        
-        const $method = $container.find('#websiteVerificationMethod');
-        if ($method.length === 0) return;
-        
-        let method = $method.val();
+        let method = $container.find('#websiteVerificationMethod').val();
         
         if (!domainVerificationData.domain || !domainVerificationData.token) {
             $container.find('#websiteTxtFileMethod').hide();
@@ -1120,105 +1109,73 @@ $(document).ready(function() {
         
         if (!method) {
             method = 'txt_file';
-            $method.val('txt_file');
+            $container.find('#websiteVerificationMethod').val('txt_file');
         }
         
         $container.find('#websiteTxtFileMethod').hide();
         $container.find('#websiteDnsRecordMethod').hide();
         
         if (method === 'txt_file') {
-            const $fileName = $container.find('#websiteTxtFileName');
-            const $fileLocation = $container.find('#websiteTxtFileLocation');
-            const $fileContent = $container.find('#websiteTxtFileContent');
-            const $txtMethod = $container.find('#websiteTxtFileMethod');
-            
-            if ($fileName.length) $fileName.text(domainVerificationData.filename || '-');
-            if ($fileLocation.length) $fileLocation.text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
-            if ($fileContent.length) $fileContent.text(domainVerificationData.token || '-');
-            if ($txtMethod.length) $txtMethod.css('display', 'block');
+            $container.find('#websiteTxtFileName').text(domainVerificationData.filename || '-');
+            $container.find('#websiteTxtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
+            $container.find('#websiteTxtFileContent').text(domainVerificationData.token || '-');
+            $container.find('#websiteTxtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
-            const $dnsName = $container.find('#websiteDnsRecordName');
-            const $dnsValue = $container.find('#websiteDnsRecordValue');
-            const $dnsMethod = $container.find('#websiteDnsRecordMethod');
-            
-            if ($dnsName.length) $dnsName.text(domainVerificationData.dnsName || '-');
-            if ($dnsValue.length) $dnsValue.text(domainVerificationData.token || '-');
-            if ($dnsMethod.length) $dnsMethod.css('display', 'block');
+            $container.find('#websiteDnsRecordName').text(domainVerificationData.dnsName || '-');
+            $container.find('#websiteDnsRecordValue').text(domainVerificationData.token || '-');
+            $container.find('#websiteDnsRecordMethod').css('display', 'block');
         }
         
-        const $token = $container.find('#websiteVerificationToken');
-        const $filename = $container.find('#websiteVerificationFilename');
-        const $dnsName = $container.find('#websiteVerificationDnsName');
-        const $verified = $container.find('#websiteVerified');
-        const $status = $container.find('#websiteVerificationStatus');
+        $container.find('#websiteVerificationToken').val(domainVerificationData.token);
+        $container.find('#websiteVerificationFilename').val(domainVerificationData.filename);
+        $container.find('#websiteVerificationDnsName').val(domainVerificationData.dnsName);
         
-        if ($token.length) $token.val(domainVerificationData.token);
-        if ($filename.length) $filename.val(domainVerificationData.filename);
-        if ($dnsName.length) $dnsName.val(domainVerificationData.dnsName);
-        if ($verified.length) $verified.val('0');
-        if ($status.length) $status.html('');
+        $container.find('#websiteVerified').val('0');
+        $container.find('#websiteVerificationStatus').html('');
     }
     
     function updateWebsiteVerificationDisplay() {
-        const $container = $('.website-fields');
-        if ($container.length === 0) return;
-        
-        const $method = $container.find('#websiteVerificationMethod');
-        if ($method.length === 0) return;
-        
-        let method = $method.val();
+        const businessType = $('input[name="business_type"]:checked').val();
+        const container = businessType === 'domain' ? '.domain-fields' : '.website-fields';
+        let method = $(container + ' #websiteVerificationMethod').val();
         
         if (!websiteVerificationData.domain || !websiteVerificationData.token) {
-            $container.find('#websiteTxtFileMethod').hide();
-            $container.find('#websiteDnsRecordMethod').hide();
+            $(container + ' #websiteTxtFileMethod').hide();
+            $(container + ' #websiteDnsRecordMethod').hide();
             return;
         }
         
         if (!method) {
             method = 'txt_file';
-            $method.val('txt_file');
+            $(container + ' #websiteVerificationMethod').val('txt_file');
         }
         
-        $container.find('#websiteTxtFileMethod').hide();
-        $container.find('#websiteDnsRecordMethod').hide();
+        $(container + ' #websiteTxtFileMethod').hide();
+        $(container + ' #websiteDnsRecordMethod').hide();
         
         if (method === 'txt_file') {
-            const $fileName = $container.find('#websiteTxtFileName');
-            const $fileLocation = $container.find('#websiteTxtFileLocation');
-            const $fileContent = $container.find('#websiteTxtFileContent');
-            const $txtMethod = $container.find('#websiteTxtFileMethod');
-            
-            if ($fileName.length) $fileName.text(websiteVerificationData.filename || '-');
-            if ($fileLocation.length) $fileLocation.text('https://' + websiteVerificationData.domain + '/' + (websiteVerificationData.filename || ''));
-            if ($fileContent.length) $fileContent.text(websiteVerificationData.token || '-');
-            if ($txtMethod.length) $txtMethod.css('display', 'block');
+            $(container + ' #websiteTxtFileName').text(websiteVerificationData.filename || '-');
+            $(container + ' #websiteTxtFileLocation').text('https://' + websiteVerificationData.domain + '/' + (websiteVerificationData.filename || ''));
+            $(container + ' #websiteTxtFileContent').text(websiteVerificationData.token || '-');
+            $(container + ' #websiteTxtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
-            const $dnsName = $container.find('#websiteDnsRecordName');
-            const $dnsValue = $container.find('#websiteDnsRecordValue');
-            const $dnsMethod = $container.find('#websiteDnsRecordMethod');
-            
-            if ($dnsName.length) $dnsName.text(websiteVerificationData.dnsName || '-');
-            if ($dnsValue.length) $dnsValue.text(websiteVerificationData.token || '-');
-            if ($dnsMethod.length) $dnsMethod.css('display', 'block');
+            $(container + ' #websiteDnsRecordName').text(websiteVerificationData.dnsName || '-');
+            $(container + ' #websiteDnsRecordValue').text(websiteVerificationData.token || '-');
+            $(container + ' #websiteDnsRecordMethod').css('display', 'block');
         }
         
-        const $token = $container.find('#websiteVerificationToken');
-        const $filename = $container.find('#websiteVerificationFilename');
-        const $dnsName = $container.find('#websiteVerificationDnsName');
-        const $verified = $container.find('#websiteVerified');
-        const $status = $container.find('#websiteVerificationStatus');
+        $(container + ' #websiteVerificationToken').val(websiteVerificationData.token);
+        $(container + ' #websiteVerificationFilename').val(websiteVerificationData.filename);
+        $(container + ' #websiteVerificationDnsName').val(websiteVerificationData.dnsName);
         
-        if ($token.length) $token.val(websiteVerificationData.token);
-        if ($filename.length) $filename.val(websiteVerificationData.filename);
-        if ($dnsName.length) $dnsName.val(websiteVerificationData.dnsName);
-        if ($verified.length) $verified.val('0');
-        if ($status.length) $status.html('');
+        $(container + ' #websiteVerified').val('0');
+        $(container + ' #websiteVerificationStatus').html('');
     }
     
     $(document).on('change', '#websiteVerificationMethod', function() {
         const businessType = $('input[name="business_type"]:checked').val();
         if (businessType === 'domain') {
-            updateDomainVerificationDisplay();
+        updateDomainVerificationDisplay();
         } else {
             updateWebsiteVerificationDisplay();
         }
@@ -1229,14 +1186,14 @@ $(document).ready(function() {
         let token, filename;
         
         if (businessType === 'domain') {
-            if (!domainVerificationData.token || !domainVerificationData.filename) {
-                alert('Please enter a valid domain URL first to generate the verification file.');
-                return;
-            }
+        if (!domainVerificationData.token || !domainVerificationData.filename) {
+            alert('Please enter a valid domain URL first to generate the verification file.');
+            return;
+        }
             token = domainVerificationData.token;
             filename = domainVerificationData.filename;
         } else {
-            if (!websiteVerificationData.token) return;
+        if (!websiteVerificationData.token) return;
             token = websiteVerificationData.token;
             filename = websiteVerificationData.filename;
         }
@@ -1266,7 +1223,7 @@ $(document).ready(function() {
             dnsName = domainVerificationData.dnsName;
             errorMsg = '@lang("Please enter a domain name first")';
             successMsg = '@lang("Domain ownership verified successfully!")';
-        } else {
+                } else {
             domain = websiteVerificationData.domain;
             token = websiteVerificationData.token;
             filename = websiteVerificationData.filename;
@@ -1328,26 +1285,20 @@ $(document).ready(function() {
         // Only check verification if it's required AND the business type needs it
         // IMPORTANT: Only check if verification is actually required (setting is ON)
         if (businessType === 'domain' && requireDomainVerification === true) {
-            const $verified = $('.domain-fields #websiteVerified');
-            if ($verified.length) {
-                const verified = $verified.val();
-                if (verified && verified !== '1') {
+            const verified = $('.domain-fields #websiteVerified').val();
+            if (verified && verified !== '1') {
                     shouldPreventSubmit = true;
                     notify('error', '@lang("You must verify domain ownership before submitting the listing")');
                     showStep(2);
                 }
             }
-        }
         
         if (businessType === 'website' && requireWebsiteVerification === true) {
-            const $verified = $('.website-fields #websiteVerified');
-            if ($verified.length) {
-                const verified = $verified.val();
-                if (verified && verified !== '1') {
+            const verified = $('.website-fields #websiteVerified').val();
+            if (verified && verified !== '1') {
                     shouldPreventSubmit = true;
                     notify('error', '@lang("You must verify website ownership before submitting the listing")');
                     showStep(2);
-                }
             }
         }
         // If verification is not required, skip check entirely
