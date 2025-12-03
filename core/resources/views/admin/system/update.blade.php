@@ -158,5 +158,3 @@
         }
     </style>
 @endpush
-
-@endpush
