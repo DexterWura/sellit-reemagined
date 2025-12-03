@@ -187,7 +187,7 @@
                                 
                                 <div class="step-actions mt-4 d-flex justify-content-between">
                                     <div></div>
-                                    <button type="button" class="btn btn--base btn-next" data-next="2" id="step1ContinueBtn" disabled>
+                                    <button type="button" class="btn btn--base btn-next" data-next="2" id="step1ContinueBtn">
                                         @lang('Continue') <i class="las la-arrow-right ms-1"></i>
                                     </button>
                                 </div>
@@ -930,27 +930,13 @@ $(document).ready(function() {
         if (type === 'domain') {
             $('#domainInputSection').show();
             $('#domainNameInput').attr('required', 'required');
-            // Check if domain is already entered and valid
-            const domainValue = $('#domainNameInput').val();
-            if (domainValue && domainValue.match(/^https?:\/\//i)) {
-                $('#step1ContinueBtn').prop('disabled', false);
-            } else {
-                $('#step1ContinueBtn').prop('disabled', true);
-            }
         } else if (type === 'website') {
             $('#websiteInputSection').show();
             $('#websiteUrlInput').attr('required', 'required');
-            // Check if website is already entered and valid
-            const websiteValue = $('#websiteUrlInput').val();
-            if (websiteValue && websiteValue.match(/^https?:\/\//i)) {
-                $('#step1ContinueBtn').prop('disabled', false);
-            } else {
-                $('#step1ContinueBtn').prop('disabled', true);
-            }
-        } else {
-            // Other business types - enable continue button immediately
-            $('#step1ContinueBtn').prop('disabled', false);
         }
+        
+        // Always enable continue button - form validation will handle required fields
+        $('#step1ContinueBtn').prop('disabled', false);
         
         // Hide/show financial section based on business type (for Step 2)
         if (type === 'domain') {
@@ -1037,10 +1023,9 @@ $(document).ready(function() {
             $('.domain-card-preview').removeClass('d-none');
             $('.image-upload-section').addClass('d-none');
             
-            // If domain is already entered, enable button and trigger input
+            // If domain is already entered, trigger input to update preview
             const domainValue = $('#domainNameInput').val();
             if (domainValue && domainValue.match(/^https?:\/\//i)) {
-                $('#step1ContinueBtn').prop('disabled', false);
                 setTimeout(function() {
                     $('#domainNameInput').trigger('input');
                 }, 300);
@@ -1048,23 +1033,24 @@ $(document).ready(function() {
         } else if (preselectedType === 'website') {
             $('#websiteUrlInput').attr('required', 'required');
             
-            // If website is already entered, enable button and trigger input
+            // If website is already entered, trigger input
             const websiteValue = $('#websiteUrlInput').val();
             if (websiteValue && websiteValue.match(/^https?:\/\//i)) {
-                $('#step1ContinueBtn').prop('disabled', false);
                 setTimeout(function() {
                     $('#websiteUrlInput').trigger('input');
                 }, 300);
             }
-        } else {
-            // For other business types, enable button immediately
-            $('#step1ContinueBtn').prop('disabled', false);
         }
+        
+        // Always enable button
+        $('#step1ContinueBtn').prop('disabled', false);
         $('input[name="business_type"]:checked').trigger('change');
     } else {
         // Hide financial section and domain card by default
         $('.financial-section').addClass('d-none');
         $('.domain-card-preview').addClass('d-none');
+        // Enable button by default
+        $('#step1ContinueBtn').prop('disabled', false);
     }
     
     // If we're restoring from draft and on a later stage, trigger business type change
@@ -1162,22 +1148,16 @@ $(document).ready(function() {
             warning.slideDown();
             $(this).addClass('is-invalid border-warning');
             helpText.html('<span class="text-danger"><i class="las la-exclamation-circle"></i> @lang("URL must start with http:// or https://")</span>');
-            $('#step1ContinueBtn').prop('disabled', true);
         } else {
             warning.slideUp();
             $(this).removeClass('is-invalid border-warning');
             helpText.html('@lang("Enter domain with http:// or https:// (e.g., https://example.com)")');
             
             updateDomainCardPreview();
-            
-            // Enable continue button if valid URL, or if empty (user can fill it later)
-            if (value && value.match(/^https?:\/\//i)) {
-                $('#step1ContinueBtn').prop('disabled', false);
-            } else if (!value) {
-                // If empty, keep button disabled (required field)
-                $('#step1ContinueBtn').prop('disabled', true);
-            }
         }
+        
+        // Always keep button enabled - form validation will handle it
+        $('#step1ContinueBtn').prop('disabled', false);
     });
     
     $('#websiteUrlInput').on('input', function() {
@@ -1189,20 +1169,14 @@ $(document).ready(function() {
             warning.slideDown();
             $(this).addClass('is-invalid border-warning');
             helpText.html('<span class="text-danger"><i class="las la-exclamation-circle"></i> @lang("URL must start with http:// or https://")</span>');
-            $('#step1ContinueBtn').prop('disabled', true);
         } else {
             warning.slideUp();
             $(this).removeClass('is-invalid border-warning');
             helpText.html('@lang("Enter full URL starting with http:// or https://")');
-            
-            // Enable continue button if valid URL, or if empty (user can fill it later)
-            if (value && value.match(/^https?:\/\//i)) {
-                $('#step1ContinueBtn').prop('disabled', false);
-            } else if (!value) {
-                // If empty, keep button disabled (required field)
-                $('#step1ContinueBtn').prop('disabled', true);
-            }
         }
+        
+        // Always keep button enabled - form validation will handle it
+        $('#step1ContinueBtn').prop('disabled', false);
     });
     
     $('#domainNameInput').on('blur', function() {
