@@ -48,6 +48,17 @@ const ListingFormHandler = {
                 }, 500);
             }
         }
+        
+        // Initialize domain preview if domain type is selected and has value
+        setTimeout(() => {
+            const businessType = $('input[name="business_type"]:checked').val();
+            if (businessType === 'domain') {
+                const domainValue = $('#domainNameInput').val();
+                if (domainValue && domainValue.trim()) {
+                    this.updateDomainCardPreview();
+                }
+            }
+        }, 200);
     },
 
     /**
@@ -482,6 +493,10 @@ const ListingFormHandler = {
         // Auto-prepend protocol on blur
         $('#domainNameInput').on('blur', function() {
             self.autoPrependProtocol(this, 'domain');
+            // Update preview after protocol is added
+            setTimeout(() => {
+                self.updateDomainCardPreview();
+            }, 100);
         });
         
         $('#websiteUrlInput').on('blur', function() {
@@ -508,9 +523,16 @@ const ListingFormHandler = {
             if (isInitial) {
                 const domainValue = $('#domainNameInput').val();
                 if (domainValue && domainValue.trim()) {
+                    // Update preview immediately
+                    this.updateDomainCardPreview();
+                    // Also trigger input event to ensure everything is synced
+                    setTimeout(() => {
+                        $('#domainNameInput').trigger('input');
+                    }, 100);
+                } else {
+                    // Even if no value, update preview to show default
                     setTimeout(() => {
                         this.updateDomainCardPreview();
-                        $('#domainNameInput').trigger('input');
                     }, 100);
                 }
             }
@@ -555,6 +577,9 @@ const ListingFormHandler = {
         const warning = $('#domainProtocolWarning');
         const helpText = $('#domainHelpText');
         
+        // Always update preview, even if protocol is missing (will show the domain name)
+        this.updateDomainCardPreview();
+        
         if (trimmed && !trimmed.match(/^https?:\/\//i)) {
             warning.slideDown();
             $('#domainNameInput').addClass('is-invalid border-warning');
@@ -564,7 +589,6 @@ const ListingFormHandler = {
             warning.slideUp();
             $('#domainNameInput').removeClass('is-invalid border-warning');
             helpText.html(this.translate('Enter domain with http:// or https:// (e.g., https://example.com)'));
-            this.updateDomainCardPreview();
         }
         
         $('#step1ContinueBtn').prop('disabled', false);
@@ -657,6 +681,12 @@ const ListingFormHandler = {
      * Update domain card preview
      */
     updateDomainCardPreview: function() {
+        // Only update if domain type is selected
+        const businessType = $('input[name="business_type"]:checked').val();
+        if (businessType !== 'domain') {
+            return;
+        }
+        
         const domainInputEl = document.getElementById('domainNameInput');
         let domainValue = '';
         
@@ -668,11 +698,24 @@ const ListingFormHandler = {
         
         if (domainValue && domainValue.trim()) {
             const trimmedValue = domainValue.trim();
-            const domainName = trimmedValue.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+            // Extract domain name - remove protocol, www, and path
+            let domainName = trimmedValue.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0].split('?')[0].split('#')[0];
+            domainName = domainName.trim();
+            
+            // If still empty after cleaning, try to extract from the original value
+            if (!domainName) {
+                domainName = trimmedValue;
+            }
+            
             const displayName = domainName || 'example.com';
             
-            $('#domainNamePreview').text(displayName);
-            $('#domainTitlePreview').text(displayName);
+            // Update preview elements
+            if ($('#domainNamePreview').length) {
+                $('#domainNamePreview').text(displayName);
+            }
+            if ($('#domainTitlePreview').length) {
+                $('#domainTitlePreview').text(displayName);
+            }
             
             // Update price preview
             const saleType = $('input[name="sale_type"]:checked').val();
@@ -682,14 +725,23 @@ const ListingFormHandler = {
             } else if (saleType === 'auction') {
                 price = $('input[name="starting_bid"]').val() || '0.00';
             }
-            $('#domainPricePreview').text('$' + parseFloat(price).toFixed(2) + ' USD');
+            if ($('#domainPricePreview').length) {
+                $('#domainPricePreview').text('$' + parseFloat(price).toFixed(2) + ' USD');
+            }
             
             // Update background color
             const colors = this.getDomainColor(domainName);
-            $('#domainCardImage').css('background', `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`);
+            if ($('#domainCardImage').length) {
+                $('#domainCardImage').css('background', `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`);
+            }
         } else {
-            $('#domainNamePreview').text('example.com');
-            $('#domainTitlePreview').text(this.translate('Domain Name'));
+            // Only show default if no value entered
+            if ($('#domainNamePreview').length) {
+                $('#domainNamePreview').text('example.com');
+            }
+            if ($('#domainTitlePreview').length) {
+                $('#domainTitlePreview').text(this.translate('Domain Name'));
+            }
         }
     },
 
