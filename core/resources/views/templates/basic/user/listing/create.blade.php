@@ -785,16 +785,18 @@ $(document).ready(function() {
         }
         
         if (type === 'domain' && requireDomainVerification) {
-            const domainValue = $('#domainNameInput').val().trim();
-            if (domainValue) {
-                $('#domainNameInput').trigger('input');
-            } else {
-                $('.domain-fields #websiteVerificationSection').slideUp();
-            }
+            setTimeout(function() {
+                const domainValue = $('#domainNameInput').val().trim();
+                if (domainValue) {
+                    $('#domainNameInput').trigger('input');
+                } else {
+                    $('.domain-fields').find('#websiteVerificationSection').slideUp();
+                }
+            }, 100);
         } else if (type === 'domain' && !requireDomainVerification) {
-            $('.domain-fields #websiteVerificationSection').slideUp();
+            $('.domain-fields').find('#websiteVerificationSection').slideUp();
         } else if (type !== 'domain') {
-            $('.domain-fields #websiteVerificationSection').slideUp();
+            $('.domain-fields').find('#websiteVerificationSection').slideUp();
         }
         
         if (type === 'website' && requireWebsiteVerification) {
@@ -995,14 +997,17 @@ $(document).ready(function() {
                     const urlObj = new URL(value);
                     const domain = urlObj.hostname.replace(/^www\./, '');
                     generateDomainVerification(domain);
-                    $('.domain-fields #websiteVerificationSection').slideDown(300, function() {
-                        updateDomainVerificationDisplay();
-                    });
+                    const $verificationSection = $('.domain-fields').find('#websiteVerificationSection');
+                    if ($verificationSection.length) {
+                        $verificationSection.slideDown(300, function() {
+                            updateDomainVerificationDisplay();
+                        });
+                    }
                 } catch(e) {
-                    $('.domain-fields #websiteVerificationSection').slideUp();
+                    $('.domain-fields').find('#websiteVerificationSection').slideUp();
                 }
             } else {
-                $('.domain-fields #websiteVerificationSection').slideUp();
+                $('.domain-fields').find('#websiteVerificationSection').slideUp();
             }
         }
     });
@@ -1068,8 +1073,9 @@ $(document).ready(function() {
         domainVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
         domainVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
         
-        if (!$('.domain-fields #websiteVerificationMethod').val()) {
-            $('.domain-fields #websiteVerificationMethod').val('txt_file');
+        const $domainContainer = $('.domain-fields');
+        if (!$domainContainer.find('#websiteVerificationMethod').val()) {
+            $domainContainer.find('#websiteVerificationMethod').val('txt_file');
         }
         
         updateDomainVerificationDisplay();
@@ -1092,40 +1098,40 @@ $(document).ready(function() {
     }
     
     function updateDomainVerificationDisplay() {
-        const container = '.domain-fields';
-        let method = $(container + ' #websiteVerificationMethod').val();
+        const $container = $('.domain-fields');
+        let method = $container.find('#websiteVerificationMethod').val();
         
         if (!domainVerificationData.domain || !domainVerificationData.token) {
-            $(container + ' #websiteTxtFileMethod').hide();
-            $(container + ' #websiteDnsRecordMethod').hide();
+            $container.find('#websiteTxtFileMethod').hide();
+            $container.find('#websiteDnsRecordMethod').hide();
             return;
         }
         
         if (!method) {
             method = 'txt_file';
-            $(container + ' #websiteVerificationMethod').val('txt_file');
+            $container.find('#websiteVerificationMethod').val('txt_file');
         }
         
-        $(container + ' #websiteTxtFileMethod').hide();
-        $(container + ' #websiteDnsRecordMethod').hide();
+        $container.find('#websiteTxtFileMethod').hide();
+        $container.find('#websiteDnsRecordMethod').hide();
         
         if (method === 'txt_file') {
-            $(container + ' #websiteTxtFileName').text(domainVerificationData.filename || '-');
-            $(container + ' #websiteTxtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
-            $(container + ' #websiteTxtFileContent').text(domainVerificationData.token || '-');
-            $(container + ' #websiteTxtFileMethod').css('display', 'block');
+            $container.find('#websiteTxtFileName').text(domainVerificationData.filename || '-');
+            $container.find('#websiteTxtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
+            $container.find('#websiteTxtFileContent').text(domainVerificationData.token || '-');
+            $container.find('#websiteTxtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
-            $(container + ' #websiteDnsRecordName').text(domainVerificationData.dnsName || '-');
-            $(container + ' #websiteDnsRecordValue').text(domainVerificationData.token || '-');
-            $(container + ' #websiteDnsRecordMethod').css('display', 'block');
+            $container.find('#websiteDnsRecordName').text(domainVerificationData.dnsName || '-');
+            $container.find('#websiteDnsRecordValue').text(domainVerificationData.token || '-');
+            $container.find('#websiteDnsRecordMethod').css('display', 'block');
         }
         
-        $(container + ' #websiteVerificationToken').val(domainVerificationData.token);
-        $(container + ' #websiteVerificationFilename').val(domainVerificationData.filename);
-        $(container + ' #websiteVerificationDnsName').val(domainVerificationData.dnsName);
+        $container.find('#websiteVerificationToken').val(domainVerificationData.token);
+        $container.find('#websiteVerificationFilename').val(domainVerificationData.filename);
+        $container.find('#websiteVerificationDnsName').val(domainVerificationData.dnsName);
         
-        $(container + ' #websiteVerified').val('0');
-        $(container + ' #websiteVerificationStatus').html('');
+        $container.find('#websiteVerified').val('0');
+        $container.find('#websiteVerificationStatus').html('');
     }
     
     function updateWebsiteVerificationDisplay() {
