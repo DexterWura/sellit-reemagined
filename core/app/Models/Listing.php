@@ -253,7 +253,9 @@ class Listing extends Model
                 ->orWhere('listing_number', 'LIKE', "%{$search}%")
                 ->orWhereHas('seller', function ($sellerQuery) use ($search) {
                     $sellerQuery->where('username', 'LIKE', "%{$search}%")
-                        ->orWhere('fullname', 'LIKE', "%{$search}%");
+                        ->orWhere('firstname', 'LIKE', "%{$search}%")
+                        ->orWhere('lastname', 'LIKE', "%{$search}%")
+                        ->orWhereRaw("CONCAT(firstname, ' ', lastname) LIKE ?", ["%{$search}%"]);
                 })
                 ->orWhereHas('listingCategory', function ($catQuery) use ($search) {
                     $catQuery->where('name', 'LIKE', "%{$search}%");
