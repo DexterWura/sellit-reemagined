@@ -199,7 +199,7 @@ class AutoRunMigrations extends Command
     /**
      * Get output handler
      */
-    private function getOutput()
+    public function getOutput()
     {
         return new \Symfony\Component\Console\Output\BufferedOutput();
     }
