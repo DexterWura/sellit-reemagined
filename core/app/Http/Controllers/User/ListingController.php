@@ -117,9 +117,10 @@ class ListingController extends Controller
 
     public function store(Request $request)
     {
-        $businessType = $request->business_type;
-        $saleType = $request->sale_type;
-        $user = auth()->user();
+        try {
+            $businessType = $request->business_type;
+            $saleType = $request->sale_type;
+            $user = auth()->user();
 
         // Basic validations
         if (!MarketplaceSetting::allowBusinessType($businessType)) {
@@ -279,8 +280,19 @@ class ListingController extends Controller
         // Set flag to indicate successful submission (so create page knows to clear draft on next visit)
         session()->put('listing_submitted_successfully', true);
 
-        $notify[] = ['success', 'Listing created successfully'];
-        return redirect()->route('user.listing.index')->withNotify($notify);
+            $notify[] = ['success', 'Listing created successfully'];
+            return redirect()->route('user.listing.index')->withNotify($notify);
+        } catch (\Exception $e) {
+            \Log::error('Listing creation failed: ' . $e->getMessage(), [
+                'user_id' => auth()->id(),
+                'business_type' => $request->business_type ?? null,
+                'sale_type' => $request->sale_type ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            $notify[] = ['error', 'An error occurred while creating your listing. Please try again.'];
+            return back()->withInput()->withNotify($notify);
+        }
     }
 
     private function generateTitle($request, $domain = null)
@@ -326,9 +338,10 @@ class ListingController extends Controller
 
     public function update(Request $request, $id)
     {
-        $listing = Listing::where('user_id', auth()->id())
-            ->whereIn('status', [Status::LISTING_DRAFT, Status::LISTING_PENDING, Status::LISTING_REJECTED])
-            ->findOrFail($id);
+        try {
+            $listing = Listing::where('user_id', auth()->id())
+                ->whereIn('status', [Status::LISTING_DRAFT, Status::LISTING_PENDING, Status::LISTING_REJECTED])
+                ->findOrFail($id);
 
         // Normalize URLs if being updated
         if ($request->has('domain_name') && $request->domain_name) {
@@ -452,8 +465,18 @@ class ListingController extends Controller
             $this->uploadImages($listing, $request->file('images'));
         }
 
-        $notify[] = ['success', 'Listing updated successfully'];
-        return redirect()->route('user.listing.index')->withNotify($notify);
+            $notify[] = ['success', 'Listing updated successfully'];
+            return redirect()->route('user.listing.index')->withNotify($notify);
+        } catch (\Exception $e) {
+            \Log::error('Listing update failed: ' . $e->getMessage(), [
+                'user_id' => auth()->id(),
+                'listing_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            $notify[] = ['error', 'An error occurred while updating your listing. Please try again.'];
+            return back()->withInput()->withNotify($notify);
+        }
     }
 
     public function show($id)

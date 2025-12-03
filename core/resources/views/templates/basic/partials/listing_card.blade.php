@@ -3,8 +3,10 @@
         <div class="card-img-top position-relative overflow-hidden">
             @if($listing->primaryImage)
                 <a href="{{ route('marketplace.listing.show', $listing->slug) }}">
-                    <img src="{{ getImage(getFilePath('listing') . '/' . $listing->primaryImage->image) }}" 
-                         alt="{{ $listing->title }}" class="img-fluid listing-img" style="height: 200px; object-fit: cover; width: 100%; transition: transform 0.3s;">
+                    <img src="{{ asset('assets/images/default.png') }}"
+                         data-src="{{ getImage(getFilePath('listing') . '/' . $listing->primaryImage->image) }}"
+                         alt="{{ $listing->title }}" class="img-fluid listing-img lazy"
+                         style="height: 200px; object-fit: cover; width: 100%; transition: transform 0.3s;">
                 </a>
             @else
                 @if($listing->business_type == 'domain' && $listing->domain_name)

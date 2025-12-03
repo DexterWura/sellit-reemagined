@@ -21,45 +21,64 @@ class MarketplaceController extends Controller
     {
         $pageTitle = 'Marketplace - Buy & Sell Online Businesses';
 
-        // Featured listings
+        // Cache categories for 1 hour since they don't change frequently
+        $categories = Cache::remember('marketplace_categories_with_count', 3600, function () {
+            return ListingCategory::active()
+                ->withCount(['listings' => function ($q) {
+                    $q->where('status', Status::LISTING_ACTIVE);
+                }])
+                ->orderBy('sort_order')
+                ->get()
+                ->groupBy('business_type');
+        });
+
+        // Featured listings with optimized eager loading
         $featuredListings = Listing::active()
             ->featured()
-            ->with(['images', 'seller', 'listingCategory'])
+            ->with([
+                'primaryImage', // Use primaryImage instead of all images for performance
+                'seller:id,username,firstname,lastname,email,is_verified',
+                'listingCategory:id,name,slug'
+            ])
             ->orderBy('featured_until', 'desc')
             ->take(6)
             ->get();
 
-        // Ending soon auctions
+        // Ending soon auctions with optimized eager loading
         $endingSoon = Listing::activeAuctions()
             ->endingSoon()
-            ->with(['images', 'seller'])
+            ->with([
+                'primaryImage',
+                'seller:id,username,firstname,lastname,email,is_verified'
+            ])
             ->orderBy('auction_end')
             ->take(6)
             ->get();
 
-        // Latest listings
+        // Latest listings with optimized eager loading
         $latestListings = Listing::active()
-            ->with(['images', 'seller', 'listingCategory'])
+            ->with([
+                'primaryImage',
+                'seller:id,username,firstname,lastname,email,is_verified',
+                'listingCategory:id,name,slug'
+            ])
             ->orderBy('approved_at', 'desc')
             ->take(12)
             ->get();
 
-        // Categories with counts
-        $categories = ListingCategory::active()
-            ->withCount(['listings' => function ($q) {
-                $q->where('status', Status::LISTING_ACTIVE);
-            }])
-            ->orderBy('sort_order')
-            ->get()
-            ->groupBy('business_type');
-
-        return view('Template::marketplace.index', compact(
+        $response = view('Template::marketplace.index', compact(
             'pageTitle',
             'featuredListings',
             'endingSoon',
             'latestListings',
             'categories'
         ));
+
+        // Add cache headers for better performance
+        return $response->withHeaders([
+            'Cache-Control' => 'public, max-age=300', // 5 minutes
+            'Vary' => 'Accept-Encoding'
+        ]);
     }
 
     public function browse(Request $request)
@@ -68,7 +87,11 @@ class MarketplaceController extends Controller
 
         // For confidential listings, we need to check NDA access
         $listings = Listing::active()
-            ->with(['images', 'seller', 'listingCategory'])
+            ->with([
+                'primaryImage', // More efficient than loading all images
+                'seller:id,username,firstname,lastname,email,is_verified',
+                'listingCategory:id,name,slug'
+            ])
             ->where(function ($q) {
                 // Show non-confidential listings to everyone
                 $q->where('is_confidential', false);
@@ -220,25 +243,43 @@ class MarketplaceController extends Controller
             })
             ->paginate(getPaginate());
 
-        $categories = ListingCategory::active()->orderBy('sort_order')->get();
-        $businessTypes = $this->getBusinessTypes();
+        // Cache categories and business types for better performance
+        $categories = Cache::remember('marketplace_categories', 3600, function () {
+            return ListingCategory::active()->orderBy('sort_order')->get();
+        });
 
-        // Get saved searches for logged-in users
+        $businessTypes = Cache::remember('marketplace_business_types', 3600, function () {
+            return $this->getBusinessTypes();
+        });
+
+        // Get saved searches for logged-in users with caching
         $savedSearches = [];
         if (auth()->check()) {
-            $savedSearches = SavedSearch::where('user_id', auth()->id())
-                ->orderBy('created_at', 'desc')
-                ->take(5)
-                ->get();
+            $savedSearches = Cache::remember(
+                'user_saved_searches_' . auth()->id(),
+                1800, // 30 minutes
+                function () {
+                    return SavedSearch::where('user_id', auth()->id())
+                        ->orderBy('created_at', 'desc')
+                        ->take(5)
+                        ->get();
+                }
+            );
         }
 
-        return view('Template::marketplace.browse', compact(
+        $response = view('Template::marketplace.browse', compact(
             'pageTitle',
             'listings',
             'categories',
             'businessTypes',
             'savedSearches'
         ));
+
+        // Add cache headers (shorter for search results)
+        return $response->withHeaders([
+            'Cache-Control' => 'public, max-age=60', // 1 minute
+            'Vary' => 'Accept-Encoding'
+        ]);
     }
 
     public function show($slug)
@@ -246,9 +287,9 @@ class MarketplaceController extends Controller
         $listing = Listing::where('slug', $slug)
             ->where('status', '!=', Status::LISTING_DRAFT)
             ->with([
-                'images',
-                'seller',
-                'listingCategory',
+                'images', // Keep all images for detail view
+                'seller:id,username,firstname,lastname,email,is_verified,created_at',
+                'listingCategory:id,name,slug',
                 'metrics' => function ($q) {
                     $q->orderBy('period_date', 'desc')->take(12);
                 },
@@ -261,6 +302,8 @@ class MarketplaceController extends Controller
                 'bids' => function ($q) {
                     $q->orderBy('amount', 'desc')->take(10);
                 },
+                'winner:id,username,firstname,lastname',
+                'highestBidder:id,username,firstname,lastname'
             ])
             ->firstOrFail();
 
