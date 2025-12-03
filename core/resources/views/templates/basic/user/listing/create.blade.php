@@ -975,14 +975,16 @@ $(document).ready(function() {
         }
         
         if (type === 'domain' && requireDomainVerification) {
-            $('#domainVerificationSection').slideDown(300);
-            if (!$('#domainVerificationMethod').val()) {
-                $('#domainVerificationMethod').val('txt_file');
-            }
-            const domainValue = $('#domainNameInput').val().trim();
-            if (domainValue) {
-                $('#domainNameInput').trigger('input');
-            }
+            $('#domainVerificationSection').slideDown(300, function() {
+                if (!$('#domainVerificationMethod').val()) {
+                    $('#domainVerificationMethod').val('txt_file');
+                }
+                updateDomainVerificationDisplay();
+                const domainValue = $('#domainNameInput').val().trim();
+                if (domainValue) {
+                    $('#domainNameInput').trigger('input');
+                }
+            });
         } else if (type === 'domain' && !requireDomainVerification) {
             $('#domainVerificationSection').slideUp();
         } else if (type !== 'domain') {
