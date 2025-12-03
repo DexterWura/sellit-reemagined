@@ -584,8 +584,8 @@
                                  ============================================ --}}
                             <div class="form-step d-none" data-step="4">
                                 <div class="step-header mb-4">
-                                    <h5 class="fw-bold mb-1">@lang('Add Images')</h5>
-                                    <p class="text-muted mb-0">@lang('Upload screenshots and images of your business')</p>
+                                    <h5 class="fw-bold mb-1">@lang('Review & Submit')</h5>
+                                    <p class="text-muted mb-0">@lang('Review your listing and submit for approval')</p>
                                 </div>
                                 
                                 {{-- Domain Information Message (for domain type) --}}
@@ -604,7 +604,7 @@
                                                 </h5>
                                                 @if($requiresApproval)
                                                     <p class="mb-2">
-                                                        @lang('Your domain listing has been submitted successfully! It will go live once our staff reviews and verifies it.')
+                                                        @lang('By clicking submit, you have submitted your domain listing to our admin team. They will review and approve it - this usually takes less than a day.')
                                                     </p>
                                                     <p class="mb-0 small text-muted">
                                                         <i class="las la-clock me-1"></i>
@@ -612,15 +612,15 @@
                                                     </p>
                                                 @else
                                                     <p class="mb-0">
-                                                        @lang('Your domain listing is now live! It has been published and is visible to all buyers.')
+                                                        @lang('Your domain listing will be published immediately after submission and will be visible to all buyers.')
                                                     </p>
                                                 @endif
                                             </div>
                                         </div>
                                     </div>
                                     <p class="text-center text-muted small mt-3">
-                                        <i class="las la-image me-1"></i>
-                                        @lang('Images are optional for domain listings. Your domain will be displayed as a card with a colored background.')
+                                        <i class="las la-globe me-1"></i>
+                                        @lang('Your domain will be displayed as a card with a colored background.')
                                     </p>
                                 </div>
                                 
