@@ -163,45 +163,107 @@ class DomainVerificationController extends Controller
                     'http://' . $domain . '/.well-known/' . $filename,
                 ];
 
+                $lastError = null;
+                $lastUrl = null;
+                $lastContent = null;
+                
                 foreach ($urls as $url) {
                     try {
-                        $context = stream_context_create([
-                            'http' => [
-                                'timeout' => 10,
-                                'follow_location' => true,
-                                'user_agent' => 'Mozilla/5.0 (compatible; VerificationBot/1.0)',
-                            ],
-                            'ssl' => [
-                                'verify_peer' => false,
-                                'verify_peer_name' => false,
+                        // Use cURL for better control and error handling
+                        $ch = curl_init($url);
+                        curl_setopt_array($ch, [
+                            CURLOPT_RETURNTRANSFER => true,
+                            CURLOPT_FOLLOWLOCATION => true,
+                            CURLOPT_MAXREDIRS => 5,
+                            CURLOPT_TIMEOUT => 10,
+                            CURLOPT_CONNECTTIMEOUT => 10,
+                            CURLOPT_SSL_VERIFYPEER => false,
+                            CURLOPT_SSL_VERIFYHOST => false,
+                            CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; VerificationBot/1.0)',
+                            CURLOPT_HTTPHEADER => [
+                                'Accept: text/plain, text/*, */*',
                             ],
                         ]);
-
-                        $content = @file_get_contents($url, false, $context);
                         
-                        if ($content !== false) {
+                        $content = curl_exec($ch);
+                        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        $curlError = curl_error($ch);
+                        curl_close($ch);
+                        
+                        $lastUrl = $url;
+                        
+                        if ($content !== false && $httpCode >= 200 && $httpCode < 300) {
+                            $lastContent = $content;
+                            
                             // Normalize the content: remove BOM, normalize line endings, trim whitespace
                             $normalizedContent = $content;
+                            
                             // Remove UTF-8 BOM if present
                             if (substr($normalizedContent, 0, 3) === "\xEF\xBB\xBF") {
                                 $normalizedContent = substr($normalizedContent, 3);
                             }
-                            // Normalize line endings (CRLF, CR, LF to nothing, then trim)
+                            
+                            // Remove any null bytes
+                            $normalizedContent = str_replace("\0", '', $normalizedContent);
+                            
+                            // Remove all line endings (CRLF, CR, LF)
                             $normalizedContent = preg_replace('/\r\n|\r|\n/', '', $normalizedContent);
-                            // Trim all whitespace (including tabs, spaces, etc.)
+                            
+                            // Remove all other whitespace characters (tabs, spaces, etc.) from start and end
                             $normalizedContent = trim($normalizedContent);
                             
-                            // Normalize token as well
+                            // Remove any remaining non-printable characters except alphanumeric and hyphens
+                            // But keep the content as-is for now, just trim
+                            
+                            // Normalize token as well - remove any whitespace
                             $normalizedToken = trim($token);
                             
+                            // Also try a more lenient comparison - remove all non-alphanumeric except hyphens
+                            $strictContent = preg_replace('/[^a-zA-Z0-9\-]/', '', $normalizedContent);
+                            $strictToken = preg_replace('/[^a-zA-Z0-9\-]/', '', $normalizedToken);
+                            
+                            // Debug: Log the comparison
+                            \Log::info('Verification attempt', [
+                                'url' => $url,
+                                'http_code' => $httpCode,
+                                'raw_content' => $content,
+                                'raw_content_hex' => bin2hex(substr($content, 0, 50)),
+                                'normalized_content' => $normalizedContent,
+                                'strict_content' => $strictContent,
+                                'expected_token' => $token,
+                                'normalized_token' => $normalizedToken,
+                                'strict_token' => $strictToken,
+                                'exact_match' => $normalizedContent === $normalizedToken,
+                                'strict_match' => $strictContent === $strictToken,
+                                'content_length' => strlen($content),
+                                'normalized_length' => strlen($normalizedContent),
+                                'token_length' => strlen($normalizedToken),
+                            ]);
+                            
+                            // Try exact match first
                             if ($normalizedContent === $normalizedToken) {
                                 return response()->json([
                                     'success' => true,
                                     'message' => 'Domain ownership verified successfully!'
                                 ]);
                             }
+                            
+                            // Try strict match (alphanumeric + hyphens only)
+                            if ($strictContent === $strictToken && !empty($strictContent)) {
+                                return response()->json([
+                                    'success' => true,
+                                    'message' => 'Domain ownership verified successfully!'
+                                ]);
+                            }
+                        } else {
+                            if ($curlError) {
+                                $lastError = 'cURL Error: ' . $curlError;
+                            } else {
+                                $lastError = 'HTTP ' . $httpCode;
+                            }
                         }
                     } catch (\Exception $e) {
+                        $lastError = $e->getMessage();
                         continue;
                     }
                 }
@@ -223,9 +285,19 @@ class DomainVerificationController extends Controller
                     $normalizedTest = preg_replace('/\r\n|\r|\n/', '', $normalizedTest);
                     $normalizedTest = trim($normalizedTest);
                     
-                    $errorDetails .= ' File found but content does not match. Expected: "' . trim($token) . '", Found: "' . $normalizedTest . '"';
+                    // Show detailed comparison
+                    $errorDetails = 'File found but content does not match.';
+                    $errorDetails .= ' Expected token: "' . trim($token) . '" (length: ' . strlen(trim($token)) . ')';
+                    $errorDetails .= ' | Found in file: "' . $normalizedTest . '" (length: ' . strlen($normalizedTest) . ')';
+                    if ($lastContent !== null) {
+                        $errorDetails .= ' | Raw file content: "' . addslashes(substr($lastContent, 0, 100)) . '"';
+                    }
+                    $errorDetails .= ' | File URL: ' . $testUrl;
                 } else {
                     $errorDetails .= ' Please ensure the file is accessible at: ' . $testUrl;
+                    if ($lastError) {
+                        $errorDetails .= ' | Error: ' . (is_array($lastError) ? $lastError['message'] : $lastError);
+                    }
                 }
                 
                 return response()->json([
