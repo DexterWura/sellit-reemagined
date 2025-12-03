@@ -137,7 +137,7 @@
                                                                     <option value="txt_file" selected>@lang('Upload TXT File to Root')</option>
                                                                 @endif
                                                                 @if(in_array('dns_record', $allowedMethods))
-                                                                    <option value="dns_record">@lang('Add DNS TXT Record')</option>
+                                                            <option value="dns_record">@lang('Add DNS TXT Record')</option>
                                                                 @endif
                                                         </select>
                                                     </div>
@@ -1309,12 +1309,6 @@ $(document).ready(function() {
     function updateDomainVerificationDisplay() {
         let method = $('#domainVerificationMethod').val();
         
-        if (!domainVerificationData.domain || !domainVerificationData.token) {
-            $('#txtFileMethod').hide();
-            $('#dnsRecordMethod').hide();
-            return;
-        }
-        
         if (!method) {
             method = 'txt_file';
             $('#domainVerificationMethod').val('txt_file');
@@ -1325,8 +1319,13 @@ $(document).ready(function() {
         
         if (method === 'txt_file') {
             $('#txtFileName').text(domainVerificationData.filename || '-');
-            $('#txtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
+            $('#txtFileLocation').text(domainVerificationData.domain ? 'https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || '') : '-');
             $('#txtFileContent').text(domainVerificationData.token || '-');
+            if (domainVerificationData.token && domainVerificationData.filename) {
+                $('#downloadTxtFile').prop('disabled', false);
+            } else {
+                $('#downloadTxtFile').prop('disabled', true);
+            }
             $('#txtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
             $('#dnsRecordName').text(domainVerificationData.dnsName || '-');
@@ -1334,9 +1333,11 @@ $(document).ready(function() {
             $('#dnsRecordMethod').css('display', 'block');
         }
         
-        $('#domainVerificationToken').val(domainVerificationData.token);
-        $('#domainVerificationFilename').val(domainVerificationData.filename);
-        $('#domainVerificationDnsName').val(domainVerificationData.dnsName);
+        if (domainVerificationData.token) {
+            $('#domainVerificationToken').val(domainVerificationData.token);
+            $('#domainVerificationFilename').val(domainVerificationData.filename);
+            $('#domainVerificationDnsName').val(domainVerificationData.dnsName);
+        }
         
         $('#domainVerified').val('0');
         $('#verificationStatus').html('');
