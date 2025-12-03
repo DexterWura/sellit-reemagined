@@ -10,7 +10,7 @@
                 @if($listing->business_type == 'domain' && $listing->domain_name)
                     @php
                         // Generate consistent color based on domain name
-                        $domainName = $listing->domain_name;
+                        $domainName = $listing->domain_name ?? 'example.com';
                         $hash = 0;
                         for ($i = 0; $i < strlen($domainName); $i++) {
                             $hash = ord($domainName[$i]) + (($hash << 5) - $hash);
@@ -30,8 +30,17 @@
                             ['#ff6e7f', '#bfe9ff'], // Red-Blue
                         ];
                         
-                        $index = abs($hash) % count($gradients);
-                        $colors = $gradients[$index];
+                        // Ensure hash is positive and calculate safe index
+                        $hash = abs($hash);
+                        $gradientCount = count($gradients);
+                        $index = $gradientCount > 0 ? ($hash % $gradientCount) : 0;
+                        
+                        // Double-check index is valid
+                        if ($index < 0 || $index >= $gradientCount) {
+                            $index = 0;
+                        }
+                        
+                        $colors = $gradients[$index] ?? $gradients[0];
                     @endphp
                     <a href="{{ route('marketplace.listing.show', $listing->slug) }}" 
                        class="domain-card-image d-flex flex-column align-items-center justify-content-center position-relative text-decoration-none" 
