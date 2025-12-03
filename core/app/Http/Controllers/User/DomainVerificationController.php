@@ -169,6 +169,7 @@ class DomainVerificationController extends Controller
                             'http' => [
                                 'timeout' => 10,
                                 'follow_location' => true,
+                                'user_agent' => 'Mozilla/5.0 (compatible; VerificationBot/1.0)',
                             ],
                             'ssl' => [
                                 'verify_peer' => false,
@@ -178,20 +179,58 @@ class DomainVerificationController extends Controller
 
                         $content = @file_get_contents($url, false, $context);
                         
-                        if ($content !== false && trim($content) === $token) {
-                            return response()->json([
-                                'success' => true,
-                                'message' => 'Domain ownership verified successfully!'
-                            ]);
+                        if ($content !== false) {
+                            // Normalize the content: remove BOM, normalize line endings, trim whitespace
+                            $normalizedContent = $content;
+                            // Remove UTF-8 BOM if present
+                            if (substr($normalizedContent, 0, 3) === "\xEF\xBB\xBF") {
+                                $normalizedContent = substr($normalizedContent, 3);
+                            }
+                            // Normalize line endings (CRLF, CR, LF to nothing, then trim)
+                            $normalizedContent = preg_replace('/\r\n|\r|\n/', '', $normalizedContent);
+                            // Trim all whitespace (including tabs, spaces, etc.)
+                            $normalizedContent = trim($normalizedContent);
+                            
+                            // Normalize token as well
+                            $normalizedToken = trim($token);
+                            
+                            if ($normalizedContent === $normalizedToken) {
+                                return response()->json([
+                                    'success' => true,
+                                    'message' => 'Domain ownership verified successfully!'
+                                ]);
+                            }
                         }
                     } catch (\Exception $e) {
                         continue;
                     }
                 }
 
+                // Try to get more details about why verification failed
+                $testUrl = 'https://' . $domain . '/' . $filename;
+                $testContent = @file_get_contents($testUrl, false, stream_context_create([
+                    'http' => ['timeout' => 5, 'follow_location' => true, 'user_agent' => 'Mozilla/5.0'],
+                    'ssl' => ['verify_peer' => false, 'verify_peer_name' => false],
+                ]));
+                
+                $errorDetails = 'Verification file not found or token mismatch.';
+                if ($testContent !== false) {
+                    // Normalize test content the same way we normalize in verification
+                    $normalizedTest = $testContent;
+                    if (substr($normalizedTest, 0, 3) === "\xEF\xBB\xBF") {
+                        $normalizedTest = substr($normalizedTest, 3);
+                    }
+                    $normalizedTest = preg_replace('/\r\n|\r|\n/', '', $normalizedTest);
+                    $normalizedTest = trim($normalizedTest);
+                    
+                    $errorDetails .= ' File found but content does not match. Expected: "' . trim($token) . '", Found: "' . $normalizedTest . '"';
+                } else {
+                    $errorDetails .= ' Please ensure the file is accessible at: ' . $testUrl;
+                }
+                
                 return response()->json([
                     'success' => false,
-                    'message' => 'Verification file not found or token mismatch. Please ensure the file is accessible at: https://' . $domain . '/' . $filename
+                    'message' => $errorDetails
                 ]);
 
             } else {

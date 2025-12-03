@@ -176,6 +176,7 @@ class DomainVerification extends Model
                     'http' => [
                         'timeout' => 10,
                         'follow_location' => true,
+                        'user_agent' => 'Mozilla/5.0 (compatible; VerificationBot/1.0)',
                     ],
                     'ssl' => [
                         'verify_peer' => false,
@@ -185,9 +186,25 @@ class DomainVerification extends Model
 
                 $content = @file_get_contents($url, false, $context);
                 
-                if ($content !== false && trim($content) === $this->verification_token) {
-                    $this->markAsVerified();
-                    return true;
+                if ($content !== false) {
+                    // Normalize the content: remove BOM, normalize line endings, trim whitespace
+                    $normalizedContent = $content;
+                    // Remove UTF-8 BOM if present
+                    if (substr($normalizedContent, 0, 3) === "\xEF\xBB\xBF") {
+                        $normalizedContent = substr($normalizedContent, 3);
+                    }
+                    // Normalize line endings (CRLF, CR, LF to nothing, then trim)
+                    $normalizedContent = preg_replace('/\r\n|\r|\n/', '', $normalizedContent);
+                    // Trim all whitespace (including tabs, spaces, etc.)
+                    $normalizedContent = trim($normalizedContent);
+                    
+                    // Normalize token as well
+                    $normalizedToken = trim($this->verification_token);
+                    
+                    if ($normalizedContent === $normalizedToken) {
+                        $this->markAsVerified();
+                        return true;
+                    }
                 }
             } catch (\Exception $e) {
                 continue;
