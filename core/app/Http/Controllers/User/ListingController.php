@@ -609,17 +609,17 @@ class ListingController extends Controller
             case 'website':
                 // Normalize website URL
                 $listing->url = normalizeUrl($request->website_url);
-                $listing->niche = $request->niche;
-                $listing->tech_stack = $request->tech_stack;
-                $listing->domain_registrar = $request->domain_registrar;
-                $listing->domain_expiry = $request->domain_expiry;
+                $listing->niche = $request->website_niche ?? $request->niche ?? null;
+                $listing->tech_stack = $request->website_tech_stack ?? $request->tech_stack ?? null;
+                $listing->domain_registrar = $request->website_domain_registrar ?? $request->domain_registrar ?? null;
+                $listing->domain_expiry = $request->website_domain_expiry ?? $request->domain_expiry ?? null;
                 // Also store domain name for easier searching
                 $listing->domain_name = extractDomain($request->website_url);
                 break;
 
             case 'social_media_account':
                 $listing->platform = $request->platform;
-                $listing->niche = $request->niche;
+                $listing->niche = $request->social_niche ?? $request->niche ?? null;
                 $listing->url = $request->social_url;
                 $listing->followers_count = $request->followers_count ?? 0;
                 $listing->subscribers_count = $request->subscribers_count ?? 0;
@@ -631,13 +631,13 @@ class ListingController extends Controller
                 $listing->play_store_url = $request->play_store_url;
                 $listing->downloads_count = $request->downloads_count ?? 0;
                 $listing->app_rating = $request->app_rating ?? 0;
-                $listing->tech_stack = $request->tech_stack;
+                $listing->tech_stack = $request->mobile_tech_stack ?? $request->tech_stack ?? null;
                 break;
 
             case 'desktop_app':
                 $listing->url = $request->desktop_url;
                 $listing->downloads_count = $request->downloads_count ?? 0;
-                $listing->tech_stack = $request->tech_stack;
+                $listing->tech_stack = $request->desktop_tech_stack ?? $request->tech_stack ?? null;
                 break;
         }
     }

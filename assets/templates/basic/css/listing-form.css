@@ -1,0 +1,17 @@
+/* Listing Form Styles */
+
+.alert-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    margin-bottom: 0;
+}
+
+.border-warning {
+    border-color: #ffc107 !important;
+}
+
+.is-invalid.border-warning:focus {
+    border-color: #ffc107 !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+}
+
