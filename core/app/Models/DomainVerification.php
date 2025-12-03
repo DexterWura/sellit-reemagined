@@ -65,25 +65,34 @@ class DomainVerification extends Model
     }
 
     // Helper Methods
+    /**
+     * Generate a simple, reliable verification token
+     * Format: Simple alphanumeric string (no special chars that could cause issues)
+     */
     public static function generateToken()
     {
-        $siteName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', gs('site_name') ?? 'marketplace'));
-        $siteName = substr($siteName, 0, 10); // Limit length
-        return $siteName . '-verify-' . Str::random(32);
+        // Generate a simple token: 40 characters, alphanumeric only
+        // This avoids issues with special characters, encoding, etc.
+        return Str::random(40);
     }
 
+    /**
+     * Generate a simple filename for verification file
+     */
     public static function generateTxtFilename()
     {
-        $siteName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', gs('site_name') ?? 'marketplace'));
-        $siteName = substr($siteName, 0, 10); // Limit length
-        return $siteName . '-verification-' . Str::random(16) . '.txt';
+        // Simple filename: verification-{random}.txt
+        return 'verification-' . Str::random(16) . '.txt';
     }
 
+    /**
+     * Generate DNS record name
+     */
     public static function generateDnsRecordName()
     {
-        $siteName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', gs('site_name') ?? 'marketplace'));
-        $siteName = substr($siteName, 0, 10); // Limit length for DNS record name
-        return '_' . $siteName . '-verify';
+        // Simple DNS record name: _verify{random}
+        // Using underscore prefix is standard for TXT records
+        return '_verify' . Str::random(8);
     }
 
     /**
@@ -169,103 +178,136 @@ class DomainVerification extends Model
 
     /**
      * Verify via TXT file upload
+     * Simplified, more reliable verification
      */
     protected function verifyTxtFile()
     {
+        // Try these locations in order (most common first)
         $urls = [
             'https://' . $this->domain . '/' . $this->txt_filename,
-            'https://' . $this->domain . '/.well-known/' . $this->txt_filename,
             'http://' . $this->domain . '/' . $this->txt_filename,
+            'https://' . $this->domain . '/.well-known/' . $this->txt_filename,
             'http://' . $this->domain . '/.well-known/' . $this->txt_filename,
         ];
 
+        $lastError = null;
+        $foundContent = null;
+
         foreach ($urls as $url) {
             try {
-                $context = stream_context_create([
-                    'http' => [
-                        'timeout' => 10,
-                        'follow_location' => true,
-                        'user_agent' => 'Mozilla/5.0 (compatible; VerificationBot/1.0)',
-                    ],
-                    'ssl' => [
-                        'verify_peer' => false,
-                        'verify_peer_name' => false,
+                // Use cURL for better control
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_MAXREDIRS => 3,
+                    CURLOPT_TIMEOUT => 10,
+                    CURLOPT_CONNECTTIMEOUT => 8,
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_SSL_VERIFYHOST => false,
+                    CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; VerificationBot/1.0)',
+                    CURLOPT_HTTPHEADER => [
+                        'Accept: text/plain, */*',
                     ],
                 ]);
-
-                $content = @file_get_contents($url, false, $context);
                 
-                if ($content !== false) {
-                    // Normalize the content: remove BOM, normalize line endings, trim whitespace
-                    $normalizedContent = $content;
-                    // Remove UTF-8 BOM if present
-                    if (substr($normalizedContent, 0, 3) === "\xEF\xBB\xBF") {
-                        $normalizedContent = substr($normalizedContent, 3);
-                    }
-                    // Remove any null bytes
-                    $normalizedContent = str_replace("\0", '', $normalizedContent);
-                    // Normalize line endings (CRLF, CR, LF to nothing, then trim)
-                    $normalizedContent = preg_replace('/\r\n|\r|\n/', '', $normalizedContent);
-                    // Trim all whitespace (including tabs, spaces, etc.)
-                    $normalizedContent = trim($normalizedContent);
-                    // Remove zero-width spaces and other invisible Unicode characters
-                    $normalizedContent = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $normalizedContent);
+                $content = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $curlError = curl_error($ch);
+                curl_close($ch);
+                
+                // Check if we got a successful response
+                if ($content !== false && $httpCode >= 200 && $httpCode < 300) {
+                    $foundContent = $content;
                     
-                    // Normalize token as well
-                    $normalizedToken = trim($this->verification_token);
-                    $normalizedToken = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $normalizedToken);
+                    // Simple normalization: trim whitespace and newlines
+                    $cleanContent = trim($content);
+                    $cleanContent = preg_replace('/\s+/', '', $cleanContent); // Remove all whitespace
                     
-                    if ($normalizedContent === $normalizedToken) {
+                    $cleanToken = trim($this->verification_token);
+                    $cleanToken = preg_replace('/\s+/', '', $cleanToken); // Remove all whitespace
+                    
+                    // Compare
+                    if ($cleanContent === $cleanToken) {
                         $this->markAsVerified();
                         return true;
                     }
+                } else {
+                    if ($curlError) {
+                        $lastError = "cURL error: $curlError";
+                    } else {
+                        $lastError = "HTTP $httpCode";
+                    }
                 }
             } catch (\Exception $e) {
+                $lastError = $e->getMessage();
                 continue;
             }
         }
 
-        $this->error_message = 'Verification file not found or token mismatch. Please ensure the file is accessible at: https://' . $this->domain . '/' . $this->txt_filename;
+        // Build helpful error message
+        if ($foundContent !== null) {
+            $this->error_message = "File found but content doesn't match. Expected: {$this->verification_token} | Found: " . substr(trim($foundContent), 0, 50);
+        } else {
+            $this->error_message = "File not accessible. Please upload the file to: https://{$this->domain}/{$this->txt_filename}";
+            if ($lastError) {
+                $this->error_message .= " (Error: $lastError)";
+            }
+        }
+        
         $this->save();
         return false;
     }
 
     /**
      * Verify via DNS TXT record
+     * Simplified, more reliable DNS verification
      */
     protected function verifyDnsRecord()
     {
-        $recordName = $this->dns_record_name . '.' . $this->domain;
-        
         try {
-            $records = dns_get_record($recordName, DNS_TXT);
+            // Try with subdomain prefix first (most common format)
+            $recordName = $this->dns_record_name . '.' . $this->domain;
+            $records = @dns_get_record($recordName, DNS_TXT);
             
-            if ($records) {
+            if ($records && is_array($records)) {
                 foreach ($records as $record) {
-                    if (isset($record['txt']) && trim($record['txt']) === $this->verification_token) {
-                        $this->markAsVerified();
-                        return true;
+                    if (isset($record['txt'])) {
+                        $recordValue = trim($record['txt']);
+                        // Remove quotes if present (some DNS providers add them)
+                        $recordValue = trim($recordValue, '"');
+                        
+                        if ($recordValue === $this->verification_token) {
+                            $this->markAsVerified();
+                            return true;
+                        }
                     }
                 }
             }
 
-            // Also try without subdomain prefix
-            $records = dns_get_record($this->domain, DNS_TXT);
-            if ($records) {
+            // Also try at domain root (some DNS providers require this)
+            $records = @dns_get_record($this->domain, DNS_TXT);
+            if ($records && is_array($records)) {
                 foreach ($records as $record) {
-                    if (isset($record['txt']) && trim($record['txt']) === $this->verification_token) {
-                        $this->markAsVerified();
-                        return true;
+                    if (isset($record['txt'])) {
+                        $recordValue = trim($record['txt']);
+                        $recordValue = trim($recordValue, '"');
+                        
+                        if ($recordValue === $this->verification_token) {
+                            $this->markAsVerified();
+                            return true;
+                        }
                     }
                 }
             }
 
-            $this->error_message = 'DNS TXT record not found. Please add a TXT record with name "' . $this->dns_record_name . '" and value "' . $this->verification_token . '"';
+            // Clear error message
+            $this->error_message = "DNS TXT record not found. Please add a TXT record:\nName: {$this->dns_record_name}\nValue: {$this->verification_token}\n\nNote: DNS changes can take 5 minutes to 48 hours to propagate.";
             $this->save();
             return false;
 
         } catch (\Exception $e) {
-            $this->error_message = 'DNS lookup failed: ' . $e->getMessage();
+            $this->error_message = 'DNS lookup failed: ' . $e->getMessage() . '. Please check your DNS settings and try again.';
             $this->save();
             return false;
         }

@@ -171,6 +171,7 @@ class DomainVerificationController extends Controller
 
     /**
      * AJAX verification endpoint for listing creation page
+     * Simplified, more reliable verification
      */
     public function verifyAjax(Request $request)
     {
@@ -191,245 +192,167 @@ class DomainVerificationController extends Controller
             ], 400);
         }
 
-        $domain = $request->domain;
+        $domain = trim($request->domain);
         $method = $request->method;
-        $token = $request->token;
-        
-        // Log the incoming request for debugging
-        \Log::info('Verification request received', [
-            'domain' => $domain,
-            'method' => $method,
-            'token' => $token,
-            'token_length' => strlen($token),
-            'token_hex' => bin2hex(substr($token, 0, 50)),
-            'filename' => $request->filename ?? null,
-            'dns_name' => $request->dns_name ?? null,
-        ]);
+        $token = trim($request->token);
 
         try {
             if ($method === DomainVerification::METHOD_TXT_FILE) {
-                // Verify TXT file
-                $filename = $request->filename;
-                $urls = [
-                    'https://' . $domain . '/' . $filename,
-                    'https://' . $domain . '/.well-known/' . $filename,
-                    'http://' . $domain . '/' . $filename,
-                    'http://' . $domain . '/.well-known/' . $filename,
-                ];
-
-                $lastError = null;
-                $lastUrl = null;
-                $lastContent = null;
-                
-                foreach ($urls as $url) {
-                    try {
-                        // Use cURL for better control and error handling
-                        $ch = curl_init($url);
-                        curl_setopt_array($ch, [
-                            CURLOPT_RETURNTRANSFER => true,
-                            CURLOPT_FOLLOWLOCATION => true,
-                            CURLOPT_MAXREDIRS => 5,
-                            CURLOPT_TIMEOUT => 10,
-                            CURLOPT_CONNECTTIMEOUT => 10,
-                            CURLOPT_SSL_VERIFYPEER => false,
-                            CURLOPT_SSL_VERIFYHOST => false,
-                            CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; VerificationBot/1.0)',
-                            CURLOPT_HTTPHEADER => [
-                                'Accept: text/plain, text/*, */*',
-                            ],
-                        ]);
-                        
-                        $content = curl_exec($ch);
-                        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                        $curlError = curl_error($ch);
-                        curl_close($ch);
-                        
-                        $lastUrl = $url;
-                        
-                        if ($content !== false && $httpCode >= 200 && $httpCode < 300) {
-                            $lastContent = $content;
-                            
-                            // Normalize the content: remove BOM, normalize line endings, trim whitespace
-                            $normalizedContent = $content;
-                            
-                            // Remove UTF-8 BOM if present
-                            if (substr($normalizedContent, 0, 3) === "\xEF\xBB\xBF") {
-                                $normalizedContent = substr($normalizedContent, 3);
-                            }
-                            
-                            // Remove any null bytes
-                            $normalizedContent = str_replace("\0", '', $normalizedContent);
-                            
-                            // Remove all line endings (CRLF, CR, LF)
-                            $normalizedContent = preg_replace('/\r\n|\r|\n/', '', $normalizedContent);
-                            
-                            // Remove all other whitespace characters (tabs, spaces, etc.) from start and end
-                            $normalizedContent = trim($normalizedContent);
-                            
-                            // Also remove any zero-width spaces or other invisible characters
-                            $normalizedContent = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $normalizedContent);
-                            
-                            // Normalize token as well - remove any whitespace and invisible characters
-                            $normalizedToken = trim($token);
-                            $normalizedToken = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $normalizedToken);
-                            
-                            // Also try a more lenient comparison - remove all non-alphanumeric except hyphens
-                            $strictContent = preg_replace('/[^a-zA-Z0-9\-]/', '', $normalizedContent);
-                            $strictToken = preg_replace('/[^a-zA-Z0-9\-]/', '', $normalizedToken);
-                            
-                            // Debug: Log the comparison
-                            \Log::info('Verification attempt', [
-                                'url' => $url,
-                                'http_code' => $httpCode,
-                                'raw_content' => $content,
-                                'raw_content_hex' => bin2hex(substr($content, 0, 50)),
-                                'normalized_content' => $normalizedContent,
-                                'strict_content' => $strictContent,
-                                'expected_token' => $token,
-                                'normalized_token' => $normalizedToken,
-                                'strict_token' => $strictToken,
-                                'exact_match' => $normalizedContent === $normalizedToken,
-                                'strict_match' => $strictContent === $strictToken,
-                                'content_length' => strlen($content),
-                                'normalized_length' => strlen($normalizedContent),
-                                'token_length' => strlen($normalizedToken),
-                            ]);
-                            
-                            // Try exact match first
-                            if ($normalizedContent === $normalizedToken) {
-                                return response()->json([
-                                    'success' => true,
-                                    'message' => 'Domain ownership verified successfully!'
-                                ]);
-                            }
-                            
-                            // Try strict match (alphanumeric + hyphens only)
-                            if ($strictContent === $strictToken && !empty($strictContent)) {
-                                return response()->json([
-                                    'success' => true,
-                                    'message' => 'Domain ownership verified successfully!'
-                                ]);
-                            }
-                        } else {
-                            if ($curlError) {
-                                $lastError = 'cURL Error: ' . $curlError;
-                            } else {
-                                $lastError = 'HTTP ' . $httpCode;
-                            }
-                        }
-                    } catch (\Exception $e) {
-                        $lastError = $e->getMessage();
-                        continue;
-                    }
-                }
-
-                // Build detailed error message
-                $errorDetails = 'Verification failed. ';
-                
-                if ($lastContent !== null) {
-                    // We got content but it didn't match
-                    $normalizedLast = $lastContent;
-                    if (substr($normalizedLast, 0, 3) === "\xEF\xBB\xBF") {
-                        $normalizedLast = substr($normalizedLast, 3);
-                    }
-                    $normalizedLast = str_replace("\0", '', $normalizedLast);
-                    $normalizedLast = preg_replace('/\r\n|\r|\n/', '', $normalizedLast);
-                    $normalizedLast = trim($normalizedLast);
-                    
-                    $normalizedToken = trim($token);
-                    
-                    // Show detailed comparison with hex dumps for debugging
-                    $errorDetails = 'File found but content does not match.';
-                    $errorDetails .= "\n\nExpected: \"" . $normalizedToken . "\" (length: " . strlen($normalizedToken) . ")";
-                    $errorDetails .= "\nFound:    \"" . $normalizedLast . "\" (length: " . strlen($normalizedLast) . ")";
-                    
-                    // Show first 50 chars in hex for both
-                    $errorDetails .= "\n\nExpected (hex): " . bin2hex(substr($normalizedToken, 0, 50));
-                    $errorDetails .= "\nFound (hex):    " . bin2hex(substr($normalizedLast, 0, 50));
-                    
-                    // Show raw content (first 200 chars)
-                    $errorDetails .= "\n\nRaw file content (first 200 chars): " . addslashes(substr($lastContent, 0, 200));
-                    $errorDetails .= "\nFile URL: " . ($lastUrl ?: 'https://' . $domain . '/' . $filename);
-                    
-                    // Character-by-character comparison for first 50 chars
-                    $errorDetails .= "\n\nCharacter comparison (first 50):";
-                    $maxLen = max(strlen($normalizedToken), strlen($normalizedLast), 50);
-                    for ($i = 0; $i < min($maxLen, 50); $i++) {
-                        $expChar = isset($normalizedToken[$i]) ? $normalizedToken[$i] : '[MISSING]';
-                        $foundChar = isset($normalizedLast[$i]) ? $normalizedLast[$i] : '[MISSING]';
-                        $expHex = isset($normalizedToken[$i]) ? bin2hex($normalizedToken[$i]) : '--';
-                        $foundHex = isset($normalizedLast[$i]) ? bin2hex($normalizedLast[$i]) : '--';
-                        $match = ($expChar === $foundChar) ? '✓' : '✗';
-                        $errorDetails .= "\n  [$i] Expected: '$expChar' (0x$expHex) | Found: '$foundChar' (0x$foundHex) $match";
-                    }
-                } else {
-                    // File not accessible
-                    $testUrl = 'https://' . $domain . '/' . $filename;
-                    $errorDetails .= 'File not accessible at: ' . $testUrl;
-                    if ($lastError) {
-                        $errorDetails .= ' | Error: ' . (is_array($lastError) ? $lastError['message'] : $lastError);
-                    }
-                    $errorDetails .= "\n\nPlease ensure:";
-                    $errorDetails .= "\n1. The file is uploaded to your domain root";
-                    $errorDetails .= "\n2. The file is accessible via HTTPS";
-                    $errorDetails .= "\n3. The file contains ONLY the verification token (no extra spaces or characters)";
-                    $errorDetails .= "\n4. Expected token: \"" . trim($token) . "\"";
-                }
-                
-                return response()->json([
-                    'success' => false,
-                    'message' => $errorDetails
-                ]);
-
+                return $this->verifyTxtFileAjax($domain, $token, $request->filename);
             } else {
-                // Verify DNS TXT record
-                $dnsName = $request->dns_name;
-                $recordName = $dnsName . '.' . $domain;
-                
-                try {
-                    $records = dns_get_record($recordName, DNS_TXT);
-                    
-                    if ($records) {
-                        foreach ($records as $record) {
-                            if (isset($record['txt']) && trim($record['txt']) === $token) {
-                                return response()->json([
-                                    'success' => true,
-                                    'message' => 'Domain ownership verified successfully!'
-                                ]);
-                            }
-                        }
-                    }
-
-                    // Also try without subdomain prefix
-                    $records = dns_get_record($domain, DNS_TXT);
-                    if ($records) {
-                        foreach ($records as $record) {
-                            if (isset($record['txt']) && trim($record['txt']) === $token) {
-                                return response()->json([
-                                    'success' => true,
-                                    'message' => 'Domain ownership verified successfully!'
-                                ]);
-                            }
-                        }
-                    }
-
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'DNS TXT record not found. Please add a TXT record with name "' . $dnsName . '" and value "' . $token . '". DNS propagation may take up to 24-48 hours.'
-                    ]);
-
-                } catch (\Exception $e) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'DNS lookup failed: ' . $e->getMessage()
-                    ]);
-                }
+                return $this->verifyDnsAjax($domain, $token, $request->dns_name);
             }
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Verification failed: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Verify TXT file via AJAX
+     */
+    private function verifyTxtFileAjax($domain, $token, $filename)
+    {
+        // Try these locations in order
+        $urls = [
+            'https://' . $domain . '/' . $filename,
+            'http://' . $domain . '/' . $filename,
+            'https://' . $domain . '/.well-known/' . $filename,
+        ];
+
+        $lastError = null;
+        $foundContent = null;
+
+        foreach ($urls as $url) {
+            try {
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_MAXREDIRS => 3,
+                    CURLOPT_TIMEOUT => 10,
+                    CURLOPT_CONNECTTIMEOUT => 8,
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_SSL_VERIFYHOST => false,
+                    CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; VerificationBot/1.0)',
+                ]);
+                
+                $content = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $curlError = curl_error($ch);
+                curl_close($ch);
+                
+                if ($content !== false && $httpCode >= 200 && $httpCode < 300) {
+                    $foundContent = $content;
+                    
+                    // Simple normalization: remove all whitespace
+                    $cleanContent = preg_replace('/\s+/', '', trim($content));
+                    $cleanToken = preg_replace('/\s+/', '', trim($token));
+                    
+                    if ($cleanContent === $cleanToken) {
+                        return response()->json([
+                            'success' => true,
+                            'message' => 'Domain ownership verified successfully!'
+                        ]);
+                    }
+                } else {
+                    if ($curlError) {
+                        $lastError = $curlError;
+                    } else {
+                        $lastError = "HTTP $httpCode";
+                    }
+                }
+            } catch (\Exception $e) {
+                $lastError = $e->getMessage();
+                continue;
+            }
+        }
+
+        // Build helpful error message
+        $errorMessage = "Verification failed. ";
+        
+        if ($foundContent !== null) {
+            $errorMessage = "File found but content doesn't match.\n\n";
+            $errorMessage .= "Expected: " . substr($token, 0, 50) . "...\n";
+            $errorMessage .= "Found: " . substr(trim($foundContent), 0, 50) . "...\n\n";
+            $errorMessage .= "Please ensure the file contains ONLY the verification token with no extra spaces or characters.";
+        } else {
+            $errorMessage .= "File not accessible at: https://{$domain}/{$filename}\n\n";
+            $errorMessage .= "Please ensure:\n";
+            $errorMessage .= "1. The file is uploaded to your domain root directory\n";
+            $errorMessage .= "2. The file is accessible via HTTPS\n";
+            $errorMessage .= "3. The file name is exactly: {$filename}\n";
+            $errorMessage .= "4. The file contains ONLY this text: {$token}";
+            
+            if ($lastError) {
+                $errorMessage .= "\n\nError: {$lastError}";
+            }
+        }
+        
+        return response()->json([
+            'success' => false,
+            'message' => $errorMessage
+        ]);
+    }
+
+    /**
+     * Verify DNS TXT record via AJAX
+     */
+    private function verifyDnsAjax($domain, $token, $dnsName)
+    {
+        try {
+            // Try with subdomain prefix
+            $recordName = $dnsName . '.' . $domain;
+            $records = @dns_get_record($recordName, DNS_TXT);
+            
+            if ($records && is_array($records)) {
+                foreach ($records as $record) {
+                    if (isset($record['txt'])) {
+                        $recordValue = trim($record['txt'], '"');
+                        if ($recordValue === $token) {
+                            return response()->json([
+                                'success' => true,
+                                'message' => 'Domain ownership verified successfully!'
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            // Try at domain root
+            $records = @dns_get_record($domain, DNS_TXT);
+            if ($records && is_array($records)) {
+                foreach ($records as $record) {
+                    if (isset($record['txt'])) {
+                        $recordValue = trim($record['txt'], '"');
+                        if ($recordValue === $token) {
+                            return response()->json([
+                                'success' => true,
+                                'message' => 'Domain ownership verified successfully!'
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            $errorMessage = "DNS TXT record not found.\n\n";
+            $errorMessage .= "Please add a TXT record with:\n";
+            $errorMessage .= "Name/Host: {$dnsName}\n";
+            $errorMessage .= "Value/Content: {$token}\n\n";
+            $errorMessage .= "Note: DNS changes can take 5 minutes to 48 hours to propagate. Please wait a few minutes and try again.";
+
+            return response()->json([
+                'success' => false,
+                'message' => $errorMessage
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'DNS lookup failed: ' . $e->getMessage() . '. Please check your DNS settings.'
+            ]);
         }
     }
 }

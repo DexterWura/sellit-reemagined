@@ -1257,9 +1257,15 @@ $(document).ready(function() {
         $container.find('#websiteDnsRecordMethod').hide();
         
         if (method === 'txt_file') {
-            $container.find('#websiteTxtFileName').text(domainVerificationData.filename || '-');
-            $container.find('#websiteTxtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
-            $container.find('#websiteTxtFileContent').text(domainVerificationData.token || '-');
+            const filename = domainVerificationData.filename || '-';
+            const domain = domainVerificationData.domain || '-';
+            const token = domainVerificationData.token || '-';
+            const fileUrl = 'https://' + domain + '/' + filename;
+            
+            $container.find('#websiteTxtFileName').text(filename);
+            $container.find('#websiteTxtFileLocation').text(domain + '/' + filename);
+            $container.find('#websiteTxtFileUrl').text(fileUrl);
+            $container.find('#websiteTxtFileContent').text(token);
             $container.find('#websiteTxtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
             $container.find('#websiteDnsRecordName').text(domainVerificationData.dnsName || '-');
@@ -1354,9 +1360,15 @@ $(document).ready(function() {
         
         // Show the selected method
         if (method === 'txt_file') {
-            $cardBody.find('#websiteTxtFileName').text(verificationData.filename || '-');
-            $cardBody.find('#websiteTxtFileLocation').text('https://' + verificationData.domain + '/' + (verificationData.filename || ''));
-            $cardBody.find('#websiteTxtFileContent').text(verificationData.token || '-');
+            const filename = verificationData.filename || '-';
+            const domain = verificationData.domain || '-';
+            const token = verificationData.token || '-';
+            const fileUrl = 'https://' + domain + '/' + filename;
+            
+            $cardBody.find('#websiteTxtFileName').text(filename);
+            $cardBody.find('#websiteTxtFileLocation').text(domain + '/' + filename);
+            $cardBody.find('#websiteTxtFileUrl').text(fileUrl);
+            $cardBody.find('#websiteTxtFileContent').text(token);
             $cardBody.find('#websiteTxtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
             $cardBody.find('#websiteDnsRecordName').text(verificationData.dnsName || '-');
@@ -1450,14 +1462,15 @@ $(document).ready(function() {
                 } else {
                     $(container + ' #websiteVerified').val('0');
                     $(container + ' #websiteVerificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Not Verified")</span>');
-                    // Show detailed error message, or fallback to generic message
-                    const errorMsg = response.message || '@lang("Verification failed. Please check and try again.")';
-                    // Log the token being sent for debugging
-                    console.log('Verification failed. Token sent:', token);
-                    console.log('Filename:', filename);
-                    console.log('Domain:', domain);
-                    console.log('Error details:', errorMsg);
-                    notify('error', errorMsg);
+                    
+                    // Show detailed error message
+                    let errorMsg = response.message || '@lang("Verification failed. Please check and try again.")';
+                    
+                    // Format error message for better display (replace newlines with HTML breaks)
+                    errorMsg = errorMsg.replace(/\n/g, '<br>');
+                    
+                    // Show error in a more user-friendly way
+                    notify('error', errorMsg, 10000); // Show for 10 seconds
                 }
             },
             error: function(xhr) {

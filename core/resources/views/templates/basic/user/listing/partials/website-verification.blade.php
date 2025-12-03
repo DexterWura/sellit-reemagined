@@ -29,60 +29,97 @@
                 </div>
                 
                 <div id="websiteTxtFileMethod" class="verification-method-content" style="display: none;">
-                    <div class="alert alert-light border">
-                        <h6 class="mb-2">@lang('Step 1: Download Verification File')</h6>
-                        <p class="mb-2 small">@lang('Download the verification file and upload it to your website root directory.')</p>
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="downloadWebsiteTxtFile">
-                            <i class="las la-download me-1"></i>@lang('Download TXT File')
-                        </button>
-                        <div class="mt-2">
-                            <small class="text-muted">
-                                <strong>@lang('File name'):</strong> <code id="websiteTxtFileName">-</code><br>
-                                <strong>@lang('Upload to'):</strong> <code id="websiteTxtFileLocation">-</code><br>
-                                <strong>@lang('File content'):</strong> <code id="websiteTxtFileContent" class="text-break">-</code>
-                            </small>
+                    <div class="alert alert-info border">
+                        <h6 class="mb-3"><i class="las la-file-alt me-2"></i>@lang('File Upload Method')</h6>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">@lang('Step 1: Download the verification file')</label>
+                            <button type="button" class="btn btn-sm btn-primary" id="downloadWebsiteTxtFile">
+                                <i class="las la-download me-1"></i>@lang('Download File')
+                            </button>
                         </div>
-                        <div class="mt-3">
-                            <small class="text-muted">
-                                <strong>@lang('Instructions'):</strong>
-                                <ol class="small mb-0 mt-2">
-                                    <li>@lang('Click the download button above to download the verification file')</li>
-                                    <li>@lang('Upload the file to your website root directory (public_html, www, or public folder)')</li>
-                                    <li>@lang('Make sure the file is accessible at the URL shown above')</li>
-                                    <li>@lang('Click "Verify Ownership" button below to check')</li>
-                                </ol>
-                            </small>
+                        
+                        <div class="mb-3 p-3 bg-light rounded">
+                            <small class="text-muted d-block mb-2"><strong>@lang('File Details'):</strong></small>
+                            <table class="table table-sm table-bordered mb-0">
+                                <tr>
+                                    <td width="40%" class="fw-semibold">@lang('File Name'):</td>
+                                    <td><code id="websiteTxtFileName" class="text-break">-</code></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-semibold">@lang('Upload Location'):</td>
+                                    <td><code id="websiteTxtFileLocation" class="text-break">-</code></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-semibold">@lang('File Content'):</td>
+                                    <td><code id="websiteTxtFileContent" class="text-break small">-</code></td>
+                                </tr>
+                            </table>
+                        </div>
+                        
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold">@lang('Step 2: Upload the file')</label>
+                            <ol class="small mb-0">
+                                <li>@lang('Upload the downloaded file to your website root directory')</li>
+                                <li>@lang('Common locations:') <code>public_html/</code>, <code>www/</code>, <code>public/</code>, or <code>htdocs/</code></li>
+                                <li>@lang('The file must be accessible at:') <code id="websiteTxtFileUrl">-</code></li>
+                                <li>@lang('Make sure the file contains ONLY the verification token (no extra text)')</li>
+                            </ol>
                         </div>
                     </div>
                 </div>
                 
                 <div id="websiteDnsRecordMethod" class="verification-method-content" style="display: none;">
-                    <div class="alert alert-light border">
-                        <h6 class="mb-2">@lang('Step 1: Add DNS TXT Record')</h6>
-                        <p class="mb-2 small">@lang('Add the following TXT record to your domain DNS settings:')</p>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered">
-                                <tr>
-                                    <th width="30%">@lang('Type')</th>
-                                    <th width="35%">@lang('Name/Host')</th>
-                                    <th width="35%">@lang('Value/Content')</th>
-                                </tr>
-                                <tr>
-                                    <td><code>TXT</code></td>
-                                    <td><code id="websiteDnsRecordName">-</code></td>
-                                    <td><code id="websiteDnsRecordValue" class="text-break">-</code></td>
-                                </tr>
-                            </table>
+                    <div class="alert alert-info border">
+                        <h6 class="mb-3"><i class="las la-server me-2"></i>@lang('DNS TXT Record Method')</h6>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">@lang('Step 1: Add DNS TXT Record')</label>
+                            <p class="small mb-2">@lang('Go to your domain registrar or DNS provider and add the following TXT record:')</p>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th width="20%">@lang('Type')</th>
+                                            <th width="30%">@lang('Name/Host')</th>
+                                            <th width="50%">@lang('Value/Content')</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><code>TXT</code></td>
+                                            <td><code id="websiteDnsRecordName" class="text-break">-</code></td>
+                                            <td><code id="websiteDnsRecordValue" class="text-break small">-</code></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                        <small class="text-muted">@lang('DNS propagation may take up to 24-48 hours.')</small>
+                        
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold">@lang('Step 2: Wait for DNS propagation')</label>
+                            <ul class="small mb-0">
+                                <li>@lang('DNS changes typically take 5-30 minutes, but can take up to 48 hours')</li>
+                                <li>@lang('After adding the record, wait a few minutes before clicking "Verify Ownership"')</li>
+                                <li>@lang('You can check if the record is live using online DNS lookup tools')</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
                 
-                <div class="mt-3">
-                    <button type="button" class="btn btn--base btn-sm" id="verifyWebsiteBtn">
-                        <i class="las la-check-circle me-1"></i>@lang('Verify Ownership')
-                    </button>
-                    <span id="websiteVerificationStatus" class="ms-2"></span>
+                <div class="mt-4 pt-3 border-top">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <button type="button" class="btn btn--base" id="verifyWebsiteBtn">
+                                <i class="las la-check-circle me-1"></i>@lang('Verify Ownership')
+                            </button>
+                            <span id="websiteVerificationStatus" class="ms-3"></span>
+                        </div>
+                        <small class="text-muted">
+                            <i class="las la-info-circle"></i> @lang('You must verify ownership before submitting the listing')
+                        </small>
+                    </div>
                 </div>
                 
                 <input type="hidden" name="domain_verified" id="websiteVerified" value="0">
