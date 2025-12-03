@@ -755,10 +755,10 @@ $(document).ready(function() {
         $('.progress-steps .step').each(function() {
             const stepNum = parseInt($(this).attr('data-step'));
             if (!isNaN(stepNum)) {
-                if (stepNum < step) {
-                    $(this).addClass('completed');
-                } else if (stepNum === step) {
-                    $(this).addClass('active');
+            if (stepNum < step) {
+                $(this).addClass('completed');
+            } else if (stepNum === step) {
+                $(this).addClass('active');
                 }
             }
         });
@@ -885,17 +885,24 @@ $(document).ready(function() {
             
             // Check if domain/website is entered
             if (businessType === 'domain') {
-                const domainInput = $('#domainNameInput').val();
-                if (!domainInput || !domainInput.trim()) {
+                // Make sure domain section is visible
+                $('#domainInputSection').show();
+                
+                const domainInputEl = $('#domainNameInput');
+                const domainInput = domainInputEl.val() || '';
+                const trimmedDomain = domainInput.trim();
+                
+                console.log('Domain validation - value:', trimmedDomain, 'Element exists:', domainInputEl.length, 'Section visible:', $('#domainInputSection').is(':visible'));
+                
+                if (!trimmedDomain) {
                     notify('error', '@lang("Please enter a domain name")');
-                    $('#domainNameInput').focus();
+                    domainInputEl.focus();
                     return false;
                 }
                 // Validate URL format
-                const trimmedDomain = domainInput.trim();
                 if (!trimmedDomain.match(/^https?:\/\//i)) {
                     notify('error', '@lang("Domain must start with http:// or https://")');
-                    $('#domainNameInput').focus();
+                    domainInputEl.focus();
                     return false;
                 }
             } else if (businessType === 'website') {
@@ -971,7 +978,7 @@ $(document).ready(function() {
         }
         
         // Always enable continue button - form validation will handle required fields
-        $('#step1ContinueBtn').prop('disabled', false);
+            $('#step1ContinueBtn').prop('disabled', false);
         
         // Hide/show financial section based on business type (for Step 2)
         if (type === 'domain') {
@@ -1053,6 +1060,8 @@ $(document).ready(function() {
     if (preselectedType) {
         // Set required attribute for pre-selected type
         if (preselectedType === 'domain') {
+            // Make sure domain section is visible
+            $('#domainInputSection').show();
             $('#domainNameInput').attr('required', 'required');
             $('.financial-section').addClass('d-none');
             $('.domain-card-preview').removeClass('d-none');
@@ -1066,6 +1075,8 @@ $(document).ready(function() {
                 }, 300);
             }
         } else if (preselectedType === 'website') {
+            // Make sure website section is visible
+            $('#websiteInputSection').show();
             $('#websiteUrlInput').attr('required', 'required');
             
             // If website is already entered, trigger input
