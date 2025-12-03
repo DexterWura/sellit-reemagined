@@ -1314,8 +1314,8 @@ $(document).ready(function() {
             $('#domainVerificationMethod').val('txt_file');
         }
         
-        $('#txtFileMethod').hide();
-        $('#dnsRecordMethod').hide();
+        $('#txtFileMethod').css('display', 'none');
+        $('#dnsRecordMethod').css('display', 'none');
         
         if (method === 'txt_file') {
             if (domainVerificationData.domain && domainVerificationData.token) {
@@ -1329,7 +1329,7 @@ $(document).ready(function() {
                 $('#txtFileContent').text('-');
                 $('#downloadTxtFile').prop('disabled', true);
             }
-            $('#txtFileMethod').show();
+            $('#txtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
             if (domainVerificationData.domain && domainVerificationData.token) {
                 $('#dnsRecordName').text(domainVerificationData.dnsName || '-');
@@ -1338,7 +1338,7 @@ $(document).ready(function() {
                 $('#dnsRecordName').text('-');
                 $('#dnsRecordValue').text('-');
             }
-            $('#dnsRecordMethod').show();
+            $('#dnsRecordMethod').css('display', 'block');
         }
         
         if (domainVerificationData.token) {
@@ -1398,8 +1398,9 @@ $(document).ready(function() {
         $('#websiteVerificationStatus').html('');
     }
     
-    // Change verification method
-    $('#domainVerificationMethod').on('change', updateDomainVerificationDisplay);
+    $('#domainVerificationMethod').on('change', function() {
+        updateDomainVerificationDisplay();
+    });
     $('#websiteVerificationMethod').on('change', updateWebsiteVerificationDisplay);
     
     $('#downloadTxtFile').on('click', function() {
