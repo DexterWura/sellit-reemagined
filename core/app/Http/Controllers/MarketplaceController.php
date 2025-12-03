@@ -37,7 +37,7 @@ class MarketplaceController extends Controller
             ->featured()
             ->with([
                 'primaryImage', // Use primaryImage instead of all images for performance
-                'seller:id,username,firstname,lastname,email,is_verified',
+                'seller:id,username,firstname,lastname,email',
                 'listingCategory:id,name,slug'
             ])
             ->orderBy('featured_until', 'desc')
@@ -49,7 +49,7 @@ class MarketplaceController extends Controller
             ->endingSoon()
             ->with([
                 'primaryImage',
-                'seller:id,username,firstname,lastname,email,is_verified'
+                'seller:id,username,firstname,lastname,email'
             ])
             ->orderBy('auction_end')
             ->take(6)
@@ -59,7 +59,7 @@ class MarketplaceController extends Controller
         $latestListings = Listing::active()
             ->with([
                 'primaryImage',
-                'seller:id,username,firstname,lastname,email,is_verified',
+                'seller:id,username,firstname,lastname,email',
                 'listingCategory:id,name,slug'
             ])
             ->orderBy('approved_at', 'desc')
@@ -89,7 +89,7 @@ class MarketplaceController extends Controller
         $listings = Listing::active()
             ->with([
                 'primaryImage', // More efficient than loading all images
-                'seller:id,username,firstname,lastname,email,is_verified',
+                'seller:id,username,firstname,lastname,email',
                 'listingCategory:id,name,slug'
             ])
             ->where(function ($q) {
@@ -288,7 +288,7 @@ class MarketplaceController extends Controller
             ->where('status', '!=', Status::LISTING_DRAFT)
             ->with([
                 'images', // Keep all images for detail view
-                'seller:id,username,firstname,lastname,email,is_verified,created_at',
+                'seller:id,username,firstname,lastname,email,created_at',
                 'listingCategory:id,name,slug',
                 'metrics' => function ($q) {
                     $q->orderBy('period_date', 'desc')->take(12);
