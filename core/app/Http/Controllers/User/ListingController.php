@@ -5,13 +5,11 @@ namespace App\Http\Controllers\User;
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
-use App\Models\DomainVerification;
 use App\Models\Listing;
 use App\Models\ListingCategory;
 use App\Models\ListingImage;
 use App\Models\ListingMetric;
 use App\Models\MarketplaceSetting;
-use App\Models\SocialMediaVerification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -164,45 +162,7 @@ class ListingController extends Controller
             'website_url' => 'required_if:business_type,website|nullable|url|regex:/^https?:\/\/.+/i',
         ]);
 
-        // Check verification requirements
-        $requiresVerification = false;
-        $isVerified = false;
-
-        if ($businessType === 'domain' && MarketplaceSetting::requireDomainVerification()) {
-            $requiresVerification = true;
-            $isVerified = $request->has('domain_verified') && $request->domain_verified == '1';
-            if (!$isVerified) {
-                $notify[] = ['error', 'You must verify domain ownership before submitting.'];
-                return back()->withInput()->withNotify($notify);
-            }
-        }
-
-        if ($businessType === 'website' && MarketplaceSetting::requireWebsiteVerification()) {
-            $requiresVerification = true;
-            $isVerified = $request->has('domain_verified') && $request->domain_verified == '1';
-            if (!$isVerified) {
-                $notify[] = ['error', 'You must verify website ownership before submitting.'];
-                return back()->withInput()->withNotify($notify);
-            }
-        }
-
-        if ($businessType === 'social_media_account' && MarketplaceSetting::requireSocialMediaVerification()) {
-            $requiresVerification = true;
-            // Check both form input and session (in case verification was done before form fill)
-            $isVerified = ($request->has('social_verified') && $request->social_verified == '1') 
-                       || session('social_verified', false);
-            
-            if (!$isVerified) {
-                $notify[] = ['error', 'You must verify social media account ownership before submitting.'];
-                return back()->withInput()->withNotify($notify);
-            }
-            
-            // Get verified platform from session if available
-            $verifiedPlatform = session('verified_platform');
-            if ($verifiedPlatform && !$request->has('platform')) {
-                $request->merge(['platform' => $verifiedPlatform]);
-            }
-        }
+        // Verification logic removed - no verification required
 
         // Extract domain/website info
         $domain = null;
@@ -291,39 +251,16 @@ class ListingController extends Controller
         $listing->meta_title = $request->meta_title ?? $title;
         $listing->meta_description = $request->meta_description ?? Str::limit(strip_tags($request->description), 160);
 
-        // Status
-        if ($requiresVerification && $isVerified) {
-            $listing->status = Status::LISTING_PENDING;
-            $listing->requires_verification = false;
-            $listing->is_verified = true;
-        } else {
-            $listing->status = Status::LISTING_PENDING;
-            $listing->requires_verification = false;
-            $listing->is_verified = true;
-        }
+        // Status - no verification required
+        $listing->status = Status::LISTING_PENDING;
+        $listing->requires_verification = false;
+        $listing->is_verified = false;
 
         $listing->save();
 
         // Handle images
         if ($request->hasFile('images')) {
             $this->uploadImages($listing, $request->file('images'));
-        }
-
-        // Create verification record if needed
-        if ($requiresVerification && $isVerified) {
-            if ($businessType === 'domain' || $businessType === 'website') {
-                $verificationMethod = $request->verification_method ?? 'txt_file';
-                DomainVerification::createForListing($listing, $verificationMethod);
-            } elseif ($businessType === 'social_media_account') {
-                $platform = $request->platform ?? session('verified_platform');
-                if ($platform) {
-                    $accountId = session('verified_account_id');
-                    $verification = SocialMediaVerification::createForListing($listing, $platform, $accountId);
-                    $verification->markAsVerified($accountId, session('verified_account_username'));
-                }
-                // Clear session after use
-                session()->forget(['social_verified', 'verified_platform', 'verified_account_id', 'verified_account_username']);
-            }
         }
 
         $user->increment('total_listings');
