@@ -334,7 +334,7 @@
                                             </div>
                                             
                                             {{-- Same verification methods UI as domain --}}
-                                            <div id="websiteTxtFileVerificationMethod" class="verification-method-content">
+                                            <div id="websiteTxtFileVerificationMethod" class="verification-method-content" style="display: none;">
                                                 <div class="alert alert-info border">
                                                     <h6 class="mb-3"><i class="las la-file-alt me-2"></i>@lang('File Upload Method')</h6>
                                                     
@@ -1114,7 +1114,7 @@
                                             </div>
                                             
                                             {{-- Same verification methods UI as domain --}}
-                                            <div id="websiteTxtFileVerificationMethod" class="verification-method-content">
+                                            <div id="websiteTxtFileVerificationMethod" class="verification-method-content" style="display: none;">
                                                 <div class="alert alert-info border">
                                                     <h6 class="mb-3"><i class="las la-file-alt me-2"></i>@lang('File Upload Method')</h6>
                                                     
@@ -1973,10 +1973,11 @@ $(document).ready(function() {
         generateVerificationToken('domain', domain);
         
         // Show domain verification section
-        $('#domainVerificationSection').show();
-        
-        // Update verification display
-        updateVerificationDisplay();
+        $('#domainVerificationSection').slideDown(300, function() {
+            // After showing, update the display to show txt_file method by default
+            $('#verificationMethodSelect').val('txt_file');
+            updateVerificationDisplay();
+        });
         
         // Keep continue button disabled until verified
         $('#step1ContinueBtn').prop('disabled', true);
@@ -1997,10 +1998,11 @@ $(document).ready(function() {
         generateVerificationToken('website', domain);
         
         // Show website verification section
-        $('#websiteVerificationSection').show();
-        
-        // Update verification display
-        updateWebsiteVerificationDisplay();
+        $('#websiteVerificationSection').slideDown(300, function() {
+            // After showing, update the display to show txt_file method by default
+            $('#websiteVerificationMethodSelect').val('txt_file');
+            updateWebsiteVerificationDisplay();
+        });
         
         // Keep continue button disabled until verified
         $('#step1ContinueBtn').prop('disabled', true);
@@ -2028,22 +2030,38 @@ $(document).ready(function() {
     }
     
     function updateVerificationDisplay() {
-        const method = $('#verificationMethodSelect').val();
+        if (!verificationData.token || !verificationData.domain) {
+            return; // Don't update if data not ready
+        }
+        
+        const method = $('#verificationMethodSelect').val() || 'txt_file';
         
         if (method === 'txt_file') {
             $('#txtFileVerificationMethod').show();
             $('#dnsRecordVerificationMethod').hide();
             
-            $('#verificationFileName').text(verificationData.filename);
-            $('#verificationFileLocation').text(verificationData.domain + '/' + verificationData.filename);
-            $('#verificationFileUrl').text('https://' + verificationData.domain + '/' + verificationData.filename);
-            $('#verificationFileContent').text(verificationData.token);
+            // Update file details
+            if (verificationData.filename) {
+                $('#verificationFileName').text(verificationData.filename);
+            }
+            if (verificationData.domain) {
+                $('#verificationFileLocation').text(verificationData.domain + '/' + verificationData.filename);
+                $('#verificationFileUrl').text('https://' + verificationData.domain + '/' + verificationData.filename);
+            }
+            if (verificationData.token) {
+                $('#verificationFileContent').text(verificationData.token);
+            }
         } else {
             $('#txtFileVerificationMethod').hide();
             $('#dnsRecordVerificationMethod').show();
             
-            $('#verificationDnsName').text(verificationData.dnsName);
-            $('#verificationDnsValue').text(verificationData.token);
+            // Update DNS details
+            if (verificationData.dnsName) {
+                $('#verificationDnsName').text(verificationData.dnsName);
+            }
+            if (verificationData.token) {
+                $('#verificationDnsValue').text(verificationData.token);
+            }
         }
         
         // Update hidden fields
@@ -2053,22 +2071,38 @@ $(document).ready(function() {
     }
     
     function updateWebsiteVerificationDisplay() {
-        const method = $('#websiteVerificationMethodSelect').val();
+        if (!verificationData.token || !verificationData.domain) {
+            return; // Don't update if data not ready
+        }
+        
+        const method = $('#websiteVerificationMethodSelect').val() || 'txt_file';
         
         if (method === 'txt_file') {
             $('#websiteTxtFileVerificationMethod').show();
             $('#websiteDnsRecordVerificationMethod').hide();
             
-            $('#websiteVerificationFileName').text(verificationData.filename);
-            $('#websiteVerificationFileLocation').text(verificationData.domain + '/' + verificationData.filename);
-            $('#websiteVerificationFileUrl').text('https://' + verificationData.domain + '/' + verificationData.filename);
-            $('#websiteVerificationFileContent').text(verificationData.token);
+            // Update file details
+            if (verificationData.filename) {
+                $('#websiteVerificationFileName').text(verificationData.filename);
+            }
+            if (verificationData.domain) {
+                $('#websiteVerificationFileLocation').text(verificationData.domain + '/' + verificationData.filename);
+                $('#websiteVerificationFileUrl').text('https://' + verificationData.domain + '/' + verificationData.filename);
+            }
+            if (verificationData.token) {
+                $('#websiteVerificationFileContent').text(verificationData.token);
+            }
         } else {
             $('#websiteTxtFileVerificationMethod').hide();
             $('#websiteDnsRecordVerificationMethod').show();
             
-            $('#websiteVerificationDnsName').text(verificationData.dnsName);
-            $('#websiteVerificationDnsValue').text(verificationData.token);
+            // Update DNS details
+            if (verificationData.dnsName) {
+                $('#websiteVerificationDnsName').text(verificationData.dnsName);
+            }
+            if (verificationData.token) {
+                $('#websiteVerificationDnsValue').text(verificationData.token);
+            }
         }
         
         // Update hidden fields
