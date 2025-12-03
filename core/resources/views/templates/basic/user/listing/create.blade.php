@@ -980,13 +980,18 @@ $(document).ready(function() {
             const domainValue = $('#domainNameInput').val().trim();
             if (domainValue) {
                 // Trigger input event to show verification section if domain is already entered
-                $('#domainNameInput').trigger('input');
+                setTimeout(function() {
+                    $('#domainNameInput').trigger('input');
+                }, 100);
             } else {
                 // Hide verification section until domain is entered
                 $('#domainVerificationSection').slideUp();
             }
         } else if (type === 'domain' && !requireDomainVerification) {
             // Hide verification section if verification is not required
+            $('#domainVerificationSection').slideUp();
+        } else if (type !== 'domain') {
+            // Hide verification section when other business types are selected
             $('#domainVerificationSection').slideUp();
         }
         
@@ -1199,10 +1204,12 @@ $(document).ready(function() {
                     // Generate verification data first
                     generateDomainVerification(domain);
                     // Then show the section and update display after it's visible
-                    $('#domainVerificationSection').slideDown(300, function() {
-                        // After section is fully visible, update display
-                        updateDomainVerificationDisplay();
-                    });
+                    if ($('#domainVerificationSection').length) {
+                        $('#domainVerificationSection').slideDown(300, function() {
+                            // After section is fully visible, update display
+                            updateDomainVerificationDisplay();
+                        });
+                    }
                 } catch(e) {
                     // Invalid URL format, hide verification
                     $('#domainVerificationSection').slideUp();
@@ -1291,6 +1298,20 @@ $(document).ready(function() {
         // Update display with the current selected method
         updateDomainVerificationDisplay();
     }
+    
+    // Initialize domain verification if domain is already entered on page load
+    $(document).ready(function() {
+        const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
+        const businessType = $('input[name="business_type"]:checked').val();
+        if (businessType === 'domain' && requireDomainVerification) {
+            const domainValue = $('#domainNameInput').val().trim();
+            if (domainValue) {
+                setTimeout(function() {
+                    $('#domainNameInput').trigger('input');
+                }, 500);
+            }
+        }
+    });
     
     // Generate verification data for website
     function generateWebsiteVerification(domain) {
