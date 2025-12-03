@@ -790,13 +790,13 @@ $(document).ready(function() {
                 if (domainValue) {
                     $('#domainNameInput').trigger('input');
                 } else {
-                    $('.domain-fields').find('#websiteVerificationSection').slideUp();
+                    $('.domain-fields').find('#websiteVerificationSection').first().slideUp();
                 }
-            }, 100);
+            }, 200);
         } else if (type === 'domain' && !requireDomainVerification) {
-            $('.domain-fields').find('#websiteVerificationSection').slideUp();
+            $('.domain-fields').find('#websiteVerificationSection').first().slideUp();
         } else if (type !== 'domain') {
-            $('.domain-fields').find('#websiteVerificationSection').slideUp();
+            $('.domain-fields').find('#websiteVerificationSection').first().slideUp();
         }
         
         if (type === 'website' && requireWebsiteVerification) {
@@ -997,17 +997,14 @@ $(document).ready(function() {
                     const urlObj = new URL(value);
                     const domain = urlObj.hostname.replace(/^www\./, '');
                     generateDomainVerification(domain);
-                    const $verificationSection = $('.domain-fields').find('#websiteVerificationSection');
-                    if ($verificationSection.length) {
-                        $verificationSection.slideDown(300, function() {
-                            updateDomainVerificationDisplay();
-                        });
-                    }
+                    $('.domain-fields #websiteVerificationSection').slideDown(300, function() {
+                        updateDomainVerificationDisplay();
+                    });
                 } catch(e) {
-                    $('.domain-fields').find('#websiteVerificationSection').slideUp();
+                    $('.domain-fields #websiteVerificationSection').slideUp();
                 }
             } else {
-                $('.domain-fields').find('#websiteVerificationSection').slideUp();
+                $('.domain-fields #websiteVerificationSection').slideUp();
             }
         }
     });
@@ -1098,7 +1095,10 @@ $(document).ready(function() {
     }
     
     function updateDomainVerificationDisplay() {
-        const $container = $('.domain-fields');
+        let $container = $('.domain-fields:not(.d-none)');
+        if ($container.length === 0) {
+            $container = $('.domain-fields');
+        }
         let method = $container.find('#websiteVerificationMethod').val();
         
         if (!domainVerificationData.domain || !domainVerificationData.token) {
