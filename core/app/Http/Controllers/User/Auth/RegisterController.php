@@ -109,6 +109,16 @@ class RegisterController extends Controller
 
         $this->guard()->login($user);
 
+        // Log successful registration
+        \Log::info('User registration successful', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'email' => $user->email,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'referrer' => $referBy ?? null
+        ]);
+
         return $this->registered($request, $user)
             ?:  redirect($this->redirectPath());
     }

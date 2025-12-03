@@ -126,6 +126,23 @@ class BidController extends Controller
                 $bid->ip_address = $request->ip();
                 $bid->save();
 
+                // Log bid placement
+                \Log::info('Bid placed', [
+                    'bid_id' => $bid->id,
+                    'bid_number' => $bid->bid_number,
+                    'listing_id' => $listing->id,
+                    'listing_number' => $listing->listing_number,
+                    'user_id' => $user->id,
+                    'username' => $user->username,
+                    'amount' => $amount,
+                    'max_bid' => $maxBid,
+                    'is_auto_bid' => $maxBid > 0,
+                    'previous_highest' => $listing->current_bid - $listing->bid_increment,
+                    'current_highest' => $listing->current_bid,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent()
+                ]);
+
             // Prevent duplicate bids from same user within short time (spam prevention)
             $recentBid = Bid::where('listing_id', $listing->id)
                 ->where('user_id', $user->id)

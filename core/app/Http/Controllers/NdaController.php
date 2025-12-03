@@ -96,6 +96,19 @@ class NdaController extends Controller
                     ]);
                 }
 
+                // Log NDA signing
+                \Log::info('NDA signed', [
+                    'nda_id' => $nda->id,
+                    'listing_id' => $listing->id,
+                    'listing_number' => $listing->listing_number,
+                    'user_id' => auth()->id(),
+                    'username' => auth()->user()->username,
+                    'signature' => $request->signature,
+                    'expires_at' => $nda->expires_at,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent()
+                ]);
+
                 DB::commit();
 
                 // Notify seller

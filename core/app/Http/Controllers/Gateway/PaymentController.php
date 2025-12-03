@@ -134,6 +134,24 @@ class PaymentController extends Controller
         $data->success_url     = urlPath('user.deposit.history');
         $data->failed_url      = urlPath('user.deposit.history');
         $data->save();
+
+        // Log deposit initiation
+        \Log::info('Deposit initiated', [
+            'deposit_id' => $data->id,
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'amount' => $amount,
+            'charge' => $charge,
+            'final_amount' => $finalAmount,
+            'gateway' => $gate->method_code,
+            'currency' => $gate->currency,
+            'trx' => $data->trx,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'milestone_id' => $data->milestone_id,
+            'escrow_payment' => isset($checkOutData['type']) && $checkOutData['type'] == 'escrow_full_payment'
+        ]);
+
         session()->put('Track', $data->trx);
         return to_route('user.deposit.confirm');
     }

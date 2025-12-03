@@ -318,6 +318,20 @@ class ManageUsersController extends Controller
             $notify[]         = ['success', 'User unbanned successfully'];
         }
         $user->save();
+
+        // Log admin user status change
+        \Log::info('Admin user status changed', [
+            'admin_id' => auth()->id(),
+            'admin_username' => auth()->user()->username,
+            'target_user_id' => $user->id,
+            'target_username' => $user->username,
+            'old_status' => $user->status == Status::USER_ACTIVE ? 'banned' : 'active',
+            'new_status' => $user->status == Status::USER_ACTIVE ? 'active' : 'banned',
+            'ban_reason' => $user->ban_reason,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
+
         return back()->withNotify($notify);
     }
 

@@ -263,6 +263,21 @@ class ListingController extends Controller
 
         $listing->save();
 
+        // Log listing creation
+        \Log::info('Listing created', [
+            'listing_id' => $listing->id,
+            'listing_number' => $listing->listing_number,
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'title' => $listing->title,
+            'business_type' => $listing->business_type,
+            'sale_type' => $listing->sale_type,
+            'asking_price' => $listing->asking_price,
+            'status' => 'pending',
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
+
         // Handle images
         if ($request->hasFile('images')) {
             $this->uploadImages($listing, $request->file('images'));
@@ -459,6 +474,21 @@ class ListingController extends Controller
         }
 
         $listing->save();
+
+        // Log listing update
+        \Log::info('Listing updated', [
+            'listing_id' => $listing->id,
+            'listing_number' => $listing->listing_number,
+            'user_id' => auth()->id(),
+            'username' => auth()->user()->username,
+            'title' => $listing->title,
+            'business_type' => $listing->business_type,
+            'sale_type' => $listing->sale_type,
+            'asking_price' => $listing->asking_price,
+            'status' => $listing->status,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
 
         // Handle new images
         if ($request->hasFile('images')) {

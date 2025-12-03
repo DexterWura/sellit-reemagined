@@ -103,6 +103,24 @@ class WithdrawalController extends Controller
         $withdraw->admin_feedback = $request->details;
         $withdraw->save();
 
+        // Log withdrawal approval
+        \Log::info('Admin withdrawal approved', [
+            'admin_id' => auth()->id(),
+            'admin_username' => auth()->user()->username,
+            'withdrawal_id' => $withdraw->id,
+            'user_id' => $withdraw->user_id,
+            'username' => $withdraw->user->username,
+            'amount' => $withdraw->amount,
+            'charge' => $withdraw->charge,
+            'final_amount' => $withdraw->final_amount,
+            'method' => $withdraw->method->name,
+            'currency' => $withdraw->currency,
+            'trx' => $withdraw->trx,
+            'admin_feedback' => $request->details,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
+
         notify($withdraw->user, 'WITHDRAW_APPROVE', [
             'method_name' => $withdraw->method->name,
             'method_currency' => $withdraw->currency,

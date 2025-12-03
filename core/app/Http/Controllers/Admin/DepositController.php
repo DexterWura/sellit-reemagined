@@ -125,6 +125,22 @@ class DepositController extends Controller
 
         PaymentController::userDataUpdate($deposit,true);
 
+        // Log deposit approval
+        \Log::info('Admin deposit approved', [
+            'admin_id' => auth()->id(),
+            'admin_username' => auth()->user()->username,
+            'deposit_id' => $deposit->id,
+            'user_id' => $deposit->user_id,
+            'username' => $deposit->user->username,
+            'amount' => $deposit->amount,
+            'charge' => $deposit->charge,
+            'final_amount' => $deposit->final_amount,
+            'gateway' => $deposit->method_code,
+            'trx' => $deposit->trx,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent()
+        ]);
+
         $notify[] = ['success', 'Deposit request approved successfully'];
 
         return to_route('admin.deposit.pending')->withNotify($notify);

@@ -87,6 +87,23 @@ class WithdrawController extends Controller
         $withdraw->after_charge = $afterCharge;
         $withdraw->trx = getTrx();
         $withdraw->save();
+
+        // Log withdrawal initiation
+        \Log::info('Withdrawal initiated', [
+            'withdrawal_id' => $withdraw->id,
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'amount' => $request->amount,
+            'charge' => $charge,
+            'final_amount' => $finalAmount,
+            'method' => $method->name,
+            'currency' => $method->currency,
+            'trx' => $withdraw->trx,
+            'user_balance_before' => $user->balance,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
+
         session()->put('wtrx', $withdraw->trx);
         return to_route('user.withdraw.preview');
     }

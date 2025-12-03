@@ -176,12 +176,29 @@ class EscrowController extends Controller
                 }
 
                 $escrow->save();
-                
+
                 $conversation            = new Conversation();
                 $conversation->escrow_id = $escrow->id;
                 $conversation->buyer_id  = $escrow->buyer_id;
                 $conversation->seller_id = $escrow->seller_id;
                 $conversation->save();
+
+                // Log escrow creation
+                \Log::info('Escrow created', [
+                    'escrow_id' => $escrow->id,
+                    'escrow_number' => $escrow->escrow_number,
+                    'creator_id' => $user->id,
+                    'creator_username' => $user->username,
+                    'buyer_id' => $escrow->buyer_id,
+                    'seller_id' => $escrow->seller_id,
+                    'amount' => $amount,
+                    'charge' => $charge,
+                    'title' => $request->title,
+                    'category_id' => $category_id,
+                    'invited_user' => $toUser ? null : $request->email,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent()
+                ]);
 
                 DB::commit();
 

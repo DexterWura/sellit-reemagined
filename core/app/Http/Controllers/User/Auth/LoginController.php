@@ -52,8 +52,25 @@ class LoginController extends Controller
         }
 
         if ($this->attemptLogin($request)) {
+            $user = auth()->user();
+            \Log::info('User login successful', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'email' => $user->email,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'login_method' => $this->username()
+            ]);
             return $this->sendLoginResponse($request);
         }
+
+        // Log failed login attempt
+        \Log::warning('User login failed', [
+            'username_attempt' => $request->input($this->username()),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'login_method' => $this->username()
+        ]);
 
         // If the login attempt was unsuccessful we will increment the number of attempts
         // to login and redirect the user back to the login form. Of course, when this
@@ -95,6 +112,18 @@ class LoginController extends Controller
 
     public function logout()
     {
+        $user = auth()->user();
+
+        if ($user) {
+            \Log::info('User logout', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'email' => $user->email,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent()
+            ]);
+        }
+
         $this->guard()->logout();
         request()->session()->invalidate();
 
