@@ -103,6 +103,11 @@ class EscrowController extends Controller
             $category_id = $escrowInfo['category_id'];
             $user        = auth()->user();
             $toUser      = User::where('email', $request->email)->first();
+            
+            if (!$toUser) {
+                throw ValidationException::withMessages(['error' => 'User not found with the provided email']);
+            }
+            
             $amount      = $escrowInfo['amount'];
             $charge      = $this->getCharge($amount);
 
@@ -125,10 +130,10 @@ class EscrowController extends Controller
 
                 if ($escrowInfo['type'] == 1) {
                     $escrow->seller_id = $user->id;
-                    $escrow->buyer_id  = @$toUser->id ?? 0;
+                    $escrow->buyer_id  = $toUser->id;
                 } else {
                     $escrow->buyer_id  = $user->id;
-                    $escrow->seller_id = @$toUser->id ?? 0;
+                    $escrow->seller_id = $toUser->id;
                 }
 
                 $escrow->escrow_number = getTrx();

@@ -249,7 +249,7 @@ class UserController extends Controller
         $user->city = $request->city;
         $user->state = $request->state;
         $user->zip = $request->zip;
-        $user->country_name = @$request->country;
+        $user->country_name = $request->country ?? null;
         $user->dial_code = $request->mobile_code;
 
         $user->profile_complete = Status::YES;

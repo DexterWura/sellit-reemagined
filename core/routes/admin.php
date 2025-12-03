@@ -115,7 +115,7 @@ Route::middleware('admin')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('global', 'globalCharge')->name('global');
         Route::post('store/{id?}', 'store')->name('store');
-        ROute::post('remove/{id}', 'remove')->name('remove');
+        Route::post('remove/{id}', 'remove')->name('remove');
     });
 
     // ==================== MARKETPLACE MANAGEMENT ====================
@@ -453,59 +453,5 @@ Route::middleware('admin')->group(function () {
         Route::post('sections', 'sectionsUpdate')->name('sections.update');
         Route::post('section/update/{id}', 'updateSection')->name('section.update');
         Route::post('section/toggle/{id}', 'toggleSection')->name('section.toggle');
-    });
-
-    // Marketplace Listings Management
-    Route::controller('ListingController')->prefix('listings')->name('listing.')->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::get('pending', 'pending')->name('pending');
-        Route::get('active', 'active')->name('active');
-        Route::get('sold', 'sold')->name('sold');
-        Route::get('rejected', 'rejected')->name('rejected');
-        Route::get('expired', 'expired')->name('expired');
-        Route::get('details/{id}', 'details')->name('details');
-        Route::post('approve/{id}', 'approve')->name('approve');
-        Route::post('reject/{id}', 'reject')->name('reject');
-        Route::post('feature/{id}', 'feature')->name('feature');
-        Route::post('unfeature/{id}', 'unfeature')->name('unfeature');
-        Route::post('verify/{id}', 'verify')->name('verify');
-        Route::post('extend-auction/{id}', 'extendAuction')->name('extend.auction');
-        Route::post('cancel/{id}', 'cancel')->name('cancel');
-    });
-
-    // Listing Categories
-    Route::controller('ListingCategoryController')->prefix('listing-categories')->name('listing.category.')->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('store/{id?}', 'store')->name('store');
-        Route::post('status/{id}', 'status')->name('status');
-    });
-
-    // Bids Management
-    Route::controller('BidController')->prefix('bids')->name('bid.')->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::get('winning', 'winning')->name('winning');
-        Route::get('won', 'won')->name('won');
-        Route::get('details/{id}', 'details')->name('details');
-        Route::post('cancel/{id}', 'cancel')->name('cancel');
-        Route::post('process-auction/{id}', 'processAuctionEnd')->name('process.auction');
-    });
-
-    // Offers Management
-    Route::controller('OfferController')->prefix('offers')->name('offer.')->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::get('pending', 'pending')->name('pending');
-        Route::get('accepted', 'accepted')->name('accepted');
-        Route::get('details/{id}', 'details')->name('details');
-        Route::post('cancel/{id}', 'cancel')->name('cancel');
-    });
-
-    // Reviews Management
-    Route::controller('ReviewController')->prefix('reviews')->name('review.')->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::get('pending', 'pending')->name('pending');
-        Route::get('details/{id}', 'details')->name('details');
-        Route::post('approve/{id}', 'approve')->name('approve');
-        Route::post('hide/{id}', 'hide')->name('hide');
-        Route::post('delete/{id}', 'delete')->name('delete');
     });
 });
