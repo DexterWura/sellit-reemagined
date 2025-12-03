@@ -974,18 +974,19 @@ $(document).ready(function() {
             $('.image-upload-section').removeClass('d-none');
         }
         
+        // If domain is selected and verification is required, ensure verification section is ready
         if (type === 'domain' && requireDomainVerification) {
-            $('#domainVerificationSection').slideDown(300, function() {
-                if (!$('#domainVerificationMethod').val()) {
-                    $('#domainVerificationMethod').val('txt_file');
-                }
-                updateDomainVerificationDisplay();
-                const domainValue = $('#domainNameInput').val().trim();
-                if (domainValue) {
-                    $('#domainNameInput').trigger('input');
-                }
-            });
+            // Check if domain URL is already entered
+            const domainValue = $('#domainNameInput').val().trim();
+            if (domainValue) {
+                // Trigger input event to show verification section if domain is already entered
+                $('#domainNameInput').trigger('input');
+            } else {
+                // Hide verification section until domain is entered
+                $('#domainVerificationSection').slideUp();
+            }
         } else if (type === 'domain' && !requireDomainVerification) {
+            // Hide verification section if verification is not required
             $('#domainVerificationSection').slideUp();
         } else if (type !== 'domain') {
             $('#domainVerificationSection').slideUp();
@@ -1178,6 +1179,7 @@ $(document).ready(function() {
         const helpText = $('#domainHelpText');
         const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
         
+        // Check if protocol is present
         if (value && !value.match(/^https?:\/\//i)) {
             warning.slideDown();
             $(this).addClass('is-invalid border-warning');
@@ -1189,20 +1191,24 @@ $(document).ready(function() {
             
             updateDomainCardPreview();
             
+            // Only show verification section if verification is required
             if (value && requireDomainVerification) {
                 try {
                     const urlObj = new URL(value);
                     const domain = urlObj.hostname.replace(/^www\./, '');
+                    // Generate verification data first
                     generateDomainVerification(domain);
-                    if (!$('#domainVerificationSection').is(':visible')) {
-                        $('#domainVerificationSection').slideDown(300);
-                    }
+                    // Then show the section and update display after it's visible
+                    $('#domainVerificationSection').slideDown(300, function() {
+                        // After section is fully visible, update display
+                        updateDomainVerificationDisplay();
+                    });
                 } catch(e) {
-                    if ($('#domainVerificationSection').is(':visible')) {
-                        $('#txtFileMethod').hide();
-                        $('#dnsRecordMethod').hide();
-                    }
+                    // Invalid URL format, hide verification
+                    $('#domainVerificationSection').slideUp();
                 }
+            } else {
+                $('#domainVerificationSection').slideUp();
             }
         }
     });
