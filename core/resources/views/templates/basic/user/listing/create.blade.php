@@ -974,18 +974,19 @@ $(document).ready(function() {
             $('.image-upload-section').removeClass('d-none');
         }
         
-        // If domain is selected and verification is required, ensure verification section is ready
+        // If domain is selected and verification is required, show verification section
         if (type === 'domain' && requireDomainVerification) {
-            // Check if domain name is already entered
+            // Show verification section immediately when domain type is selected
+            if ($('#domainVerificationSection').length) {
+                $('#domainVerificationSection').slideDown(300);
+            }
+            // Check if domain name is already entered, if so generate verification data
             const domainValue = $('#domainNameInput').val().trim();
             if (domainValue) {
-                // Trigger input event to show verification section if domain is already entered
+                // Trigger input event to generate verification data if domain is already entered
                 setTimeout(function() {
                     $('#domainNameInput').trigger('input');
                 }, 100);
-            } else {
-                // Hide verification section until domain is entered
-                $('#domainVerificationSection').slideUp();
             }
         } else if (type === 'domain' && !requireDomainVerification) {
             // Hide verification section if verification is not required
@@ -1203,19 +1204,24 @@ $(document).ready(function() {
                     const domain = urlObj.hostname.replace(/^www\./, '');
                     // Generate verification data first
                     generateDomainVerification(domain);
-                    // Then show the section and update display after it's visible
-                    if ($('#domainVerificationSection').length) {
-                        $('#domainVerificationSection').slideDown(300, function() {
-                            // After section is fully visible, update display
-                            updateDomainVerificationDisplay();
-                        });
+                    // Update display (section should already be visible from business type selection)
+                    if ($('#domainVerificationSection').is(':visible')) {
+                        updateDomainVerificationDisplay();
+                    } else {
+                        // If section is hidden, show it first
+                        if ($('#domainVerificationSection').length) {
+                            $('#domainVerificationSection').slideDown(300, function() {
+                                updateDomainVerificationDisplay();
+                            });
+                        }
                     }
                 } catch(e) {
-                    // Invalid URL format, hide verification
-                    $('#domainVerificationSection').slideUp();
+                    // Invalid URL format - keep section visible but don't generate data yet
+                    // User will fix the URL format
                 }
-            } else {
-                $('#domainVerificationSection').slideUp();
+            } else if (!value && requireDomainVerification) {
+                // If value is cleared but verification is required, keep section visible
+                // but don't generate verification data
             }
         }
     });
@@ -1299,11 +1305,16 @@ $(document).ready(function() {
         updateDomainVerificationDisplay();
     }
     
-    // Initialize domain verification if domain is already entered on page load
+    // Initialize domain verification section on page load if domain type is selected
     $(document).ready(function() {
         const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
         const businessType = $('input[name="business_type"]:checked').val();
         if (businessType === 'domain' && requireDomainVerification) {
+            // Show verification section immediately
+            if ($('#domainVerificationSection').length) {
+                $('#domainVerificationSection').slideDown(300);
+            }
+            // If domain value exists, generate verification data
             const domainValue = $('#domainNameInput').val().trim();
             if (domainValue) {
                 setTimeout(function() {
