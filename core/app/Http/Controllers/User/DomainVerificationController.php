@@ -151,6 +151,17 @@ class DomainVerificationController extends Controller
         $domain = $request->domain;
         $method = $request->method;
         $token = $request->token;
+        
+        // Log the incoming request for debugging
+        \Log::info('Verification request received', [
+            'domain' => $domain,
+            'method' => $method,
+            'token' => $token,
+            'token_length' => strlen($token),
+            'token_hex' => bin2hex(substr($token, 0, 50)),
+            'filename' => $request->filename ?? null,
+            'dns_name' => $request->dns_name ?? null,
+        ]);
 
         try {
             if ($method === DomainVerification::METHOD_TXT_FILE) {
@@ -212,11 +223,12 @@ class DomainVerificationController extends Controller
                             // Remove all other whitespace characters (tabs, spaces, etc.) from start and end
                             $normalizedContent = trim($normalizedContent);
                             
-                            // Remove any remaining non-printable characters except alphanumeric and hyphens
-                            // But keep the content as-is for now, just trim
+                            // Also remove any zero-width spaces or other invisible characters
+                            $normalizedContent = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $normalizedContent);
                             
-                            // Normalize token as well - remove any whitespace
+                            // Normalize token as well - remove any whitespace and invisible characters
                             $normalizedToken = trim($token);
+                            $normalizedToken = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $normalizedToken);
                             
                             // Also try a more lenient comparison - remove all non-alphanumeric except hyphens
                             $strictContent = preg_replace('/[^a-zA-Z0-9\-]/', '', $normalizedContent);
@@ -268,36 +280,57 @@ class DomainVerificationController extends Controller
                     }
                 }
 
-                // Try to get more details about why verification failed
-                $testUrl = 'https://' . $domain . '/' . $filename;
-                $testContent = @file_get_contents($testUrl, false, stream_context_create([
-                    'http' => ['timeout' => 5, 'follow_location' => true, 'user_agent' => 'Mozilla/5.0'],
-                    'ssl' => ['verify_peer' => false, 'verify_peer_name' => false],
-                ]));
+                // Build detailed error message
+                $errorDetails = 'Verification failed. ';
                 
-                $errorDetails = 'Verification file not found or token mismatch.';
-                if ($testContent !== false) {
-                    // Normalize test content the same way we normalize in verification
-                    $normalizedTest = $testContent;
-                    if (substr($normalizedTest, 0, 3) === "\xEF\xBB\xBF") {
-                        $normalizedTest = substr($normalizedTest, 3);
+                if ($lastContent !== null) {
+                    // We got content but it didn't match
+                    $normalizedLast = $lastContent;
+                    if (substr($normalizedLast, 0, 3) === "\xEF\xBB\xBF") {
+                        $normalizedLast = substr($normalizedLast, 3);
                     }
-                    $normalizedTest = preg_replace('/\r\n|\r|\n/', '', $normalizedTest);
-                    $normalizedTest = trim($normalizedTest);
+                    $normalizedLast = str_replace("\0", '', $normalizedLast);
+                    $normalizedLast = preg_replace('/\r\n|\r|\n/', '', $normalizedLast);
+                    $normalizedLast = trim($normalizedLast);
                     
-                    // Show detailed comparison
+                    $normalizedToken = trim($token);
+                    
+                    // Show detailed comparison with hex dumps for debugging
                     $errorDetails = 'File found but content does not match.';
-                    $errorDetails .= ' Expected token: "' . trim($token) . '" (length: ' . strlen(trim($token)) . ')';
-                    $errorDetails .= ' | Found in file: "' . $normalizedTest . '" (length: ' . strlen($normalizedTest) . ')';
-                    if ($lastContent !== null) {
-                        $errorDetails .= ' | Raw file content: "' . addslashes(substr($lastContent, 0, 100)) . '"';
+                    $errorDetails .= "\n\nExpected: \"" . $normalizedToken . "\" (length: " . strlen($normalizedToken) . ")";
+                    $errorDetails .= "\nFound:    \"" . $normalizedLast . "\" (length: " . strlen($normalizedLast) . ")";
+                    
+                    // Show first 50 chars in hex for both
+                    $errorDetails .= "\n\nExpected (hex): " . bin2hex(substr($normalizedToken, 0, 50));
+                    $errorDetails .= "\nFound (hex):    " . bin2hex(substr($normalizedLast, 0, 50));
+                    
+                    // Show raw content (first 200 chars)
+                    $errorDetails .= "\n\nRaw file content (first 200 chars): " . addslashes(substr($lastContent, 0, 200));
+                    $errorDetails .= "\nFile URL: " . ($lastUrl ?: 'https://' . $domain . '/' . $filename);
+                    
+                    // Character-by-character comparison for first 50 chars
+                    $errorDetails .= "\n\nCharacter comparison (first 50):";
+                    $maxLen = max(strlen($normalizedToken), strlen($normalizedLast), 50);
+                    for ($i = 0; $i < min($maxLen, 50); $i++) {
+                        $expChar = isset($normalizedToken[$i]) ? $normalizedToken[$i] : '[MISSING]';
+                        $foundChar = isset($normalizedLast[$i]) ? $normalizedLast[$i] : '[MISSING]';
+                        $expHex = isset($normalizedToken[$i]) ? bin2hex($normalizedToken[$i]) : '--';
+                        $foundHex = isset($normalizedLast[$i]) ? bin2hex($normalizedLast[$i]) : '--';
+                        $match = ($expChar === $foundChar) ? '✓' : '✗';
+                        $errorDetails .= "\n  [$i] Expected: '$expChar' (0x$expHex) | Found: '$foundChar' (0x$foundHex) $match";
                     }
-                    $errorDetails .= ' | File URL: ' . $testUrl;
                 } else {
-                    $errorDetails .= ' Please ensure the file is accessible at: ' . $testUrl;
+                    // File not accessible
+                    $testUrl = 'https://' . $domain . '/' . $filename;
+                    $errorDetails .= 'File not accessible at: ' . $testUrl;
                     if ($lastError) {
                         $errorDetails .= ' | Error: ' . (is_array($lastError) ? $lastError['message'] : $lastError);
                     }
+                    $errorDetails .= "\n\nPlease ensure:";
+                    $errorDetails .= "\n1. The file is uploaded to your domain root";
+                    $errorDetails .= "\n2. The file is accessible via HTTPS";
+                    $errorDetails .= "\n3. The file contains ONLY the verification token (no extra spaces or characters)";
+                    $errorDetails .= "\n4. Expected token: \"" . trim($token) . "\"";
                 }
                 
                 return response()->json([

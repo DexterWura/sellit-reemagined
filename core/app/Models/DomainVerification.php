@@ -193,13 +193,18 @@ class DomainVerification extends Model
                     if (substr($normalizedContent, 0, 3) === "\xEF\xBB\xBF") {
                         $normalizedContent = substr($normalizedContent, 3);
                     }
+                    // Remove any null bytes
+                    $normalizedContent = str_replace("\0", '', $normalizedContent);
                     // Normalize line endings (CRLF, CR, LF to nothing, then trim)
                     $normalizedContent = preg_replace('/\r\n|\r|\n/', '', $normalizedContent);
                     // Trim all whitespace (including tabs, spaces, etc.)
                     $normalizedContent = trim($normalizedContent);
+                    // Remove zero-width spaces and other invisible Unicode characters
+                    $normalizedContent = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $normalizedContent);
                     
                     // Normalize token as well
                     $normalizedToken = trim($this->verification_token);
+                    $normalizedToken = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $normalizedToken);
                     
                     if ($normalizedContent === $normalizedToken) {
                         $this->markAsVerified();
