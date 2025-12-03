@@ -171,10 +171,22 @@ class Listing extends Model
 
     public function scopeActive($query)
     {
-        // Exclude listings that are in escrow process (have escrow_id set)
-        // These will be marked as SOLD when escrow is completed
+        // Exclude listings that are in active escrow process
+        // Show listings where:
+        // 1. escrow_id is null (no escrow), OR
+        // 2. escrow doesn't exist (orphaned escrow_id), OR
+        // 3. escrow exists but is cancelled (escrow was cancelled, listing can be shown again)
+        // Hide listings where escrow exists and is active (not accepted, accepted, disputed, or completed)
+        // Note: Completed escrows should have listings marked as SOLD, not shown as active
         return $query->where('status', Status::LISTING_ACTIVE)
-                     ->whereNull('escrow_id');
+                     ->where(function ($q) {
+                         $q->whereNull('escrow_id')
+                           ->orWhereDoesntHave('escrow') // Escrow doesn't exist (orphaned escrow_id)
+                           ->orWhereHas('escrow', function ($escrowQuery) {
+                               // Only show if escrow is cancelled (listing can be shown again)
+                               $escrowQuery->where('status', Status::ESCROW_CANCELLED);
+                           });
+                     });
     }
 
     public function scopeSold($query)

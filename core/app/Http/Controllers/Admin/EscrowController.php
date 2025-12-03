@@ -165,6 +165,26 @@ class EscrowController extends Controller
         $trx                    = getTrx();
         $escrow->save();
 
+        // If escrow is cancelled (status = 9), clear escrow_id from listing
+        // If escrow is completed (status = 1), listing should remain hidden (will be marked as SOLD)
+        if ($request->status == Status::ESCROW_CANCELLED) {
+            $listing = \App\Models\Listing::where('escrow_id', $escrow->id)->first();
+            if ($listing && $listing->status === Status::LISTING_ACTIVE) {
+                $listing->escrow_id = null;
+                $listing->winner_id = null;
+                $listing->final_price = null;
+                $listing->save();
+            }
+        } elseif ($request->status == Status::ESCROW_COMPLETED) {
+            // Mark listing as SOLD when escrow is completed
+            $listing = \App\Models\Listing::where('escrow_id', $escrow->id)->first();
+            if ($listing && $listing->status !== Status::LISTING_SOLD) {
+                $listing->status = Status::LISTING_SOLD;
+                $listing->sold_at = now();
+                $listing->save();
+            }
+        }
+
         if ($request->buyer_amount) {
             $buyer->balance += $request->buyer_amount;
             $buyer->save();

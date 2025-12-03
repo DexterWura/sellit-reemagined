@@ -265,6 +265,15 @@ class EscrowController extends Controller
         $escrow->status = Status::ESCROW_CANCELLED;
         $escrow->save();
 
+        // Clear escrow_id from listing if it exists, so listing can appear in marketplace again
+        $listing = \App\Models\Listing::where('escrow_id', $escrow->id)->first();
+        if ($listing && $listing->status === Status::LISTING_ACTIVE) {
+            $listing->escrow_id = null;
+            $listing->winner_id = null;
+            $listing->final_price = null;
+            $listing->save();
+        }
+
         if ($escrow->buyer_id == auth()->id()) {
             $mailReceiver = $escrow->seller;
             $canceller    = 'buyer';
