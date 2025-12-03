@@ -875,7 +875,8 @@ $(document).ready(function() {
             return false;
         }
         
-        // Validation for step 1
+        // Validation for step 1 - just check business type is selected
+        // Let HTML5 validation handle required fields
         if (currentStep === 1) {
             const businessType = $('input[name="business_type"]:checked').val();
             if (!businessType) {
@@ -883,42 +884,18 @@ $(document).ready(function() {
                 return false;
             }
             
-            // Check if domain/website is entered
+            // Make sure the relevant input section is visible
             if (businessType === 'domain') {
-                // Make sure domain section is visible
                 $('#domainInputSection').show();
-                
-                const domainInputEl = $('#domainNameInput');
-                const domainInput = domainInputEl.val() || '';
-                const trimmedDomain = domainInput.trim();
-                
-                console.log('Domain validation - value:', trimmedDomain, 'Element exists:', domainInputEl.length, 'Section visible:', $('#domainInputSection').is(':visible'));
-                
-                if (!trimmedDomain) {
-                    notify('error', '@lang("Please enter a domain name")');
-                    domainInputEl.focus();
-                    return false;
-                }
-                // Validate URL format
-                if (!trimmedDomain.match(/^https?:\/\//i)) {
-                    notify('error', '@lang("Domain must start with http:// or https://")');
-                    domainInputEl.focus();
-                    return false;
-                }
             } else if (businessType === 'website') {
-                const websiteInput = $('#websiteUrlInput').val();
-                if (!websiteInput || !websiteInput.trim()) {
-                    notify('error', '@lang("Please enter a website URL")');
-                    $('#websiteUrlInput').focus();
-                    return false;
-                }
-                // Validate URL format
-                const trimmedWebsite = websiteInput.trim();
-                if (!trimmedWebsite.match(/^https?:\/\//i)) {
-                    notify('error', '@lang("Website URL must start with http:// or https://")');
-                    $('#websiteUrlInput').focus();
-                    return false;
-                }
+                $('#websiteInputSection').show();
+            }
+            
+            // Check HTML5 validation - if field is invalid, let browser handle it
+            const form = document.getElementById('listingForm');
+            if (form && !form.checkValidity()) {
+                form.reportValidity();
+                return false;
             }
         }
         
@@ -943,8 +920,8 @@ $(document).ready(function() {
             }
         }
         
-        // Navigate to next step
-        console.log('Calling showStep with:', nextStep);
+        // All validations passed - navigate to next step
+        console.log('All validations passed! Navigating to step:', nextStep);
         showStep(nextStep);
         saveDraft(); // Save draft when moving to next step
         return false;
