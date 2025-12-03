@@ -1194,7 +1194,6 @@ $(document).ready(function() {
             // Only show verification section if verification is required
             if (value && requireDomainVerification) {
                 try {
-                    // Extract domain from URL
                     const urlObj = new URL(value);
                     const domain = urlObj.hostname.replace(/^www\./, '');
                     // Generate verification data first
@@ -1205,17 +1204,8 @@ $(document).ready(function() {
                         updateDomainVerificationDisplay();
                     });
                 } catch(e) {
-                    // Invalid URL format, try to extract domain from value directly
-                    // Remove protocol if present
-                    let domain = value.replace(/^https?:\/\//i, '').replace(/^www\./, '').split('/')[0];
-                    if (domain) {
-                        generateDomainVerification(domain);
-                        $('#domainVerificationSection').slideDown(300, function() {
-                            updateDomainVerificationDisplay();
-                        });
-                    } else {
-                        $('#domainVerificationSection').slideUp();
-                    }
+                    // Invalid URL format, hide verification
+                    $('#domainVerificationSection').slideUp();
                 }
             } else {
                 $('#domainVerificationSection').slideUp();
@@ -1262,11 +1252,10 @@ $(document).ready(function() {
         }
     });
     
-    // Auto-prepend https:// if user starts typing without protocol (on blur)
     $('#domainNameInput').on('blur', function() {
         let value = $(this).val().trim();
         if (value && !value.match(/^https?:\/\//i)) {
-            // If it looks like a domain, prepend https://
+            // If it looks like a domain or URL, prepend https://
             if (value.match(/^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}/)) {
                 $(this).val('https://' + value);
                 $(this).trigger('input');
@@ -1294,8 +1283,10 @@ $(document).ready(function() {
         domainVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
         domainVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
         
-        // Ensure default method is txt_file (TXT record)
-        $('#domainVerificationMethod').val('txt_file');
+        // Ensure default method is selected if none is selected
+        if (!$('#domainVerificationMethod').val()) {
+            $('#domainVerificationMethod').val('txt_file');
+        }
         
         // Update display with the current selected method
         updateDomainVerificationDisplay();
