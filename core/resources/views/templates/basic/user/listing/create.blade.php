@@ -974,37 +974,27 @@ $(document).ready(function() {
             $('.image-upload-section').removeClass('d-none');
         }
         
-        // If domain is selected and verification is required, ensure verification section is ready
         if (type === 'domain' && requireDomainVerification) {
-            // Check if domain URL is already entered
             const domainValue = $('#domainNameInput').val().trim();
             if (domainValue) {
-                // Trigger input event to show verification section if domain is already entered
                 $('#domainNameInput').trigger('input');
             } else {
-                // Hide verification section until domain is entered
                 $('#domainVerificationSection').slideUp();
             }
         } else if (type === 'domain' && !requireDomainVerification) {
-            // Hide verification section if verification is not required
             $('#domainVerificationSection').slideUp();
         } else if (type !== 'domain') {
             $('#domainVerificationSection').slideUp();
         }
         
-        // If website is selected and verification is required, ensure verification section is ready
         if (type === 'website' && requireWebsiteVerification) {
-            // Check if website URL is already entered
             const websiteValue = $('#websiteUrlInput').val().trim();
             if (websiteValue) {
-                // Trigger input event to show verification section if website is already entered
                 $('#websiteUrlInput').trigger('input');
             } else {
-                // Hide verification section until website is entered
                 $('#websiteVerificationSection').slideUp();
             }
         } else if (type === 'website' && !requireWebsiteVerification) {
-            // Hide verification section if verification is not required
             $('#websiteVerificationSection').slideUp();
         }
         
@@ -1179,7 +1169,6 @@ $(document).ready(function() {
         const helpText = $('#domainHelpText');
         const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
         
-        // Check if protocol is present
         if (value && !value.match(/^https?:\/\//i)) {
             warning.slideDown();
             $(this).addClass('is-invalid border-warning');
@@ -1191,20 +1180,15 @@ $(document).ready(function() {
             
             updateDomainCardPreview();
             
-            // Only show verification section if verification is required
             if (value && requireDomainVerification) {
                 try {
                     const urlObj = new URL(value);
                     const domain = urlObj.hostname.replace(/^www\./, '');
-                    // Generate verification data first
                     generateDomainVerification(domain);
-                    // Then show the section and update display after it's visible
                     $('#domainVerificationSection').slideDown(300, function() {
-                        // After section is fully visible, update display
                         updateDomainVerificationDisplay();
                     });
                 } catch(e) {
-                    // Invalid URL format, hide verification
                     $('#domainVerificationSection').slideUp();
                 }
             } else {
@@ -1213,14 +1197,12 @@ $(document).ready(function() {
         }
     });
     
-    // Validate and format website URL input
     $('#websiteUrlInput').on('input', function() {
         let value = $(this).val().trim();
         const warning = $('#websiteProtocolWarning');
         const helpText = $('#websiteHelpText');
         const requireWebsiteVerification = {{ \App\Models\MarketplaceSetting::requireWebsiteVerification() ? 'true' : 'false' }};
         
-        // Check if protocol is present
         if (value && !value.match(/^https?:\/\//i)) {
             warning.slideDown();
             $(this).addClass('is-invalid border-warning');
@@ -1230,20 +1212,15 @@ $(document).ready(function() {
             $(this).removeClass('is-invalid border-warning');
             helpText.html('@lang("Enter full URL starting with http:// or https://")');
             
-            // Only show verification section if verification is required
             if (value && requireWebsiteVerification) {
                 try {
                     const urlObj = new URL(value);
                     const domain = urlObj.hostname.replace(/^www\./, '');
-                    // Generate verification data first
                     generateWebsiteVerification(domain);
-                    // Then show the section and update display after it's visible
                     $('#websiteVerificationSection').slideDown(300, function() {
-                        // After section is fully visible, update display
                         updateWebsiteVerificationDisplay();
                     });
                 } catch(e) {
-                    // Invalid URL format, hide verification
                     $('#websiteVerificationSection').slideUp();
                 }
             } else {
@@ -1288,8 +1265,6 @@ $(document).ready(function() {
         updateDomainVerificationDisplay();
     }
     
-    
-    // Generate verification data for website
     function generateWebsiteVerification(domain) {
         if (!domain) return;
         
@@ -1298,12 +1273,10 @@ $(document).ready(function() {
         websiteVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
         websiteVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
         
-        // Ensure default method is selected if none is selected
         if (!$('#websiteVerificationMethod').val()) {
             $('#websiteVerificationMethod').val('txt_file');
         }
         
-        // Update display with the current selected method
         updateWebsiteVerificationDisplay();
     }
     
@@ -1343,49 +1316,38 @@ $(document).ready(function() {
         $('#verificationStatus').html('');
     }
     
-    // Update website verification display
     function updateWebsiteVerificationDisplay() {
         let method = $('#websiteVerificationMethod').val();
         
-        // Check if we have the required data
         if (!websiteVerificationData.domain || !websiteVerificationData.token) {
-            // Domain or token not set yet, hide both methods
             $('#websiteTxtFileMethod').hide();
             $('#websiteDnsRecordMethod').hide();
             return;
         }
         
-        // If no method selected, default to txt_file
         if (!method) {
             method = 'txt_file';
             $('#websiteVerificationMethod').val('txt_file');
         }
         
-        // Always hide both first, then show the selected one
         $('#websiteTxtFileMethod').hide();
         $('#websiteDnsRecordMethod').hide();
         
         if (method === 'txt_file') {
-            // Update content first
             $('#websiteTxtFileName').text(websiteVerificationData.filename || '-');
             $('#websiteTxtFileLocation').text('https://' + websiteVerificationData.domain + '/' + (websiteVerificationData.filename || ''));
             $('#websiteTxtFileContent').text(websiteVerificationData.token || '-');
-            // Then show
             $('#websiteTxtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
-            // Update content first
             $('#websiteDnsRecordName').text(websiteVerificationData.dnsName || '-');
             $('#websiteDnsRecordValue').text(websiteVerificationData.token || '-');
-            // Then show
             $('#websiteDnsRecordMethod').css('display', 'block');
         }
         
-        // Update hidden fields
         $('#websiteVerificationToken').val(websiteVerificationData.token);
         $('#websiteVerificationFilename').val(websiteVerificationData.filename);
         $('#websiteVerificationDnsName').val(websiteVerificationData.dnsName);
         
-        // Reset verification status
         $('#websiteVerified').val('0');
         $('#websiteVerificationStatus').html('');
     }
