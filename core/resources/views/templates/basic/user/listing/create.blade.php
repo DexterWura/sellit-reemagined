@@ -113,7 +113,7 @@
                                             </div>
                                         </div>
                                         
-                                        @include('templates.basic.user.listing.partials.domain-verification')
+                                        @include('templates.basic.user.listing.partials.website-verification')
                                         
                                         <div class="col-md-6">
                                             <label class="form-label">@lang('Domain Registrar')</label>
@@ -789,12 +789,12 @@ $(document).ready(function() {
             if (domainValue) {
                 $('#domainNameInput').trigger('input');
             } else {
-                $('#domainVerificationSection').slideUp();
+                $('#websiteVerificationSection').slideUp();
             }
         } else if (type === 'domain' && !requireDomainVerification) {
-            $('#domainVerificationSection').slideUp();
+            $('#websiteVerificationSection').slideUp();
         } else if (type !== 'domain') {
-            $('#domainVerificationSection').slideUp();
+            $('#websiteVerificationSection').slideUp();
         }
         
         if (type === 'website' && requireWebsiteVerification) {
@@ -995,14 +995,14 @@ $(document).ready(function() {
                     const urlObj = new URL(value);
                     const domain = urlObj.hostname.replace(/^www\./, '');
                     generateDomainVerification(domain);
-                    $('#domainVerificationSection').slideDown(300, function() {
+                    $('#websiteVerificationSection').slideDown(300, function() {
                         updateDomainVerificationDisplay();
                     });
                 } catch(e) {
-                    $('#domainVerificationSection').slideUp();
+                    $('#websiteVerificationSection').slideUp();
                 }
             } else {
-                $('#domainVerificationSection').slideUp();
+                $('#websiteVerificationSection').slideUp();
             }
         }
     });
@@ -1068,8 +1068,8 @@ $(document).ready(function() {
         domainVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
         domainVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
         
-        if (!$('#domainVerificationMethod').val()) {
-            $('#domainVerificationMethod').val('txt_file');
+        if (!$('#websiteVerificationMethod').val()) {
+            $('#websiteVerificationMethod').val('txt_file');
         }
         
         updateDomainVerificationDisplay();
@@ -1091,39 +1091,39 @@ $(document).ready(function() {
     }
     
     function updateDomainVerificationDisplay() {
-        let method = $('#domainVerificationMethod').val();
+        let method = $('#websiteVerificationMethod').val();
         
         if (!domainVerificationData.domain || !domainVerificationData.token) {
-            $('#txtFileMethod').hide();
-            $('#dnsRecordMethod').hide();
+            $('#websiteTxtFileMethod').hide();
+            $('#websiteDnsRecordMethod').hide();
             return;
         }
         
         if (!method) {
             method = 'txt_file';
-            $('#domainVerificationMethod').val('txt_file');
+            $('#websiteVerificationMethod').val('txt_file');
         }
         
-        $('#txtFileMethod').hide();
-        $('#dnsRecordMethod').hide();
+        $('#websiteTxtFileMethod').hide();
+        $('#websiteDnsRecordMethod').hide();
         
         if (method === 'txt_file') {
-            $('#txtFileName').text(domainVerificationData.filename || '-');
-            $('#txtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
-            $('#txtFileContent').text(domainVerificationData.token || '-');
-            $('#txtFileMethod').css('display', 'block');
+            $('#websiteTxtFileName').text(domainVerificationData.filename || '-');
+            $('#websiteTxtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
+            $('#websiteTxtFileContent').text(domainVerificationData.token || '-');
+            $('#websiteTxtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
-            $('#dnsRecordName').text(domainVerificationData.dnsName || '-');
-            $('#dnsRecordValue').text(domainVerificationData.token || '-');
-            $('#dnsRecordMethod').css('display', 'block');
+            $('#websiteDnsRecordName').text(domainVerificationData.dnsName || '-');
+            $('#websiteDnsRecordValue').text(domainVerificationData.token || '-');
+            $('#websiteDnsRecordMethod').css('display', 'block');
         }
         
-        $('#domainVerificationToken').val(domainVerificationData.token);
-        $('#domainVerificationFilename').val(domainVerificationData.filename);
-        $('#domainVerificationDnsName').val(domainVerificationData.dnsName);
+        $('#websiteVerificationToken').val(domainVerificationData.token);
+        $('#websiteVerificationFilename').val(domainVerificationData.filename);
+        $('#websiteVerificationDnsName').val(domainVerificationData.dnsName);
         
-        $('#domainVerified').val('0');
-        $('#verificationStatus').html('');
+        $('#websiteVerified').val('0');
+        $('#websiteVerificationStatus').html('');
     }
     
     function updateWebsiteVerificationDisplay() {
@@ -1162,101 +1162,67 @@ $(document).ready(function() {
         $('#websiteVerificationStatus').html('');
     }
     
-    $('#domainVerificationMethod').on('change', function() {
-        updateDomainVerificationDisplay();
-    });
-    $('#websiteVerificationMethod').on('change', updateWebsiteVerificationDisplay);
-    
-    $('#downloadTxtFile').on('click', function() {
-        if (!domainVerificationData.token || !domainVerificationData.filename) {
-            alert('Please enter a valid domain URL first to generate the verification file.');
-            return;
+    $('#websiteVerificationMethod').on('change', function() {
+        const businessType = $('input[name="business_type"]:checked').val();
+        if (businessType === 'domain') {
+            updateDomainVerificationDisplay();
+        } else {
+            updateWebsiteVerificationDisplay();
         }
-        
-        const blob = new Blob([domainVerificationData.token], { type: 'text/plain' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = domainVerificationData.filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
     });
     
-    // Download TXT file for website
     $('#downloadWebsiteTxtFile').on('click', function() {
-        if (!websiteVerificationData.token) return;
+        const businessType = $('input[name="business_type"]:checked').val();
+        let token, filename;
         
-        const blob = new Blob([websiteVerificationData.token], { type: 'text/plain' });
+        if (businessType === 'domain') {
+            if (!domainVerificationData.token || !domainVerificationData.filename) {
+                alert('Please enter a valid domain URL first to generate the verification file.');
+                return;
+            }
+            token = domainVerificationData.token;
+            filename = domainVerificationData.filename;
+        } else {
+            if (!websiteVerificationData.token) return;
+            token = websiteVerificationData.token;
+            filename = websiteVerificationData.filename;
+        }
+        
+        const blob = new Blob([token], { type: 'text/plain' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = websiteVerificationData.filename;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
     });
     
-    // Verify domain ownership
-    $('#verifyDomainBtn').on('click', function() {
-        const btn = $(this);
-        const method = $('#domainVerificationMethod').val();
-        const domain = domainVerificationData.domain;
-        const token = domainVerificationData.token;
-        
-        if (!domain || !token) {
-            notify('error', '@lang("Please enter a domain name first")');
-            return;
-        }
-        
-        btn.prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i>@lang("Verifying...")');
-        $('#verificationStatus').html('');
-        
-        $.ajax({
-            url: '{{ route("user.verification.verify-ajax") }}',
-            method: 'POST',
-            data: {
-                _token: '{{ csrf_token() }}',
-                domain: domain,
-                method: method,
-                token: token,
-                filename: domainVerificationData.filename,
-                dns_name: domainVerificationData.dnsName
-            },
-            success: function(response) {
-                if (response.success) {
-                    $('#domainVerified').val('1');
-                    $('#verificationStatus').html('<span class="badge badge--success"><i class="las la-check-circle"></i> @lang("Verified")</span>');
-                    notify('success', '@lang("Domain ownership verified successfully!")');
-                } else {
-                    $('#domainVerified').val('0');
-                    $('#verificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Not Verified")</span>');
-                    notify('error', response.message || '@lang("Verification failed. Please check and try again.")');
-                }
-            },
-            error: function(xhr) {
-                $('#domainVerified').val('0');
-                $('#verificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Error")</span>');
-                const message = xhr.responseJSON?.message || '@lang("An error occurred during verification")';
-                notify('error', message);
-            },
-            complete: function() {
-                btn.prop('disabled', false).html('<i class="las la-check-circle me-1"></i>@lang("Verify Ownership")');
-            }
-        });
-    });
-    
-    // Verify website ownership
     $('#verifyWebsiteBtn').on('click', function() {
         const btn = $(this);
+        const businessType = $('input[name="business_type"]:checked').val();
         const method = $('#websiteVerificationMethod').val();
-        const domain = websiteVerificationData.domain;
-        const token = websiteVerificationData.token;
+        let domain, token, filename, dnsName, errorMsg, successMsg;
+        
+        if (businessType === 'domain') {
+            domain = domainVerificationData.domain;
+            token = domainVerificationData.token;
+            filename = domainVerificationData.filename;
+            dnsName = domainVerificationData.dnsName;
+            errorMsg = '@lang("Please enter a domain name first")';
+            successMsg = '@lang("Domain ownership verified successfully!")';
+        } else {
+            domain = websiteVerificationData.domain;
+            token = websiteVerificationData.token;
+            filename = websiteVerificationData.filename;
+            dnsName = websiteVerificationData.dnsName;
+            errorMsg = '@lang("Please enter a website URL first")';
+            successMsg = '@lang("Website ownership verified successfully!")';
+        }
         
         if (!domain || !token) {
-            notify('error', '@lang("Please enter a website URL first")');
+            notify('error', errorMsg);
             return;
         }
         
@@ -1271,14 +1237,14 @@ $(document).ready(function() {
                 domain: domain,
                 method: method,
                 token: token,
-                filename: websiteVerificationData.filename,
-                dns_name: websiteVerificationData.dnsName
+                filename: filename,
+                dns_name: dnsName
             },
             success: function(response) {
                 if (response.success) {
                     $('#websiteVerified').val('1');
                     $('#websiteVerificationStatus').html('<span class="badge badge--success"><i class="las la-check-circle"></i> @lang("Verified")</span>');
-                    notify('success', '@lang("Website ownership verified successfully!")');
+                    notify('success', successMsg);
                 } else {
                     $('#websiteVerified').val('0');
                     $('#websiteVerificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Not Verified")</span>');
@@ -1308,23 +1274,20 @@ $(document).ready(function() {
         // Only check verification if it's required AND the business type needs it
         // IMPORTANT: Only check if verification is actually required (setting is ON)
         if (businessType === 'domain' && requireDomainVerification === true) {
-            // Only check if the verification field exists (meaning verification section was shown)
-            if ($('#domainVerified').length > 0) {
-                const domainVerified = $('#domainVerified').val();
-                if (domainVerified !== '1') {
+            if ($('#websiteVerified').length > 0) {
+                const verified = $('#websiteVerified').val();
+                if (verified !== '1') {
                     shouldPreventSubmit = true;
                     notify('error', '@lang("You must verify domain ownership before submitting the listing")');
                     showStep(2);
                 }
             }
         }
-        // If verification is not required, skip check entirely
         
         if (businessType === 'website' && requireWebsiteVerification === true) {
-            // Only check if the verification field exists (meaning verification section was shown)
             if ($('#websiteVerified').length > 0) {
-                const websiteVerified = $('#websiteVerified').val();
-                if (websiteVerified !== '1') {
+                const verified = $('#websiteVerified').val();
+                if (verified !== '1') {
                     shouldPreventSubmit = true;
                     notify('error', '@lang("You must verify website ownership before submitting the listing")');
                     showStep(2);
