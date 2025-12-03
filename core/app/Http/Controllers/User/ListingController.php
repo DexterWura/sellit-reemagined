@@ -46,6 +46,17 @@ class ListingController extends Controller
         $platforms = $this->getPlatforms();
         $marketplaceSettings = MarketplaceSetting::getAllSettings();
 
+        // Check if user just submitted a listing successfully (via session flag)
+        // If so, clear any existing draft to start fresh
+        if (session()->has('listing_submitted_successfully')) {
+            session()->forget([
+                'listing_draft',
+                'listing_draft_stage',
+                'listing_draft_updated_at',
+                'listing_submitted_successfully'
+            ]);
+        }
+
         // Restore draft data from session
         $draftData = session('listing_draft', []);
         $currentStage = session('listing_draft_stage', 1);
@@ -106,13 +117,6 @@ class ListingController extends Controller
 
     public function store(Request $request)
     {
-        // Clear draft data after successful submission
-        session()->forget([
-            'listing_draft',
-            'listing_draft_stage',
-            'listing_draft_updated_at'
-        ]);
-
         $businessType = $request->business_type;
         $saleType = $request->sale_type;
         $user = auth()->user();
@@ -264,6 +268,16 @@ class ListingController extends Controller
         }
 
         $user->increment('total_listings');
+
+        // Clear draft data after successful submission
+        session()->forget([
+            'listing_draft',
+            'listing_draft_stage',
+            'listing_draft_updated_at'
+        ]);
+        
+        // Set flag to indicate successful submission (so create page knows to clear draft on next visit)
+        session()->put('listing_submitted_successfully', true);
 
         $notify[] = ['success', 'Listing created successfully'];
         return redirect()->route('user.listing.index')->withNotify($notify);
