@@ -114,6 +114,8 @@ Route::middleware('auth')->name('user.')->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::get('create', 'create')->name('create');
                 Route::post('store', 'store')->name('store');
+                Route::post('draft/save', 'saveDraft')->name('draft.save');
+                Route::post('draft/clear', 'clearDraft')->name('draft.clear');
                 Route::get('edit/{id}', 'edit')->name('edit');
                 Route::post('update/{id}', 'update')->name('update');
                 Route::get('show/{id}', 'show')->name('show');

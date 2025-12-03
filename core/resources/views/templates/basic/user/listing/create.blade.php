@@ -30,10 +30,23 @@
 
                 <div class="card border-0 shadow-sm">
                     <div class="card-header bg-white border-bottom py-3">
-                        <h5 class="mb-0">
-                            <i class="las la-plus-circle text--base me-2"></i>
-                            @lang('Create New Listing')
-                        </h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="las la-plus-circle text--base me-2"></i>
+                                @lang('Create New Listing')
+                            </h5>
+                            @if(!empty($draftData))
+                                <div class="draft-indicator">
+                                    <span class="badge bg-info">
+                                        <i class="las la-save me-1"></i>
+                                        @lang('Draft Saved')
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="clearDraftBtn">
+                                        <i class="las la-trash"></i> @lang('Clear Draft')
+                                    </button>
+                                </div>
+                            @endif
+                        </div>
                     </div>
                     <div class="card-body p-4">
                         <form action="{{ route('user.listing.store') }}" method="POST" enctype="multipart/form-data" id="listingForm">
@@ -63,7 +76,7 @@
                                         @if(($marketplaceSettings['allow_' . $key] ?? '1') == '1')
                                             <label class="business-type-card">
                                                 <input type="radio" name="business_type" value="{{ $key }}" 
-                                                       {{ old('business_type') == $key ? 'checked' : '' }} required>
+                                                       {{ old('business_type', $draftData['business_type'] ?? '') == $key ? 'checked' : '' }} required>
                                                 <div class="card-inner">
                                                     <div class="type-icon" style="background: {{ $typeIcons[$key]['color'] ?? '#6b7280' }}20; color: {{ $typeIcons[$key]['color'] ?? '#6b7280' }}">
                                                         <i class="{{ $typeIcons[$key]['icon'] ?? 'las la-box' }}"></i>
@@ -100,7 +113,7 @@
                                             <div class="input-group input-group-lg">
                                                 <span class="input-group-text bg-light"><i class="las la-globe"></i></span>
                                                 <input type="text" name="domain_name" id="domainNameInput" class="form-control" 
-                                                       value="{{ old('domain_name') }}" placeholder="https://example.com">
+                                                       value="{{ old('domain_name', $draftData['domain_name'] ?? '') }}" placeholder="https://example.com">
                                             </div>
                                             <small class="text-muted d-block mt-1">
                                                 <i class="las la-info-circle"></i> 
@@ -135,7 +148,7 @@
                                             <div class="input-group input-group-lg">
                                                 <span class="input-group-text bg-light"><i class="las la-link"></i></span>
                                                 <input type="url" name="website_url" id="websiteUrlInput" class="form-control" 
-                                                       value="{{ old('website_url') }}" placeholder="https://example.com">
+                                                       value="{{ old('website_url', $draftData['website_url'] ?? '') }}" placeholder="https://example.com">
                                             </div>
                                             <small class="text-muted d-block mt-1">
                                                 <i class="las la-info-circle"></i> 
@@ -180,7 +193,7 @@
                                             <select name="platform" class="form-select form-select-lg">
                                                 <option value="">@lang('Select Platform')</option>
                                                 @foreach($platforms as $key => $name)
-                                                    <option value="{{ $key }}" {{ old('platform') == $key ? 'selected' : '' }}>{{ $name }}</option>
+                                                    <option value="{{ $key }}" {{ old('platform', $draftData['platform'] ?? '') == $key ? 'selected' : '' }}>{{ $name }}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -314,7 +327,7 @@
                                             <option value="">@lang('Select Category')</option>
                                             @foreach($listingCategories as $category)
                                                 <option value="{{ $category->id }}" data-type="{{ $category->business_type }}" 
-                                                        {{ old('listing_category_id') == $category->id ? 'selected' : '' }}>
+                                                        {{ old('listing_category_id', $draftData['listing_category_id'] ?? '') == $category->id ? 'selected' : '' }}>
                                                     {{ $category->name }}
                                                 </option>
                                             @endforeach
@@ -323,7 +336,7 @@
                                     <div class="col-12">
                                         <label class="form-label fw-semibold">@lang('Description') <span class="text-danger">*</span></label>
                                         <textarea name="description" class="form-control" rows="6" required
-                                                  placeholder="@lang('Describe your business in detail. Include information about traffic sources, monetization methods, growth potential, and what is included in the sale...')">{{ old('description') }}</textarea>
+                                                  placeholder="@lang('Describe your business in detail. Include information about traffic sources, monetization methods, growth potential, and what is included in the sale...')">{{ old('description', $draftData['description'] ?? '') }}</textarea>
                                         <small class="text-muted">@lang('Minimum 100 characters. Be detailed to attract serious buyers.')</small>
                                     </div>
                                 </div>
@@ -370,7 +383,7 @@
                                         <div class="col-12">
                                             <div class="form-check form-switch">
                                                 <input class="form-check-input" type="checkbox" name="is_confidential" id="isConfidential" 
-                                                       value="1" {{ old('is_confidential') ? 'checked' : '' }}>
+                                                       value="1" {{ old('is_confidential', $draftData['is_confidential'] ?? '') ? 'checked' : '' }}>
                                                 <label class="form-check-label fw-semibold" for="isConfidential">
                                                     @lang('Make this listing confidential')
                                                 </label>
@@ -383,7 +396,7 @@
                                         <div class="col-12" id="ndaSection" style="display: none;">
                                             <div class="form-check form-switch">
                                                 <input class="form-check-input" type="checkbox" name="requires_nda" id="requiresNda" 
-                                                       value="1" {{ old('requires_nda') ? 'checked' : '' }}>
+                                                       value="1" {{ old('requires_nda', $draftData['requires_nda'] ?? '') ? 'checked' : '' }}>
                                                 <label class="form-check-label fw-semibold" for="requiresNda">
                                                     @lang('Require NDA before viewing details')
                                                 </label>
@@ -396,7 +409,7 @@
                                         <div class="col-12" id="confidentialReasonSection" style="display: none;">
                                             <label class="form-label fw-semibold">@lang('Reason for Confidentiality')</label>
                                             <textarea name="confidential_reason" class="form-control" rows="3" 
-                                                      placeholder="@lang('Explain why this listing is confidential (e.g., sensitive financial data, proprietary technology, etc.)')">{{ old('confidential_reason') }}</textarea>
+                                                      placeholder="@lang('Explain why this listing is confidential (e.g., sensitive financial data, proprietary technology, etc.)')">{{ old('confidential_reason', $draftData['confidential_reason'] ?? '') }}</textarea>
                                             <small class="text-muted">@lang('This information helps buyers understand why an NDA is required.')</small>
                                         </div>
                                     </div>
@@ -426,7 +439,7 @@
                                     @if(($marketplaceSettings['allow_fixed_price'] ?? '1') == '1')
                                         <label class="sale-type-card">
                                             <input type="radio" name="sale_type" value="fixed_price" 
-                                                   {{ old('sale_type', 'fixed_price') == 'fixed_price' ? 'checked' : '' }} required>
+                                                   {{ old('sale_type', $draftData['sale_type'] ?? 'fixed_price') == 'fixed_price' ? 'checked' : '' }} required>
                                             <div class="card-inner">
                                                 <div class="sale-icon">
                                                     <i class="las la-tag"></i>
@@ -443,7 +456,7 @@
                                     @if(($marketplaceSettings['allow_auctions'] ?? '1') == '1')
                                         <label class="sale-type-card">
                                             <input type="radio" name="sale_type" value="auction" 
-                                                   {{ old('sale_type') == 'auction' ? 'checked' : '' }}>
+                                                   {{ old('sale_type', $draftData['sale_type'] ?? '') == 'auction' ? 'checked' : '' }}>
                                             <div class="card-inner">
                                                 <div class="sale-icon auction">
                                                     <i class="las la-gavel"></i>
@@ -466,15 +479,15 @@
                                             <div class="input-group input-group-lg">
                                                 <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
                                                 <input type="number" name="asking_price" class="form-control" 
-                                                       value="{{ old('asking_price') }}" step="0.01" min="1" placeholder="0.00">
+                                                       value="{{ old('asking_price', $draftData['asking_price'] ?? '') }}" step="0.01" min="1" placeholder="0.00">
                                             </div>
                                             <small class="text-muted">@lang('The price you want to sell for')</small>
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label">@lang('Allow Offers?')</label>
                                             <select name="allow_offers" class="form-select form-select-lg">
-                                                <option value="1" {{ old('allow_offers', '1') == '1' ? 'selected' : '' }}>@lang('Yes, accept offers from buyers')</option>
-                                                <option value="0" {{ old('allow_offers') == '0' ? 'selected' : '' }}>@lang('No, fixed price only')</option>
+                                                <option value="1" {{ old('allow_offers', $draftData['allow_offers'] ?? '1') == '1' ? 'selected' : '' }}>@lang('Yes, accept offers from buyers')</option>
+                                                <option value="0" {{ old('allow_offers', $draftData['allow_offers'] ?? '') == '0' ? 'selected' : '' }}>@lang('No, fixed price only')</option>
                                             </select>
                                         </div>
                                     </div>
@@ -488,7 +501,7 @@
                                             <div class="input-group input-group-lg">
                                                 <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
                                                 <input type="number" name="starting_bid" class="form-control" 
-                                                       value="{{ old('starting_bid') }}" step="0.01" min="1" placeholder="0.00">
+                                                       value="{{ old('starting_bid', $draftData['starting_bid'] ?? '') }}" step="0.01" min="1" placeholder="0.00">
                                             </div>
                                             <small class="text-muted">@lang('Minimum bid to start the auction')</small>
                                         </div>
@@ -497,7 +510,7 @@
                                             <div class="input-group input-group-lg">
                                                 <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
                                                 <input type="number" name="reserve_price" class="form-control" 
-                                                       value="{{ old('reserve_price') }}" step="0.01" min="0" placeholder="0.00">
+                                                       value="{{ old('reserve_price', $draftData['reserve_price'] ?? '') }}" step="0.01" min="0" placeholder="0.00">
                                             </div>
                                             <small class="text-muted">@lang('Minimum price you will accept (hidden from buyers)')</small>
                                         </div>
@@ -506,7 +519,7 @@
                                             <div class="input-group">
                                                 <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
                                                 <input type="number" name="buy_now_price" class="form-control" 
-                                                       value="{{ old('buy_now_price') }}" step="0.01" min="0" placeholder="0.00">
+                                                       value="{{ old('buy_now_price', $draftData['buy_now_price'] ?? '') }}" step="0.01" min="0" placeholder="0.00">
                                             </div>
                                         </div>
                                         <div class="col-md-4">
@@ -514,7 +527,7 @@
                                             <div class="input-group">
                                                 <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
                                                 <input type="number" name="bid_increment" class="form-control" 
-                                                       value="{{ old('bid_increment', 10) }}" step="0.01" min="1" placeholder="10.00">
+                                                       value="{{ old('bid_increment', $draftData['bid_increment'] ?? 10) }}" step="0.01" min="1" placeholder="10.00">
                                             </div>
                                         </div>
                                         <div class="col-md-4">
@@ -523,16 +536,16 @@
                                                 $maxDays = $marketplaceSettings['max_auction_days'] ?? 30;
                                             @endphp
                                             <select name="auction_duration" class="form-select">
-                                                <option value="3" {{ old('auction_duration') == '3' ? 'selected' : '' }}>3 @lang('days')</option>
-                                                <option value="5" {{ old('auction_duration') == '5' ? 'selected' : '' }}>5 @lang('days')</option>
-                                                <option value="7" {{ old('auction_duration', '7') == '7' ? 'selected' : '' }}>7 @lang('days')</option>
-                                                <option value="10" {{ old('auction_duration') == '10' ? 'selected' : '' }}>10 @lang('days')</option>
-                                                <option value="14" {{ old('auction_duration') == '14' ? 'selected' : '' }}>14 @lang('days')</option>
+                                                <option value="3" {{ old('auction_duration', $draftData['auction_duration'] ?? '') == '3' ? 'selected' : '' }}>3 @lang('days')</option>
+                                                <option value="5" {{ old('auction_duration', $draftData['auction_duration'] ?? '') == '5' ? 'selected' : '' }}>5 @lang('days')</option>
+                                                <option value="7" {{ old('auction_duration', $draftData['auction_duration'] ?? '7') == '7' ? 'selected' : '' }}>7 @lang('days')</option>
+                                                <option value="10" {{ old('auction_duration', $draftData['auction_duration'] ?? '') == '10' ? 'selected' : '' }}>10 @lang('days')</option>
+                                                <option value="14" {{ old('auction_duration', $draftData['auction_duration'] ?? '') == '14' ? 'selected' : '' }}>14 @lang('days')</option>
                                                 @if($maxDays >= 21)
-                                                    <option value="21" {{ old('auction_duration') == '21' ? 'selected' : '' }}>21 @lang('days')</option>
+                                                    <option value="21" {{ old('auction_duration', $draftData['auction_duration'] ?? '') == '21' ? 'selected' : '' }}>21 @lang('days')</option>
                                                 @endif
                                                 @if($maxDays >= 30)
-                                                    <option value="30" {{ old('auction_duration') == '30' ? 'selected' : '' }}>30 @lang('days')</option>
+                                                    <option value="30" {{ old('auction_duration', $draftData['auction_duration'] ?? '') == '30' ? 'selected' : '' }}>30 @lang('days')</option>
                                                 @endif
                                             </select>
                                         </div>
@@ -676,8 +689,21 @@
 @push('script')
 <script>
 $(document).ready(function() {
-    let currentStep = 1;
+    let currentStep = {{ $currentStage ?? 1 }};
     const totalSteps = 4;
+    let autoSaveTimer = null;
+    const autoSaveDelay = 2000; // 2 seconds after user stops typing
+    
+    // Restore stage on page load
+    if (currentStep > 1) {
+        showStep(currentStep);
+        // Show notification that draft was restored
+        if ({{ !empty($draftData) ? 'true' : 'false' }}) {
+            setTimeout(function() {
+                notify('info', '@lang("Draft restored. Your previous progress has been loaded.")');
+            }, 500);
+        }
+    }
     
     // Step Navigation
     function showStep(step) {
@@ -697,7 +723,100 @@ $(document).ready(function() {
         
         currentStep = step;
         window.scrollTo({top: 0, behavior: 'smooth'});
+        
+        // Auto-save when changing steps
+        saveDraft();
     }
+    
+    // Auto-save draft function
+    function saveDraft() {
+        clearTimeout(autoSaveTimer);
+        
+        autoSaveTimer = setTimeout(function() {
+            // Collect all form data
+            const draftData = {
+                current_stage: currentStep,
+                _token: $('input[name="_token"]').val()
+            };
+            
+            // Get all form inputs
+            $('#listingForm').find('input, textarea, select').each(function() {
+                const $field = $(this);
+                const name = $field.attr('name');
+                const type = $field.attr('type');
+                
+                if (!name || name === '_token' || name === 'images[]') {
+                    return;
+                }
+                
+                if (type === 'checkbox' || type === 'radio') {
+                    if ($field.is(':checked')) {
+                        draftData[name] = $field.val();
+                    }
+                } else if (type === 'file') {
+                    // Skip file inputs
+                    return;
+                } else {
+                    draftData[name] = $field.val() || '';
+                }
+            });
+            
+            $.ajax({
+                url: '{{ route("user.listing.draft.save") }}',
+                method: 'POST',
+                data: draftData,
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // Show draft indicator
+                        if ($('.draft-indicator').length === 0) {
+                            $('.card-header').find('h5').after(`
+                                <div class="draft-indicator">
+                                    <span class="badge bg-info">
+                                        <i class="las la-save me-1"></i>
+                                        @lang('Draft Saved')
+                                    </span>
+                                </div>
+                            `);
+                        }
+                    }
+                },
+                error: function() {
+                    console.error('Failed to save draft');
+                }
+            });
+        }, autoSaveDelay);
+    }
+    
+    // Auto-save on form field changes
+    $('#listingForm').on('input change', 'input, textarea, select', function() {
+        saveDraft();
+    });
+    
+    // Clear draft button
+    $('#clearDraftBtn').on('click', function() {
+        if (confirm('@lang("Are you sure you want to clear the draft? All unsaved data will be lost.")')) {
+            $.ajax({
+                url: '{{ route("user.listing.draft.clear") }}',
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $('.draft-indicator').remove();
+                        notify('success', '@lang("Draft cleared successfully")');
+                        // Optionally reload page to reset form
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1000);
+                    }
+                }
+            });
+        }
+    });
     
     // Next button
     $(document).on('click', '.btn-next', function() {
@@ -733,12 +852,14 @@ $(document).ready(function() {
         }
         
         showStep(nextStep);
+        saveDraft(); // Save draft when moving to next step
     });
     
     // Previous button
     $(document).on('click', '.btn-prev', function() {
         const prevStep = $(this).data('prev');
         showStep(prevStep);
+        saveDraft(); // Save draft when going back
     });
     
     // Business type change - show relevant fields
@@ -835,8 +956,14 @@ $(document).ready(function() {
         }
     });
     
-    // Initialize sale type
-    $('input[name="sale_type"]:checked').trigger('change');
+    // Initialize sale type (restore from draft if available)
+    const savedSaleType = $('input[name="sale_type"]:checked').val();
+    if (savedSaleType) {
+        $('input[name="sale_type"]:checked').trigger('change');
+    } else {
+        // Default to fixed_price if nothing selected
+        $('input[name="sale_type"][value="fixed_price"]').trigger('change');
+    }
     
     // Confidential & NDA toggle logic
     $('#isConfidential').on('change', function() {
@@ -856,7 +983,7 @@ $(document).ready(function() {
         $('#confidentialReasonSection').show();
     }
     
-    // Initialize business type if pre-selected
+    // Initialize business type if pre-selected (from draft or old input)
     const preselectedType = $('input[name="business_type"]:checked').val();
     if (preselectedType) {
         // Set required attribute for pre-selected type
@@ -873,6 +1000,14 @@ $(document).ready(function() {
         // Hide financial section and domain card by default
         $('.financial-section').addClass('d-none');
         $('.domain-card-preview').addClass('d-none');
+    }
+    
+    // If we're restoring from draft and on a later stage, trigger business type change
+    // to show the correct fields
+    if (currentStep > 1 && preselectedType) {
+        setTimeout(function() {
+            $('input[name="business_type"]:checked').trigger('change');
+        }, 100);
     }
     
     // ============================================
@@ -1357,6 +1492,20 @@ $(document).ready(function() {
                 btn.prop('disabled', false).html('<i class="las la-check-circle me-1"></i>@lang("Verify Ownership")');
             }
         });
+    });
+    
+    // Save draft before form submission
+    $('#listingForm').on('submit', function(e) {
+        // Clear any pending auto-save
+        clearTimeout(autoSaveTimer);
+        
+        // Final save before submission
+        saveDraft();
+        
+        // Wait a bit for save to complete
+        setTimeout(function() {
+            // Continue with form submission
+        }, 500);
     });
     
     // Validate verification before form submission

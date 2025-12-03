@@ -47,18 +47,73 @@ class ListingController extends Controller
         $platforms = $this->getPlatforms();
         $marketplaceSettings = MarketplaceSetting::getAllSettings();
 
+        // Restore draft data from session
+        $draftData = session('listing_draft', []);
+        $currentStage = session('listing_draft_stage', 1);
+
         return view('Template::user.listing.create', compact(
             'pageTitle',
             'categories',
             'listingCategories',
             'businessTypes',
             'platforms',
-            'marketplaceSettings'
+            'marketplaceSettings',
+            'draftData',
+            'currentStage'
         ));
+    }
+
+    /**
+     * Save draft listing data to session
+     */
+    public function saveDraft(Request $request)
+    {
+        $user = auth()->user();
+        
+        // Get all form data except files and CSRF token
+        $draftData = $request->except(['_token', 'images', '_method']);
+        $currentStage = $request->input('current_stage', 1);
+
+        // Store in session
+        session([
+            'listing_draft' => $draftData,
+            'listing_draft_stage' => (int)$currentStage,
+            'listing_draft_updated_at' => now()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Draft saved successfully',
+            'stage' => $currentStage
+        ]);
+    }
+
+    /**
+     * Clear draft listing data
+     */
+    public function clearDraft()
+    {
+        session()->forget([
+            'listing_draft',
+            'listing_draft_stage',
+            'listing_draft_updated_at'
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Draft cleared successfully'
+        ]);
     }
 
     public function store(Request $request)
     {
+        // Clear draft data after successful submission
+        session()->forget([
+            'listing_draft',
+            'listing_draft_stage',
+            'listing_draft_updated_at'
+        ]);
+
         // Check marketplace settings first
         $businessType = $request->business_type;
         $saleType = $request->sale_type;
