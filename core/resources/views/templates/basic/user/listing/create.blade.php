@@ -728,13 +728,26 @@ $(document).ready(function() {
     
     // Step Navigation
     function showStep(step) {
+        console.log('showStep called with:', step);
+        step = parseInt(step);
+        
+        // Hide all steps
         $('.form-step').addClass('d-none');
-        $(`.form-step[data-step="${step}"]`).removeClass('d-none');
+        
+        // Show the target step
+        const targetStep = $(`.form-step[data-step="${step}"]`);
+        if (targetStep.length === 0) {
+            console.error('Step not found:', step);
+            notify('error', 'Step not found');
+            return;
+        }
+        targetStep.removeClass('d-none');
+        console.log('Step', step, 'shown');
         
         // Update progress
         $('.progress-steps .step').removeClass('active completed');
         $('.progress-steps .step').each(function() {
-            const stepNum = $(this).data('step');
+            const stepNum = parseInt($(this).data('step'));
             if (stepNum < step) {
                 $(this).addClass('completed');
             } else if (stepNum === step) {
@@ -743,6 +756,7 @@ $(document).ready(function() {
         });
         
         currentStep = step;
+        console.log('Current step set to:', currentStep);
         window.scrollTo({top: 0, behavior: 'smooth'});
         
         // Auto-save when changing steps
@@ -840,48 +854,39 @@ $(document).ready(function() {
     });
     
     // Next button
-    $(document).on('click', '.btn-next', function() {
-        const nextStep = $(this).data('next');
+    $(document).on('click', '.btn-next', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const nextStep = parseInt($(this).data('next'));
+        console.log('Continue button clicked. Current step:', currentStep, 'Next step:', nextStep);
+        
+        if (!nextStep || isNaN(nextStep)) {
+            console.error('Invalid next step:', nextStep);
+            notify('error', 'Invalid step configuration');
+            return false;
+        }
         
         // Validation for step 1
         if (currentStep === 1) {
-            if (!$('input[name="business_type"]:checked').val()) {
-                notify('error', '@lang("Please select a business type")');
-                return;
-            }
-            
             const businessType = $('input[name="business_type"]:checked').val();
-            const requireDomainVerification = {{ \App\Models\MarketplaceSetting::requireDomainVerification() ? 'true' : 'false' }};
-            const requireWebsiteVerification = {{ \App\Models\MarketplaceSetting::requireWebsiteVerification() ? 'true' : 'false' }};
+            if (!businessType) {
+                notify('error', '@lang("Please select a business type")');
+                return false;
+            }
             
             // Check if domain/website is entered
             if (businessType === 'domain') {
                 const domainInput = $('#domainNameInput').val().trim();
                 if (!domainInput) {
                     notify('error', '@lang("Please enter a domain name")');
-                    return;
-                }
-                // Check verification if required
-                if (requireDomainVerification) {
-                    const verified = $('#domainVerified').val();
-                    if (!verified || verified !== '1') {
-                        notify('error', '@lang("You must verify domain ownership before continuing")');
-                        return;
-                    }
+                    return false;
                 }
             } else if (businessType === 'website') {
                 const websiteInput = $('#websiteUrlInput').val().trim();
                 if (!websiteInput) {
                     notify('error', '@lang("Please enter a website URL")');
-                    return;
-                }
-                // Check verification if required
-                if (requireWebsiteVerification) {
-                    const verified = $('#websiteVerified').val();
-                    if (!verified || verified !== '1') {
-                        notify('error', '@lang("You must verify website ownership before continuing")');
-                        return;
-                    }
+                    return false;
                 }
             }
         }
@@ -890,7 +895,7 @@ $(document).ready(function() {
         if (currentStep === 2) {
             if (!$('textarea[name="description"]').val()) {
                 notify('error', '@lang("Please enter a description")');
-                return;
+                return false;
             }
         }
         
@@ -899,16 +904,19 @@ $(document).ready(function() {
             const saleType = $('input[name="sale_type"]:checked').val();
             if (saleType === 'fixed_price' && !$('input[name="asking_price"]').val()) {
                 notify('error', '@lang("Please enter an asking price")');
-                return;
+                return false;
             }
             if (saleType === 'auction' && !$('input[name="starting_bid"]').val()) {
                 notify('error', '@lang("Please enter a starting bid")');
-                return;
+                return false;
             }
         }
         
+        // Navigate to next step
+        console.log('Calling showStep with:', nextStep);
         showStep(nextStep);
         saveDraft(); // Save draft when moving to next step
+        return false;
     });
     
     // Previous button
