@@ -978,15 +978,22 @@ $(document).ready(function() {
         if (type === 'domain' && requireDomainVerification) {
             // Show verification section immediately when domain type is selected
             if ($('#domainVerificationSection').length) {
-                $('#domainVerificationSection').slideDown(300);
-            }
-            // Check if domain name is already entered, if so generate verification data
-            const domainValue = $('#domainNameInput').val().trim();
-            if (domainValue) {
-                // Trigger input event to generate verification data if domain is already entered
-                setTimeout(function() {
-                    $('#domainNameInput').trigger('input');
-                }, 100);
+                $('#domainVerificationSection').slideDown(300, function() {
+                    // After section is visible, check if domain is entered and update display
+                    const domainValue = $('#domainNameInput').val().trim();
+                    if (domainValue) {
+                        // Trigger input event to generate verification data if domain is already entered
+                        $('#domainNameInput').trigger('input');
+                    } else {
+                        // Even if no domain entered, show default method (txt_file) content
+                        // Set default method
+                        if (!$('#domainVerificationMethod').val()) {
+                            $('#domainVerificationMethod').val('txt_file');
+                        }
+                        // Show default method content (will be empty until domain is entered)
+                        updateDomainVerificationDisplay();
+                    }
+                });
             }
         } else if (type === 'domain' && !requireDomainVerification) {
             // Hide verification section if verification is not required
@@ -1205,23 +1212,11 @@ $(document).ready(function() {
                     // Generate verification data first
                     generateDomainVerification(domain);
                     // Update display (section should already be visible from business type selection)
-                    if ($('#domainVerificationSection').is(':visible')) {
-                        updateDomainVerificationDisplay();
-                    } else {
-                        // If section is hidden, show it first
-                        if ($('#domainVerificationSection').length) {
-                            $('#domainVerificationSection').slideDown(300, function() {
-                                updateDomainVerificationDisplay();
-                            });
-                        }
-                    }
+                    updateDomainVerificationDisplay();
                 } catch(e) {
                     // Invalid URL format - keep section visible but don't generate data yet
                     // User will fix the URL format
                 }
-            } else if (!value && requireDomainVerification) {
-                // If value is cleared but verification is required, keep section visible
-                // but don't generate verification data
             }
         }
     });
@@ -1296,12 +1291,12 @@ $(document).ready(function() {
         domainVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
         domainVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
         
-        // Ensure default method is selected if none is selected
+        // Ensure default method is txt_file
         if (!$('#domainVerificationMethod').val()) {
             $('#domainVerificationMethod').val('txt_file');
         }
         
-        // Update display with the current selected method
+        // Update display with the current selected method immediately
         updateDomainVerificationDisplay();
     }
     
@@ -1312,14 +1307,20 @@ $(document).ready(function() {
         if (businessType === 'domain' && requireDomainVerification) {
             // Show verification section immediately
             if ($('#domainVerificationSection').length) {
-                $('#domainVerificationSection').slideDown(300);
-            }
-            // If domain value exists, generate verification data
-            const domainValue = $('#domainNameInput').val().trim();
-            if (domainValue) {
-                setTimeout(function() {
-                    $('#domainNameInput').trigger('input');
-                }, 500);
+                $('#domainVerificationSection').slideDown(300, function() {
+                    // Set default method
+                    if (!$('#domainVerificationMethod').val()) {
+                        $('#domainVerificationMethod').val('txt_file');
+                    }
+                    // If domain value exists, generate verification data
+                    const domainValue = $('#domainNameInput').val().trim();
+                    if (domainValue) {
+                        $('#domainNameInput').trigger('input');
+                    } else {
+                        // Show default method even without domain
+                        updateDomainVerificationDisplay();
+                    }
+                });
             }
         }
     });
@@ -1346,22 +1347,8 @@ $(document).ready(function() {
     function updateDomainVerificationDisplay() {
         let method = $('#domainVerificationMethod').val();
         
-        // Check if we have the required data
-        if (!domainVerificationData.domain || !domainVerificationData.token) {
-            // Domain or token not set yet, hide both methods
-            $('#txtFileMethod').hide();
-            $('#dnsRecordMethod').hide();
-            return;
-        }
-        
-        // If no method selected, default to txt_file (TXT record)
+        // If no method selected, default to txt_file
         if (!method) {
-            method = 'txt_file';
-            $('#domainVerificationMethod').val('txt_file');
-        }
-        
-        // Always default to txt_file if method is empty or invalid
-        if (method !== 'txt_file' && method !== 'dns_record') {
             method = 'txt_file';
             $('#domainVerificationMethod').val('txt_file');
         }
@@ -1371,24 +1358,39 @@ $(document).ready(function() {
         $('#dnsRecordMethod').hide();
         
         if (method === 'txt_file') {
-            // Update content first
-            $('#txtFileName').text(domainVerificationData.filename || '-');
-            $('#txtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
-            $('#txtFileContent').text(domainVerificationData.token || '-');
-            // Then show
+            // Update content if we have verification data
+            if (domainVerificationData.domain && domainVerificationData.token) {
+                $('#txtFileName').text(domainVerificationData.filename || '-');
+                $('#txtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
+                $('#txtFileContent').text(domainVerificationData.token || '-');
+            } else {
+                // Show placeholders until domain is entered
+                $('#txtFileName').text('-');
+                $('#txtFileLocation').text('-');
+                $('#txtFileContent').text('-');
+            }
+            // Show the method section
             $('#txtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
-            // Update content first
-            $('#dnsRecordName').text(domainVerificationData.dnsName || '-');
-            $('#dnsRecordValue').text(domainVerificationData.token || '-');
-            // Then show
+            // Update content if we have verification data
+            if (domainVerificationData.domain && domainVerificationData.token) {
+                $('#dnsRecordName').text(domainVerificationData.dnsName || '-');
+                $('#dnsRecordValue').text(domainVerificationData.token || '-');
+            } else {
+                // Show placeholders until domain is entered
+                $('#dnsRecordName').text('-');
+                $('#dnsRecordValue').text('-');
+            }
+            // Show the method section
             $('#dnsRecordMethod').css('display', 'block');
         }
         
-        // Update hidden fields
-        $('#domainVerificationToken').val(domainVerificationData.token);
-        $('#domainVerificationFilename').val(domainVerificationData.filename);
-        $('#domainVerificationDnsName').val(domainVerificationData.dnsName);
+        // Update hidden fields if we have data
+        if (domainVerificationData.token) {
+            $('#domainVerificationToken').val(domainVerificationData.token);
+            $('#domainVerificationFilename').val(domainVerificationData.filename || '');
+            $('#domainVerificationDnsName').val(domainVerificationData.dnsName || '');
+        }
         
         // Reset verification status
         $('#domainVerified').val('0');
