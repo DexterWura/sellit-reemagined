@@ -85,6 +85,11 @@ class Listing extends Model
         return $this->hasOne(DomainVerification::class);
     }
 
+    public function socialMediaVerification()
+    {
+        return $this->hasOne(SocialMediaVerification::class);
+    }
+
     public function highestBidder()
     {
         return $this->belongsTo(User::class, 'highest_bidder_id');

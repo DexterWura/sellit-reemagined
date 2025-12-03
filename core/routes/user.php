@@ -126,6 +126,13 @@ Route::middleware('auth')->name('user.')->group(function () {
                 Route::post('question/answer/{id}', 'answerQuestion')->name('question.answer');
             });
 
+            // Social Media Verification
+            Route::controller('SocialMediaVerificationController')->name('social.verification.')->prefix('social-verification')->group(function () {
+                Route::get('redirect/{platform}', 'redirect')->name('redirect');
+                Route::get('redirect/{listingId}/{platform}', 'redirect')->name('redirect.listing');
+                Route::get('callback/{platform}', 'callback')->name('callback');
+            });
+
             // Bids
             Route::controller('BidController')->name('bid.')->prefix('bid')->group(function () {
                 Route::get('/', 'index')->name('index');

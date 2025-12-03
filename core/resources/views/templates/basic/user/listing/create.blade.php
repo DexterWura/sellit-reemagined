@@ -429,6 +429,53 @@
                                     </div>
                                 </div>
                                 
+                                {{-- Social Media Verification Section --}}
+                                <div id="socialMediaVerificationSection" class="mb-4" style="display: none;">
+                                    <div class="card border-warning">
+                                        <div class="card-header bg-warning bg-opacity-10">
+                                            <h6 class="mb-0">
+                                                <i class="las la-shield-alt me-2"></i>@lang('Verify Social Media Account Ownership')
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="text-muted small mb-3">@lang('You must verify ownership of this social media account before you can continue.')</p>
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold">@lang('Select Platform to Verify')</label>
+                                                <select name="social_platform" id="socialPlatformSelect" class="form-select">
+                                                    <option value="">@lang('Select Platform')</option>
+                                                    <option value="instagram">Instagram</option>
+                                                    <option value="youtube">YouTube</option>
+                                                    <option value="tiktok">TikTok</option>
+                                                    <option value="twitter">Twitter/X</option>
+                                                    <option value="facebook">Facebook</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div id="socialVerificationInstructions" class="alert alert-info border" style="display: none;">
+                                                <h6 class="mb-3"><i class="las la-key me-2"></i>@lang('OAuth Verification')</h6>
+                                                <p class="mb-3">@lang('Click the button below to connect your social media account. We will verify that you own the account by authenticating through the platform\'s official API.')</p>
+                                                
+                                                <div class="d-flex gap-2">
+                                                    <button type="button" class="btn btn--base" id="verifySocialAccountBtn">
+                                                        <i class="las la-check-circle me-1"></i>@lang('Verify via') <span id="platformName">Platform</span>
+                                                    </button>
+                                                    <span id="socialVerificationStatus" class="ms-3 align-self-center"></span>
+                                                </div>
+                                                
+                                                <div id="socialVerificationSuccess" class="alert alert-success mt-3 mb-0" style="display: none;">
+                                                    <i class="las la-check-circle me-2"></i>
+                                                    <strong>@lang('Verified!')</strong> 
+                                                    <span id="verifiedAccountInfo"></span>
+                                                </div>
+                                            </div>
+                                            
+                                            <input type="hidden" name="social_verified" id="socialVerified" value="0">
+                                            <input type="hidden" name="verified_platform" id="verifiedPlatform" value="">
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 {{-- Verification Not Required Message --}}
                                 <div id="verificationNotRequired" class="alert alert-success mb-4" style="display: none;">
                                     <div class="d-flex align-items-start">
@@ -1184,11 +1231,13 @@ $(document).ready(function() {
         $('#websiteInputSection').hide();
         $('#domainVerificationSection').hide();
         $('#websiteVerificationSection').hide();
+        $('#socialMediaVerificationSection').hide();
         $('#verificationNotRequired').hide();
         
         // Reset verification status
         $('#domainVerified').val('0');
         $('#websiteVerified').val('0');
+        $('#socialVerified').val('0');
         $('#step1ContinueBtn').prop('disabled', true);
         
         // Show relevant input section
@@ -1206,6 +1255,17 @@ $(document).ready(function() {
             $('#websiteUrlInput').attr('required', 'required');
             if (requireWebsiteVerification) {
                 // Will show verification section when website is entered
+            } else {
+                $('#verificationNotRequired').show();
+                $('#step1ContinueBtn').prop('disabled', false);
+            }
+        } else if (type === 'social_media_account') {
+            const requireSocialVerification = {{ \App\Models\MarketplaceSetting::requireSocialMediaVerification() ? 'true' : 'false' }};
+            if (requireSocialVerification) {
+                // Social media accounts require verification
+                $('#socialMediaVerificationSection').show();
+                $('#socialVerificationInstructions').hide();
+                $('#step1ContinueBtn').prop('disabled', true);
             } else {
                 $('#verificationNotRequired').show();
                 $('#step1ContinueBtn').prop('disabled', false);
@@ -1526,6 +1586,16 @@ $(document).ready(function() {
             if (!verified || verified !== '1') {
                 shouldPreventSubmit = true;
                 notify('error', '@lang("You must verify website ownership before submitting the listing")');
+                showStep(1);
+            }
+        }
+        
+        const requireSocialVerification = {{ \App\Models\MarketplaceSetting::requireSocialMediaVerification() ? 'true' : 'false' }};
+        if (businessType === 'social_media_account' && requireSocialVerification === true) {
+            const verified = $('#socialVerified').val();
+            if (!verified || verified !== '1') {
+                shouldPreventSubmit = true;
+                notify('error', '@lang("You must verify social media account ownership before submitting the listing")');
                 showStep(1);
             }
         }
@@ -1912,8 +1982,41 @@ $(document).ready(function() {
         });
     });
     
-    // Remove old verification code from step 2 - no longer needed
-    // The old code that showed verification in step 2 has been removed
+    // Social Media Verification
+    $('#socialPlatformSelect').on('change', function() {
+        const platform = $(this).val();
+        if (platform) {
+            $('#socialVerificationInstructions').show();
+            $('#platformName').text(platform.charAt(0).toUpperCase() + platform.slice(1));
+            $('#verifySocialAccountBtn').prop('disabled', false);
+        } else {
+            $('#socialVerificationInstructions').hide();
+            $('#verifySocialAccountBtn').prop('disabled', true);
+        }
+    });
+
+    $('#verifySocialAccountBtn').on('click', function() {
+        const platform = $('#socialPlatformSelect').val();
+        if (!platform) {
+            notify('error', '@lang("Please select a platform first")');
+            return;
+        }
+
+        // Redirect to OAuth verification (no listing needed yet)
+        window.location.href = '{{ route("user.social.verification.redirect", ["platform" => "PLATFORM_PLACEHOLDER"]) }}'.replace('PLATFORM_PLACEHOLDER', platform);
+    });
+
+    // Check if social media is already verified (from callback)
+    @if(session('social_verified'))
+        $('#socialVerified').val('1');
+        $('#verifiedPlatform').val('{{ session("verified_platform") }}');
+        $('#socialPlatformSelect').val('{{ session("verified_platform") }}').trigger('change');
+        $('#socialVerificationSuccess').show();
+        $('#verifiedAccountInfo').text('{{ session("verified_account_username") ?? "Account" }}');
+        $('#socialVerificationInstructions').show();
+        $('#verifySocialAccountBtn').prop('disabled', true).html('<i class="las la-check-circle me-1"></i>@lang("Verified")');
+        $('#step1ContinueBtn').prop('disabled', false);
+    @endif
 });
 </script>
 @endpush

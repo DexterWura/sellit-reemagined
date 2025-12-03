@@ -40,6 +40,7 @@ class MarketplaceConfigController extends Controller
             'allow_desktop_app_listings',
             'require_domain_verification',
             'require_website_verification',
+            'require_social_media_verification',
             'listing_approval_required',
         ];
 

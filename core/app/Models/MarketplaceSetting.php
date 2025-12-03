@@ -100,6 +100,11 @@ class MarketplaceSetting extends Model
         return (bool) self::getValue('require_website_verification', true);
     }
 
+    public static function requireSocialMediaVerification()
+    {
+        return (bool) self::getValue('require_social_media_verification', true);
+    }
+
     public static function getDomainVerificationMethods()
     {
         $methods = self::getValue('domain_verification_methods', '["txt_file","dns_record"]');

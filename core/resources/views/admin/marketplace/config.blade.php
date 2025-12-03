@@ -149,6 +149,14 @@
                                 </label>
                                 <small class="text-muted">Users must verify ownership of website listings</small>
                             </div>
+                            <div class="form-group mt-3">
+                                <label class="form-check-label d-flex align-items-center gap-2">
+                                    <input type="checkbox" name="require_social_media_verification" class="form-check-input"
+                                           {{ ($settings['require_social_media_verification'] ?? '1') == '1' ? 'checked' : '' }}>
+                                    <span>Require Social Media Verification</span>
+                                </label>
+                                <small class="text-muted">Users must verify ownership of social media accounts via OAuth</small>
+                            </div>
                         </div>
                         <div class="col-lg-6">
                             <label class="form-label">Allowed Verification Methods</label>
