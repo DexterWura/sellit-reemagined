@@ -1244,20 +1244,50 @@ $(document).ready(function() {
         if (type === 'domain') {
             $('#domainInputSection').show();
             $('#domainNameInput').attr('required', 'required');
-            if (requireDomainVerification) {
-                // Will show verification section when domain is entered
+            
+            // Check if domain is already entered and show verification if needed
+            const domainValue = $('#domainNameInput').val();
+            if (domainValue && domainValue.match(/^https?:\/\//i)) {
+                if (requireDomainVerification) {
+                    // Trigger input event to setup verification
+                    setTimeout(function() {
+                        $('#domainNameInput').trigger('input');
+                    }, 100);
+                } else {
+                    $('#verificationNotRequired').show();
+                    $('#step1ContinueBtn').prop('disabled', false);
+                }
             } else {
-                $('#verificationNotRequired').show();
-                $('#step1ContinueBtn').prop('disabled', false);
+                if (requireDomainVerification) {
+                    // Will show verification section when domain is entered
+                } else {
+                    $('#verificationNotRequired').show();
+                    $('#step1ContinueBtn').prop('disabled', false);
+                }
             }
         } else if (type === 'website') {
             $('#websiteInputSection').show();
             $('#websiteUrlInput').attr('required', 'required');
-            if (requireWebsiteVerification) {
-                // Will show verification section when website is entered
+            
+            // Check if website is already entered and show verification if needed
+            const websiteValue = $('#websiteUrlInput').val();
+            if (websiteValue && websiteValue.match(/^https?:\/\//i)) {
+                if (requireWebsiteVerification) {
+                    // Trigger input event to setup verification
+                    setTimeout(function() {
+                        $('#websiteUrlInput').trigger('input');
+                    }, 100);
+                } else {
+                    $('#verificationNotRequired').show();
+                    $('#step1ContinueBtn').prop('disabled', false);
+                }
             } else {
-                $('#verificationNotRequired').show();
-                $('#step1ContinueBtn').prop('disabled', false);
+                if (requireWebsiteVerification) {
+                    // Will show verification section when website is entered
+                } else {
+                    $('#verificationNotRequired').show();
+                    $('#step1ContinueBtn').prop('disabled', false);
+                }
             }
         } else if (type === 'social_media_account') {
             const requireSocialVerification = {{ \App\Models\MarketplaceSetting::requireSocialMediaVerification() ? 'true' : 'false' }};
@@ -1360,8 +1390,24 @@ $(document).ready(function() {
             $('.financial-section').addClass('d-none');
             $('.domain-card-preview').removeClass('d-none');
             $('.image-upload-section').addClass('d-none');
+            
+            // If domain is already entered, trigger input to show verification
+            const domainValue = $('#domainNameInput').val();
+            if (domainValue && domainValue.match(/^https?:\/\//i)) {
+                setTimeout(function() {
+                    $('#domainNameInput').trigger('input');
+                }, 300);
+            }
         } else if (preselectedType === 'website') {
             $('#websiteUrlInput').attr('required', 'required');
+            
+            // If website is already entered, trigger input to show verification
+            const websiteValue = $('#websiteUrlInput').val();
+            if (websiteValue && websiteValue.match(/^https?:\/\//i)) {
+                setTimeout(function() {
+                    $('#websiteUrlInput').trigger('input');
+                }, 300);
+            }
         }
         $('input[name="business_type"]:checked').trigger('change');
     } else {
@@ -1480,11 +1526,19 @@ $(document).ready(function() {
                 try {
                     const urlObj = new URL(value);
                     const domain = urlObj.hostname.replace(/^www\./, '');
-                    setupDomainVerification(domain);
+                    if (domain) {
+                        setupDomainVerification(domain);
+                    } else {
+                        $('#domainVerificationSection').hide();
+                        $('#step1ContinueBtn').prop('disabled', true);
+                    }
                 } catch(e) {
                     $('#domainVerificationSection').hide();
                     $('#step1ContinueBtn').prop('disabled', true);
                 }
+            } else if (value && !requireDomainVerification) {
+                // If verification not required, enable continue button
+                $('#step1ContinueBtn').prop('disabled', false);
             }
         }
     });
@@ -1511,11 +1565,19 @@ $(document).ready(function() {
                 try {
                     const urlObj = new URL(value);
                     const domain = urlObj.hostname.replace(/^www\./, '');
-                    setupWebsiteVerification(value, domain);
+                    if (domain) {
+                        setupWebsiteVerification(value, domain);
+                    } else {
+                        $('#websiteVerificationSection').hide();
+                        $('#step1ContinueBtn').prop('disabled', true);
+                    }
                 } catch(e) {
                     $('#websiteVerificationSection').hide();
                     $('#step1ContinueBtn').prop('disabled', true);
                 }
+            } else if (value && !requireWebsiteVerification) {
+                // If verification not required, enable continue button
+                $('#step1ContinueBtn').prop('disabled', false);
             }
         }
     });
