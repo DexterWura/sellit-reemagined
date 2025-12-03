@@ -1309,43 +1309,34 @@ $(document).ready(function() {
     function updateDomainVerificationDisplay() {
         let method = $('#domainVerificationMethod').val();
         
+        if (!domainVerificationData.domain || !domainVerificationData.token) {
+            $('#txtFileMethod').hide();
+            $('#dnsRecordMethod').hide();
+            return;
+        }
+        
         if (!method) {
             method = 'txt_file';
             $('#domainVerificationMethod').val('txt_file');
         }
         
-        $('#txtFileMethod').css('display', 'none');
-        $('#dnsRecordMethod').css('display', 'none');
+        $('#txtFileMethod').hide();
+        $('#dnsRecordMethod').hide();
         
         if (method === 'txt_file') {
-            if (domainVerificationData.domain && domainVerificationData.token) {
-                $('#txtFileName').text(domainVerificationData.filename || '-');
-                $('#txtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
-                $('#txtFileContent').text(domainVerificationData.token || '-');
-                $('#downloadTxtFile').prop('disabled', false);
-            } else {
-                $('#txtFileName').text('-');
-                $('#txtFileLocation').text('-');
-                $('#txtFileContent').text('-');
-                $('#downloadTxtFile').prop('disabled', true);
-            }
+            $('#txtFileName').text(domainVerificationData.filename || '-');
+            $('#txtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
+            $('#txtFileContent').text(domainVerificationData.token || '-');
             $('#txtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
-            if (domainVerificationData.domain && domainVerificationData.token) {
-                $('#dnsRecordName').text(domainVerificationData.dnsName || '-');
-                $('#dnsRecordValue').text(domainVerificationData.token || '-');
-            } else {
-                $('#dnsRecordName').text('-');
-                $('#dnsRecordValue').text('-');
-            }
+            $('#dnsRecordName').text(domainVerificationData.dnsName || '-');
+            $('#dnsRecordValue').text(domainVerificationData.token || '-');
             $('#dnsRecordMethod').css('display', 'block');
         }
         
-        if (domainVerificationData.token) {
-            $('#domainVerificationToken').val(domainVerificationData.token);
-            $('#domainVerificationFilename').val(domainVerificationData.filename);
-            $('#domainVerificationDnsName').val(domainVerificationData.dnsName);
-        }
+        $('#domainVerificationToken').val(domainVerificationData.token);
+        $('#domainVerificationFilename').val(domainVerificationData.filename);
+        $('#domainVerificationDnsName').val(domainVerificationData.dnsName);
         
         $('#domainVerified').val('0');
         $('#verificationStatus').html('');
