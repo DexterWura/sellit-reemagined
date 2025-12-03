@@ -30,6 +30,106 @@ function slug($string)
     return Str::slug($string);
 }
 
+/**
+ * Normalize a URL - add protocol if missing, remove trailing slashes, etc.
+ */
+function normalizeUrl($url)
+{
+    if (empty($url)) {
+        return null;
+    }
+    
+    $url = trim($url);
+    
+    // Remove trailing slashes (except after protocol)
+    $url = rtrim($url, '/');
+    
+    // Add protocol if missing
+    if (!preg_match('/^https?:\/\//i', $url)) {
+        // Check if it looks like a domain
+        if (preg_match('/^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}/', $url)) {
+            $url = 'https://' . $url;
+        }
+    }
+    
+    return $url;
+}
+
+/**
+ * Extract clean domain name from URL
+ */
+function extractDomain($url)
+{
+    if (empty($url)) {
+        return null;
+    }
+    
+    $url = normalizeUrl($url);
+    
+    try {
+        $parsed = parse_url($url);
+        if (!isset($parsed['host'])) {
+            return null;
+        }
+        
+        $domain = $parsed['host'];
+        
+        // Remove www. prefix
+        $domain = preg_replace('/^www\./i', '', $domain);
+        
+        // Remove port if present
+        $domain = explode(':', $domain)[0];
+        
+        return strtolower($domain);
+    } catch (\Exception $e) {
+        return null;
+    }
+}
+
+/**
+ * Check if a domain/URL is accessible
+ */
+function checkDomainAccessibility($url, $timeout = 5)
+{
+    if (empty($url)) {
+        return ['accessible' => false, 'error' => 'URL is empty'];
+    }
+    
+    $url = normalizeUrl($url);
+    
+    try {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => $timeout,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; DomainChecker/1.0)',
+            CURLOPT_NOBODY => true, // HEAD request only
+        ]);
+        
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        
+        if ($httpCode >= 200 && $httpCode < 400) {
+            return ['accessible' => true, 'http_code' => $httpCode];
+        } else {
+            return [
+                'accessible' => false,
+                'error' => $curlError ?: "HTTP $httpCode",
+                'http_code' => $httpCode
+            ];
+        }
+    } catch (\Exception $e) {
+        return ['accessible' => false, 'error' => $e->getMessage()];
+    }
+}
+
 function verificationCode($length)
 {
     if ($length == 0) return 0;

@@ -125,12 +125,21 @@ class DomainVerification extends Model
     public static function extractDomain(Listing $listing)
     {
         if ($listing->business_type === 'domain') {
-            return $listing->domain_name;
+            // Use stored domain_name if available, otherwise extract from URL
+            if ($listing->domain_name) {
+                return $listing->domain_name;
+            }
+            if ($listing->url) {
+                return extractDomain($listing->url);
+            }
         }
 
         if ($listing->business_type === 'website' && $listing->url) {
-            $parsed = parse_url($listing->url);
-            return $parsed['host'] ?? null;
+            // Use stored domain_name if available, otherwise extract from URL
+            if ($listing->domain_name) {
+                return $listing->domain_name;
+            }
+            return extractDomain($listing->url);
         }
 
         return null;

@@ -85,6 +85,15 @@ class ListingController extends Controller
         $minAuctionDays = MarketplaceSetting::minAuctionDays();
         $minDescription = MarketplaceSetting::minListingDescription();
 
+        // Normalize URLs before validation
+        if ($request->has('domain_name') && $request->domain_name) {
+            $request->merge(['domain_name' => normalizeUrl($request->domain_name)]);
+        }
+        
+        if ($request->has('website_url') && $request->website_url) {
+            $request->merge(['website_url' => normalizeUrl($request->website_url)]);
+        }
+
         $request->validate([
             'description' => 'required|string|min:' . $minDescription,
             'business_type' => 'required|in:domain,website,social_media_account,mobile_app,desktop_app',
@@ -97,14 +106,76 @@ class ListingController extends Controller
             'auction_duration' => 'required_if:sale_type,auction|nullable|integer|min:' . $minAuctionDays . '|max:' . $maxAuctionDays,
             'listing_category_id' => 'nullable|exists:listing_categories,id',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'domain_name' => 'required_if:business_type,domain|nullable|string|regex:/^https?:\/\/.+/i',
+            'domain_name' => 'required_if:business_type,domain|nullable|url|regex:/^https?:\/\/.+/i',
             'website_url' => 'required_if:business_type,website|nullable|url|regex:/^https?:\/\/.+/i',
         ], [
-            'domain_name.regex' => 'Domain must start with http:// or https://',
-            'website_url.regex' => 'Website URL must start with http:// or https://',
+            'domain_name.regex' => 'Domain must be a valid URL starting with http:// or https://',
+            'domain_name.url' => 'Please enter a valid domain URL (e.g., https://example.com)',
+            'website_url.regex' => 'Website URL must be a valid URL starting with http:// or https://',
+            'website_url.url' => 'Please enter a valid website URL (e.g., https://example.com)',
         ]);
 
         $user = auth()->user();
+
+        // Extract and validate domain/website
+        $domain = null;
+        $url = null;
+        
+        if ($businessType === 'domain') {
+            $url = $request->domain_name;
+            $domain = extractDomain($url);
+            
+            if (!$domain) {
+                $notify[] = ['error', 'Invalid domain format. Please enter a valid domain URL (e.g., https://example.com)'];
+                return back()->withInput()->withNotify($notify);
+            }
+            
+            // Check for duplicate listings with same domain
+            $existingListing = Listing::where('domain_name', $domain)
+                ->where('user_id', '!=', $user->id)
+                ->whereIn('status', [Status::LISTING_ACTIVE, Status::LISTING_PENDING])
+                ->first();
+            
+            if ($existingListing) {
+                $notify[] = ['error', 'A listing for this domain already exists. Each domain can only be listed once.'];
+                return back()->withInput()->withNotify($notify);
+            }
+            
+            // Check if domain is accessible (basic check)
+            $accessibility = checkDomainAccessibility($url, 3);
+            if (!$accessibility['accessible']) {
+                $notify[] = ['warning', 'Warning: Could not verify domain accessibility. Please ensure the domain is active and accessible.'];
+                // Don't block, just warn
+            }
+        }
+        
+        if ($businessType === 'website') {
+            $url = $request->website_url;
+            $domain = extractDomain($url);
+            
+            if (!$domain) {
+                $notify[] = ['error', 'Invalid website URL format. Please enter a valid URL (e.g., https://example.com)'];
+                return back()->withInput()->withNotify($notify);
+            }
+            
+            // Check for duplicate listings with same website
+            $existingListing = Listing::where('url', $url)
+                ->where('user_id', '!=', $user->id)
+                ->whereIn('status', [Status::LISTING_ACTIVE, Status::LISTING_PENDING])
+                ->first();
+            
+            if ($existingListing) {
+                $notify[] = ['error', 'A listing for this website already exists. Each website can only be listed once.'];
+                return back()->withInput()->withNotify($notify);
+            }
+            
+            // Check if website is accessible
+            $accessibility = checkDomainAccessibility($url, 5);
+            if (!$accessibility['accessible']) {
+                $notify[] = ['error', 'Website is not accessible. Please ensure the website is live and accessible before listing it.'];
+                return back()->withInput()->withNotify($notify);
+            }
+        }
 
         // Check if domain/website verification is required and verified
         $requiresVerification = false;
@@ -115,7 +186,7 @@ class ListingController extends Controller
             $isVerified = $request->has('domain_verified') && $request->domain_verified == '1';
             
             if (!$isVerified) {
-                $notify[] = ['error', 'You must verify domain ownership before submitting the listing'];
+                $notify[] = ['error', 'You must verify domain ownership before submitting the listing. Please complete the verification process first.'];
                 return back()->withInput()->withNotify($notify);
             }
         }
@@ -125,7 +196,7 @@ class ListingController extends Controller
             $isVerified = $request->has('domain_verified') && $request->domain_verified == '1';
             
             if (!$isVerified) {
-                $notify[] = ['error', 'You must verify website ownership before submitting the listing'];
+                $notify[] = ['error', 'You must verify website ownership before submitting the listing. Please complete the verification process first.'];
                 return back()->withInput()->withNotify($notify);
             }
         }
@@ -134,22 +205,12 @@ class ListingController extends Controller
         $title = '';
         switch ($request->business_type) {
             case 'domain':
-                $domainName = $request->domain_name;
-                if (preg_match('/^https?:\/\/(.+)$/i', $domainName, $matches)) {
-                    $domainName = $matches[1];
-                }
-                $domainName = preg_replace('/^www\./i', '', $domainName);
-                $domainName = explode('/', $domainName)[0];
-                $title = $domainName;
+                // Use the extracted domain (already normalized)
+                $title = $domain ?: extractDomain($request->domain_name) ?: 'Domain Listing';
                 break;
             case 'website':
-                $websiteUrl = $request->website_url;
-                if (preg_match('/^https?:\/\/(.+)$/i', $websiteUrl, $matches)) {
-                    $websiteUrl = $matches[1];
-                }
-                $websiteUrl = preg_replace('/^www\./i', '', $websiteUrl);
-                $websiteUrl = explode('/', $websiteUrl)[0];
-                $title = $websiteUrl;
+                // Use the extracted domain (already normalized)
+                $title = $domain ?: extractDomain($request->website_url) ?: 'Website Listing';
                 break;
             case 'social_media_account':
                 // Extract username from URL or use social_username field
@@ -286,13 +347,58 @@ class ListingController extends Controller
             ->whereIn('status', [Status::LISTING_DRAFT, Status::LISTING_PENDING, Status::LISTING_REJECTED])
             ->findOrFail($id);
 
+        // Normalize URLs if being updated
+        if ($request->has('domain_name') && $request->domain_name) {
+            $request->merge(['domain_name' => normalizeUrl($request->domain_name)]);
+        }
+        
+        if ($request->has('website_url') && $request->website_url) {
+            $request->merge(['website_url' => normalizeUrl($request->website_url)]);
+        }
+
+        $minDescription = MarketplaceSetting::minListingDescription();
+        
         $request->validate([
             'title' => 'required|string|max:255',
-            'description' => 'required|string|min:100',
+            'description' => 'required|string|min:' . $minDescription,
             'asking_price' => 'required_if:sale_type,fixed_price|nullable|numeric|min:1',
             'starting_bid' => 'required_if:sale_type,auction|nullable|numeric|min:1',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'domain_name' => 'required_if:business_type,domain|nullable|url|regex:/^https?:\/\/.+/i',
+            'website_url' => 'required_if:business_type,website|nullable|url|regex:/^https?:\/\/.+/i',
+        ], [
+            'domain_name.url' => 'Please enter a valid domain URL (e.g., https://example.com)',
+            'website_url.url' => 'Please enter a valid website URL (e.g., https://example.com)',
         ]);
+        
+        // Check for duplicate domains/websites (excluding current listing)
+        if ($listing->business_type === 'domain' && $request->domain_name) {
+            $domain = extractDomain($request->domain_name);
+            $existingListing = Listing::where('domain_name', $domain)
+                ->where('id', '!=', $listing->id)
+                ->where('user_id', '!=', auth()->id())
+                ->whereIn('status', [Status::LISTING_ACTIVE, Status::LISTING_PENDING])
+                ->first();
+            
+            if ($existingListing) {
+                $notify[] = ['error', 'A listing for this domain already exists. Each domain can only be listed once.'];
+                return back()->withInput()->withNotify($notify);
+            }
+        }
+        
+        if ($listing->business_type === 'website' && $request->website_url) {
+            $url = normalizeUrl($request->website_url);
+            $existingListing = Listing::where('url', $url)
+                ->where('id', '!=', $listing->id)
+                ->where('user_id', '!=', auth()->id())
+                ->whereIn('status', [Status::LISTING_ACTIVE, Status::LISTING_PENDING])
+                ->first();
+            
+            if ($existingListing) {
+                $notify[] = ['error', 'A listing for this website already exists. Each website can only be listed once.'];
+                return back()->withInput()->withNotify($notify);
+            }
+        }
 
         $listing->title = $request->title;
         $listing->tagline = $request->tagline;
@@ -493,31 +599,37 @@ class ListingController extends Controller
     {
         switch ($request->business_type) {
             case 'domain':
-                // Extract domain name (remove protocol if present)
-                $domainName = $request->domain_name;
-                if (preg_match('/^https?:\/\/(.+)$/i', $domainName, $matches)) {
-                    $domainName = $matches[1];
+                // Extract clean domain name using helper
+                $domainName = extractDomain($request->domain_name);
+                
+                if (!$domainName) {
+                    // Fallback to manual extraction
+                    $domainName = $request->domain_name;
+                    if (preg_match('/^https?:\/\/(.+)$/i', $domainName, $matches)) {
+                        $domainName = $matches[1];
+                    }
+                    $domainName = preg_replace('/^www\./i', '', $domainName);
+                    $domainName = explode('/', $domainName)[0];
                 }
-                // Remove www. if present
-                $domainName = preg_replace('/^www\./i', '', $domainName);
-                // Remove path if present
-                $domainName = explode('/', $domainName)[0];
                 
                 $listing->domain_name = $domainName;
                 $listing->domain_extension = $request->domain_extension;
                 $listing->domain_registrar = $request->domain_registrar;
                 $listing->domain_expiry = $request->domain_expiry;
                 $listing->domain_age_years = $request->domain_age_years ?? 0;
-                // Set URL from domain name for verification purposes
-                $listing->url = $request->domain_name; // Keep the full URL with protocol
+                // Set URL from domain name for verification purposes (normalized)
+                $listing->url = normalizeUrl($request->domain_name);
                 break;
 
             case 'website':
-                $listing->url = $request->website_url;
+                // Normalize website URL
+                $listing->url = normalizeUrl($request->website_url);
                 $listing->niche = $request->niche;
                 $listing->tech_stack = $request->tech_stack;
                 $listing->domain_registrar = $request->domain_registrar;
                 $listing->domain_expiry = $request->domain_expiry;
+                // Also store domain name for easier searching
+                $listing->domain_name = extractDomain($request->website_url);
                 break;
 
             case 'social_media_account':

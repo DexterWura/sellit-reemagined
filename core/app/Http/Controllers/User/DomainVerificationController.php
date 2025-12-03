@@ -39,16 +39,36 @@ class DomainVerificationController extends Controller
 
         // Check if verification is required
         if ($listing->business_type === 'domain' && !MarketplaceSetting::requireDomainVerification()) {
-            return back()->with('error', 'Domain verification is not required');
+            $notify[] = ['info', 'Domain verification is not required for this listing'];
+            return back()->withNotify($notify);
         }
 
         if ($listing->business_type === 'website' && !MarketplaceSetting::requireWebsiteVerification()) {
-            return back()->with('error', 'Website verification is not required');
+            $notify[] = ['info', 'Website verification is not required for this listing'];
+            return back()->withNotify($notify);
         }
 
         // Check if already verified
         if ($listing->is_verified) {
-            return back()->with('info', 'This listing is already verified');
+            $notify[] = ['success', 'This listing is already verified'];
+            return back()->withNotify($notify);
+        }
+
+        // Validate domain/website is accessible before starting verification
+        $domain = DomainVerification::extractDomain($listing);
+        if (!$domain) {
+            $notify[] = ['error', 'Could not extract domain from listing. Please ensure the domain/website URL is valid.'];
+            return back()->withNotify($notify);
+        }
+
+        // Check accessibility
+        $url = $listing->url ?? ($listing->business_type === 'domain' ? 'https://' . $domain : null);
+        if ($url) {
+            $accessibility = checkDomainAccessibility($url, 5);
+            if (!$accessibility['accessible']) {
+                $notify[] = ['error', 'Domain/website is not accessible. Please ensure it is live and accessible before verification. Error: ' . ($accessibility['error'] ?? 'Unknown error')];
+                return back()->withNotify($notify);
+            }
         }
 
         $request->validate([
@@ -58,17 +78,20 @@ class DomainVerificationController extends Controller
         // Check if method is allowed
         $allowedMethods = MarketplaceSetting::getDomainVerificationMethods();
         if (!in_array($request->verification_method, $allowedMethods)) {
-            return back()->with('error', 'This verification method is not allowed');
+            $notify[] = ['error', 'This verification method is not allowed'];
+            return back()->withNotify($notify);
         }
 
         // Create or update verification
         $verification = DomainVerification::createForListing($listing, $request->verification_method);
 
         if (!$verification) {
-            return back()->with('error', 'Could not extract domain from listing');
+            $notify[] = ['error', 'Could not create verification. Please ensure the domain/website URL is valid.'];
+            return back()->withNotify($notify);
         }
 
-        return redirect()->route('user.verification.show', $verification->id);
+        $notify[] = ['success', 'Verification process started. Please follow the instructions below.'];
+        return redirect()->route('user.verification.show', $verification->id)->withNotify($notify);
     }
 
     public function verify(Request $request, $id)
@@ -81,11 +104,31 @@ class DomainVerificationController extends Controller
         $result = $verification->verify();
 
         if ($result) {
+            // Update listing status
+            $listing = $verification->listing;
+            if ($listing) {
+                $listing->is_verified = true;
+                $listing->requires_verification = false;
+                if ($listing->status === Status::LISTING_DRAFT) {
+                    $listing->status = Status::LISTING_PENDING;
+                }
+                $listing->save();
+            }
+            
             $notify[] = ['success', 'Domain verified successfully! Your listing is now pending admin approval.'];
             return redirect()->route('user.listing.index')->withNotify($notify);
         }
 
-        $notify[] = ['error', $verification->error_message ?? 'Verification failed. Please check the instructions and try again.'];
+        $errorMessage = $verification->error_message ?? 'Verification failed. Please check the instructions and try again.';
+        
+        // Provide helpful error messages
+        if (strpos($errorMessage, 'File not accessible') !== false) {
+            $errorMessage .= "\n\nTips:\n- Ensure the file is uploaded to your domain root directory\n- Check that the file is accessible via HTTPS\n- Wait a few minutes for DNS/CDN propagation\n- Verify the file contains ONLY the verification token (no extra spaces or characters)";
+        } elseif (strpos($errorMessage, 'DNS') !== false) {
+            $errorMessage .= "\n\nTips:\n- DNS changes can take 24-48 hours to propagate\n- Ensure the TXT record name and value are exactly as shown\n- Check your DNS provider's documentation for adding TXT records";
+        }
+        
+        $notify[] = ['error', $errorMessage];
         return back()->withNotify($notify);
     }
 
