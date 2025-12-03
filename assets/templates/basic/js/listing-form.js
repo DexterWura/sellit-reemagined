@@ -470,7 +470,7 @@ const ListingFormHandler = {
             $('#step1ContinueBtn').prop('disabled', false);
         } else {
             $('.financial-section').addClass('d-none');
-            $('.domain-card-preview').addClass('d-none');
+            $('.domain-info-message').addClass('d-none');
             $('#step1ContinueBtn').prop('disabled', false);
         }
         
@@ -517,7 +517,7 @@ const ListingFormHandler = {
             $('#domainInputSection').show();
             $('#domainNameInput').attr('required', 'required');
             $('.financial-section').addClass('d-none');
-            $('.domain-card-preview').removeClass('d-none');
+            $('.domain-info-message').removeClass('d-none');
             $('.image-upload-section').addClass('d-none');
             
             if (isInitial) {

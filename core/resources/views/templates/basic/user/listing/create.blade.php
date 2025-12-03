@@ -588,49 +588,39 @@
                                     <p class="text-muted mb-0">@lang('Upload screenshots and images of your business')</p>
                                 </div>
                                 
-                                {{-- Domain Card Preview (for domain type) --}}
-                                <div class="domain-card-preview d-none mb-4">
-                                    <div class="card border-0 shadow-sm" style="max-width: 400px; margin: 0 auto; overflow: hidden;">
-                                        <div class="domain-card-image" id="domainCardImage" style="height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;">
-                                            <div class="position-absolute top-0 start-0 m-2">
-                                                <span class="badge bg-success">
-                                                    <i class="las la-check-circle"></i> @lang('Verified')
-                                                </span>
+                                {{-- Domain Information Message (for domain type) --}}
+                                <div class="domain-info-message d-none mb-4">
+                                    @php
+                                        $requiresApproval = ($marketplaceSettings['listing_approval_required'] ?? '1') == '1';
+                                    @endphp
+                                    <div class="alert alert-info border-0 shadow-sm">
+                                        <div class="d-flex align-items-start">
+                                            <div class="flex-shrink-0 me-3">
+                                                <i class="las la-info-circle" style="font-size: 2rem; color: #0dcaf0;"></i>
                                             </div>
-                                            <div class="text-center text-white" style="z-index: 1;">
-                                                <i class="las la-globe mb-2" style="font-size: 3rem; opacity: 0.3;"></i>
-                                                <div class="position-relative">
-                                                    <div class="position-absolute top-0 start-50 translate-middle-x" style="width: 80px; height: 2px; background: rgba(255,255,255,0.5); transform: translateX(-50%);"></div>
-                                                </div>
-                                                <h3 class="domain-name-preview mb-0 mt-3 fw-bold text-white" id="domainNamePreview" style="font-size: 1.75rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">example.com</h3>
-                                            </div>
-                                        </div>
-                                        <div class="card-body p-3">
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <span class="badge bg--base bg-opacity-10 text--base">
-                                                    <i class="las la-globe"></i> @lang('Domain')
-                                                </span>
-                                                <small class="text-muted">@lang('Premium Domains')</small>
-                                            </div>
-                                            <h5 class="card-title mb-2 fw-semibold" id="domainTitlePreview">@lang('Domain Name')</h5>
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div>
-                                                    <small class="text-muted d-block">@lang('Asking Price')</small>
-                                                    <span class="text--base fw-bold" id="domainPricePreview">$0.00 USD</span>
-                                                </div>
-                                                <div class="text-end">
-                                                    <small class="text-muted d-block">
-                                                        <i class="las la-eye"></i> 0
-                                                    </small>
-                                                    <small class="text-muted d-block">
-                                                        <i class="las la-heart"></i> 0
-                                                    </small>
-                                                </div>
+                                            <div class="flex-grow-1">
+                                                <h5 class="alert-heading mb-2">
+                                                    <i class="las la-globe me-2"></i>@lang('Domain Listing Information')
+                                                </h5>
+                                                @if($requiresApproval)
+                                                    <p class="mb-2">
+                                                        @lang('Your domain listing has been submitted successfully! It will go live once our staff reviews and verifies it.')
+                                                    </p>
+                                                    <p class="mb-0 small text-muted">
+                                                        <i class="las la-clock me-1"></i>
+                                                        @lang('You will be notified once your listing is approved and goes live.')
+                                                    </p>
+                                                @else
+                                                    <p class="mb-0">
+                                                        @lang('Your domain listing is now live! It has been published and is visible to all buyers.')
+                                                    </p>
+                                                @endif
                                             </div>
                                         </div>
                                     </div>
                                     <p class="text-center text-muted small mt-3">
-                                        @lang('For domain listings, the domain name will be displayed as a card with a colored background. Images are optional.')
+                                        <i class="las la-image me-1"></i>
+                                        @lang('Images are optional for domain listings. Your domain will be displayed as a card with a colored background.')
                                     </p>
                                 </div>
                                 
