@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class NdaController extends Controller
 {
@@ -79,10 +80,21 @@ class NdaController extends Controller
                 $nda->expires_at = now()->addYear(); // NDA valid for 1 year
                 $nda->save();
 
-                // Generate and store NDA document PDF (optional - can be implemented later)
-                // $documentPath = $this->generateNdaPdf($nda);
-                // $nda->document_path = $documentPath;
-                // $nda->save();
+                // Generate and store NDA document PDF
+                try {
+                    $documentPath = $this->generateNdaPdf($nda);
+                    if ($documentPath) {
+                        $nda->document_path = $documentPath;
+                        $nda->save();
+                    }
+                } catch (\Exception $e) {
+                    // Log PDF generation error but don't fail the NDA signing
+                    Log::warning('NDA PDF generation failed, continuing without PDF: ' . $e->getMessage(), [
+                        'nda_id' => $nda->id,
+                        'listing_id' => $listing->id,
+                        'user_id' => auth()->id()
+                    ]);
+                }
 
                 DB::commit();
 
@@ -116,9 +128,24 @@ class NdaController extends Controller
     public function download($id)
     {
         $nda = NdaDocument::where('user_id', auth()->id())->findOrFail($id);
-        
+
         if (!$nda->document_path || !Storage::exists($nda->document_path)) {
-            abort(404, 'NDA document not found');
+            // If PDF doesn't exist, generate it on-demand
+            try {
+                $documentPath = $this->generateNdaPdf($nda);
+                if ($documentPath && Storage::exists($documentPath)) {
+                    $nda->document_path = $documentPath;
+                    $nda->save();
+                } else {
+                    abort(404, 'NDA document could not be generated');
+                }
+            } catch (\Exception $e) {
+                Log::error('On-demand NDA PDF generation failed: ' . $e->getMessage(), [
+                    'nda_id' => $id,
+                    'user_id' => auth()->id()
+                ]);
+                abort(500, 'Unable to generate NDA document');
+            }
         }
 
         return Storage::download($nda->document_path, 'nda-' . $nda->listing->listing_number . '.pdf');
@@ -135,6 +162,49 @@ class NdaController extends Controller
             ->paginate(getPaginate());
 
         return view('Template::user.nda.index', compact('pageTitle', 'ndas'));
+    }
+
+    /**
+     * Generate PDF document for NDA
+     */
+    private function generateNdaPdf(NdaDocument $nda)
+    {
+        try {
+            $listing = $nda->listing;
+            $signer = $nda->user;
+            $seller = $listing->seller;
+
+            $data = [
+                'nda' => $nda,
+                'listing' => $listing,
+                'signer' => $signer,
+                'seller' => $seller,
+                'signed_date' => $nda->signed_at->format('F d, Y'),
+                'signed_time' => $nda->signed_at->format('H:i:s'),
+                'expires_date' => $nda->expires_at ? $nda->expires_at->format('F d, Y') : 'Never',
+            ];
+
+            $pdf = Pdf::loadView('pdf.nda-document', $data);
+
+            // Generate filename
+            $filename = 'nda-' . $listing->listing_number . '-' . $signer->id . '-' . $nda->signed_at->format('Y-m-d-H-i-s') . '.pdf';
+
+            // Store PDF in storage
+            $path = 'nda-documents/' . $filename;
+            Storage::put($path, $pdf->output());
+
+            return $path;
+        } catch (\Exception $e) {
+            Log::error('NDA PDF generation failed: ' . $e->getMessage(), [
+                'nda_id' => $nda->id,
+                'listing_id' => $nda->listing_id,
+                'user_id' => $nda->user_id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Return null if PDF generation fails - NDA is still valid
+            return null;
+        }
     }
 }
 
