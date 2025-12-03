@@ -669,8 +669,8 @@
                                     <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="3">
                                         <i class="las la-arrow-left me-1"></i> @lang('Back')
                                     </button>
-                                    <button type="button" class="btn btn--base btn-next" data-next="5" id="continueToVerificationBtn">
-                                        @lang('Continue') <i class="las la-arrow-right ms-1"></i>
+                                    <button type="submit" class="btn btn--base" id="submitListingBtn">
+                                        <i class="las la-check-circle me-1"></i> @lang('Submit Listing')
                                     </button>
                                 </div>
                             </div>
@@ -728,35 +728,42 @@ $(document).ready(function() {
     
     // Step Navigation
     function showStep(step) {
-        console.log('showStep called with:', step);
         step = parseInt(step);
+        
+        if (isNaN(step) || step < 1 || step > 4) {
+            console.error('Invalid step number:', step);
+            return;
+        }
         
         // Hide all steps
         $('.form-step').addClass('d-none');
         
-        // Show the target step
-        const targetStep = $(`.form-step[data-step="${step}"]`);
+        // Show the target step - use attribute selector
+        const targetStep = $('.form-step').filter(function() {
+            return parseInt($(this).attr('data-step')) === step;
+        });
+        
         if (targetStep.length === 0) {
             console.error('Step not found:', step);
-            notify('error', 'Step not found');
             return;
         }
+        
         targetStep.removeClass('d-none');
-        console.log('Step', step, 'shown');
         
         // Update progress
         $('.progress-steps .step').removeClass('active completed');
         $('.progress-steps .step').each(function() {
-            const stepNum = parseInt($(this).data('step'));
-            if (stepNum < step) {
-                $(this).addClass('completed');
-            } else if (stepNum === step) {
-                $(this).addClass('active');
+            const stepNum = parseInt($(this).attr('data-step'));
+            if (!isNaN(stepNum)) {
+                if (stepNum < step) {
+                    $(this).addClass('completed');
+                } else if (stepNum === step) {
+                    $(this).addClass('active');
+                }
             }
         });
         
         currentStep = step;
-        console.log('Current step set to:', currentStep);
         window.scrollTo({top: 0, behavior: 'smooth'});
         
         // Auto-save when changing steps
