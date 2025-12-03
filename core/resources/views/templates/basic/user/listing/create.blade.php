@@ -1174,16 +1174,23 @@ $(document).ready(function() {
     
     $(document).on('change', '#websiteVerificationMethod', function() {
         const $changedDropdown = $(this);
-        const $container = $changedDropdown.closest('.domain-fields, .website-fields');
         
-        if ($container.length === 0) {
-            // Fallback to business type if container not found
+        // Find the card-body that contains this dropdown (more reliable than finding by ID)
+        const $cardBody = $changedDropdown.closest('.card-body');
+        if ($cardBody.length === 0) {
+            // Fallback to business type if card-body not found
             const businessType = $('input[name="business_type"]:checked').val();
             if (businessType === 'domain') {
                 updateDomainVerificationDisplay();
             } else {
                 updateWebsiteVerificationDisplay();
             }
+            return;
+        }
+        
+        // Find the parent container (domain-fields or website-fields)
+        const $container = $cardBody.closest('.domain-fields, .website-fields');
+        if ($container.length === 0) {
             return;
         }
         
@@ -1195,33 +1202,33 @@ $(document).ready(function() {
         const verificationData = isDomain ? domainVerificationData : websiteVerificationData;
         
         if (!verificationData.domain || !verificationData.token) {
-            $container.find('#websiteTxtFileMethod').hide();
-            $container.find('#websiteDnsRecordMethod').hide();
+            $cardBody.find('#websiteTxtFileMethod').css('display', 'none');
+            $cardBody.find('#websiteDnsRecordMethod').css('display', 'none');
             return;
         }
         
-        // Hide both methods first
-        $container.find('#websiteTxtFileMethod').hide();
-        $container.find('#websiteDnsRecordMethod').hide();
+        // Hide both methods first - find them within the same card-body
+        $cardBody.find('#websiteTxtFileMethod').css('display', 'none');
+        $cardBody.find('#websiteDnsRecordMethod').css('display', 'none');
         
         // Show the selected method
         if (method === 'txt_file') {
-            $container.find('#websiteTxtFileName').text(verificationData.filename || '-');
-            $container.find('#websiteTxtFileLocation').text('https://' + verificationData.domain + '/' + (verificationData.filename || ''));
-            $container.find('#websiteTxtFileContent').text(verificationData.token || '-');
-            $container.find('#websiteTxtFileMethod').css('display', 'block');
+            $cardBody.find('#websiteTxtFileName').text(verificationData.filename || '-');
+            $cardBody.find('#websiteTxtFileLocation').text('https://' + verificationData.domain + '/' + (verificationData.filename || ''));
+            $cardBody.find('#websiteTxtFileContent').text(verificationData.token || '-');
+            $cardBody.find('#websiteTxtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
-            $container.find('#websiteDnsRecordName').text(verificationData.dnsName || '-');
-            $container.find('#websiteDnsRecordValue').text(verificationData.token || '-');
-            $container.find('#websiteDnsRecordMethod').css('display', 'block');
+            $cardBody.find('#websiteDnsRecordName').text(verificationData.dnsName || '-');
+            $cardBody.find('#websiteDnsRecordValue').text(verificationData.token || '-');
+            $cardBody.find('#websiteDnsRecordMethod').css('display', 'block');
         }
         
-        // Update hidden fields
-        $container.find('#websiteVerificationToken').val(verificationData.token);
-        $container.find('#websiteVerificationFilename').val(verificationData.filename);
-        $container.find('#websiteVerificationDnsName').val(verificationData.dnsName);
-        $container.find('#websiteVerified').val('0');
-        $container.find('#websiteVerificationStatus').html('');
+        // Update hidden fields within the same card-body
+        $cardBody.find('#websiteVerificationToken').val(verificationData.token);
+        $cardBody.find('#websiteVerificationFilename').val(verificationData.filename);
+        $cardBody.find('#websiteVerificationDnsName').val(verificationData.dnsName);
+        $cardBody.find('#websiteVerified').val('0');
+        $cardBody.find('#websiteVerificationStatus').html('');
     });
     
     $(document).on('click', '#downloadWebsiteTxtFile', function() {
