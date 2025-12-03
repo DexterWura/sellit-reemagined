@@ -1,7 +1,8 @@
 @php
     $requireWebsiteVerification = \App\Models\MarketplaceSetting::requireWebsiteVerification();
+    $requireDomainVerification = \App\Models\MarketplaceSetting::requireDomainVerification();
 @endphp
-@if($requireWebsiteVerification)
+@if($requireWebsiteVerification || $requireDomainVerification)
     @php
         $allowedMethods = \App\Models\MarketplaceSetting::getDomainVerificationMethods();
     @endphp

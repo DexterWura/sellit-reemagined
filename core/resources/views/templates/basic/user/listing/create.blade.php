@@ -789,12 +789,12 @@ $(document).ready(function() {
             if (domainValue) {
                 $('#domainNameInput').trigger('input');
             } else {
-                $('#websiteVerificationSection').slideUp();
+                $('.domain-fields #websiteVerificationSection').slideUp();
             }
         } else if (type === 'domain' && !requireDomainVerification) {
-            $('#websiteVerificationSection').slideUp();
+            $('.domain-fields #websiteVerificationSection').slideUp();
         } else if (type !== 'domain') {
-            $('#websiteVerificationSection').slideUp();
+            $('.domain-fields #websiteVerificationSection').slideUp();
         }
         
         if (type === 'website' && requireWebsiteVerification) {
@@ -802,10 +802,10 @@ $(document).ready(function() {
             if (websiteValue) {
                 $('#websiteUrlInput').trigger('input');
             } else {
-                $('#websiteVerificationSection').slideUp();
+                $('.website-fields #websiteVerificationSection').slideUp();
             }
         } else if (type === 'website' && !requireWebsiteVerification) {
-            $('#websiteVerificationSection').slideUp();
+            $('.website-fields #websiteVerificationSection').slideUp();
         }
         
         // Filter categories
@@ -995,14 +995,14 @@ $(document).ready(function() {
                     const urlObj = new URL(value);
                     const domain = urlObj.hostname.replace(/^www\./, '');
                     generateDomainVerification(domain);
-                    $('#websiteVerificationSection').slideDown(300, function() {
+                    $('.domain-fields #websiteVerificationSection').slideDown(300, function() {
                         updateDomainVerificationDisplay();
                     });
                 } catch(e) {
-                    $('#websiteVerificationSection').slideUp();
+                    $('.domain-fields #websiteVerificationSection').slideUp();
                 }
             } else {
-                $('#websiteVerificationSection').slideUp();
+                $('.domain-fields #websiteVerificationSection').slideUp();
             }
         }
     });
@@ -1027,14 +1027,14 @@ $(document).ready(function() {
                     const urlObj = new URL(value);
                     const domain = urlObj.hostname.replace(/^www\./, '');
                     generateWebsiteVerification(domain);
-                    $('#websiteVerificationSection').slideDown(300, function() {
+                    $('.website-fields #websiteVerificationSection').slideDown(300, function() {
                         updateWebsiteVerificationDisplay();
                     });
                 } catch(e) {
-                    $('#websiteVerificationSection').slideUp();
+                    $('.website-fields #websiteVerificationSection').slideUp();
                 }
             } else {
-                $('#websiteVerificationSection').slideUp();
+                $('.website-fields #websiteVerificationSection').slideUp();
             }
         }
     });
@@ -1068,8 +1068,8 @@ $(document).ready(function() {
         domainVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
         domainVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
         
-        if (!$('#websiteVerificationMethod').val()) {
-            $('#websiteVerificationMethod').val('txt_file');
+        if (!$('.domain-fields #websiteVerificationMethod').val()) {
+            $('.domain-fields #websiteVerificationMethod').val('txt_file');
         }
         
         updateDomainVerificationDisplay();
@@ -1083,86 +1083,90 @@ $(document).ready(function() {
         websiteVerificationData.filename = siteNamePrefix + '-verification-' + Math.random().toString(36).substring(2, 10) + '.txt';
         websiteVerificationData.dnsName = '_' + siteNamePrefix + '-verify';
         
-        if (!$('#websiteVerificationMethod').val()) {
-            $('#websiteVerificationMethod').val('txt_file');
+        const container = '.website-fields';
+        if (!$(container + ' #websiteVerificationMethod').val()) {
+            $(container + ' #websiteVerificationMethod').val('txt_file');
         }
         
         updateWebsiteVerificationDisplay();
     }
     
     function updateDomainVerificationDisplay() {
-        let method = $('#websiteVerificationMethod').val();
+        const container = '.domain-fields';
+        let method = $(container + ' #websiteVerificationMethod').val();
         
         if (!domainVerificationData.domain || !domainVerificationData.token) {
-            $('#websiteTxtFileMethod').hide();
-            $('#websiteDnsRecordMethod').hide();
+            $(container + ' #websiteTxtFileMethod').hide();
+            $(container + ' #websiteDnsRecordMethod').hide();
             return;
         }
         
         if (!method) {
             method = 'txt_file';
-            $('#websiteVerificationMethod').val('txt_file');
+            $(container + ' #websiteVerificationMethod').val('txt_file');
         }
         
-        $('#websiteTxtFileMethod').hide();
-        $('#websiteDnsRecordMethod').hide();
+        $(container + ' #websiteTxtFileMethod').hide();
+        $(container + ' #websiteDnsRecordMethod').hide();
         
         if (method === 'txt_file') {
-            $('#websiteTxtFileName').text(domainVerificationData.filename || '-');
-            $('#websiteTxtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
-            $('#websiteTxtFileContent').text(domainVerificationData.token || '-');
-            $('#websiteTxtFileMethod').css('display', 'block');
+            $(container + ' #websiteTxtFileName').text(domainVerificationData.filename || '-');
+            $(container + ' #websiteTxtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
+            $(container + ' #websiteTxtFileContent').text(domainVerificationData.token || '-');
+            $(container + ' #websiteTxtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
-            $('#websiteDnsRecordName').text(domainVerificationData.dnsName || '-');
-            $('#websiteDnsRecordValue').text(domainVerificationData.token || '-');
-            $('#websiteDnsRecordMethod').css('display', 'block');
+            $(container + ' #websiteDnsRecordName').text(domainVerificationData.dnsName || '-');
+            $(container + ' #websiteDnsRecordValue').text(domainVerificationData.token || '-');
+            $(container + ' #websiteDnsRecordMethod').css('display', 'block');
         }
         
-        $('#websiteVerificationToken').val(domainVerificationData.token);
-        $('#websiteVerificationFilename').val(domainVerificationData.filename);
-        $('#websiteVerificationDnsName').val(domainVerificationData.dnsName);
+        $(container + ' #websiteVerificationToken').val(domainVerificationData.token);
+        $(container + ' #websiteVerificationFilename').val(domainVerificationData.filename);
+        $(container + ' #websiteVerificationDnsName').val(domainVerificationData.dnsName);
         
-        $('#websiteVerified').val('0');
-        $('#websiteVerificationStatus').html('');
+        $(container + ' #websiteVerified').val('0');
+        $(container + ' #websiteVerificationStatus').html('');
     }
     
     function updateWebsiteVerificationDisplay() {
-        let method = $('#websiteVerificationMethod').val();
+        const businessType = $('input[name="business_type"]:checked').val();
+        const container = businessType === 'domain' ? '.domain-fields' : '.website-fields';
+        let method = $(container + ' #websiteVerificationMethod').val();
         
         if (!websiteVerificationData.domain || !websiteVerificationData.token) {
-            $('#websiteTxtFileMethod').hide();
-            $('#websiteDnsRecordMethod').hide();
+            $(container + ' #websiteTxtFileMethod').hide();
+            $(container + ' #websiteDnsRecordMethod').hide();
             return;
         }
         
         if (!method) {
             method = 'txt_file';
-            $('#websiteVerificationMethod').val('txt_file');
+            $(container + ' #websiteVerificationMethod').val('txt_file');
         }
         
-        $('#websiteTxtFileMethod').hide();
-        $('#websiteDnsRecordMethod').hide();
+        $(container + ' #websiteTxtFileMethod').hide();
+        $(container + ' #websiteDnsRecordMethod').hide();
         
         if (method === 'txt_file') {
-            $('#websiteTxtFileName').text(websiteVerificationData.filename || '-');
-            $('#websiteTxtFileLocation').text('https://' + websiteVerificationData.domain + '/' + (websiteVerificationData.filename || ''));
-            $('#websiteTxtFileContent').text(websiteVerificationData.token || '-');
-            $('#websiteTxtFileMethod').css('display', 'block');
+            $(container + ' #websiteTxtFileName').text(websiteVerificationData.filename || '-');
+            $(container + ' #websiteTxtFileLocation').text('https://' + websiteVerificationData.domain + '/' + (websiteVerificationData.filename || ''));
+            $(container + ' #websiteTxtFileContent').text(websiteVerificationData.token || '-');
+            $(container + ' #websiteTxtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
-            $('#websiteDnsRecordName').text(websiteVerificationData.dnsName || '-');
-            $('#websiteDnsRecordValue').text(websiteVerificationData.token || '-');
-            $('#websiteDnsRecordMethod').css('display', 'block');
+            $(container + ' #websiteDnsRecordName').text(websiteVerificationData.dnsName || '-');
+            $(container + ' #websiteDnsRecordValue').text(websiteVerificationData.token || '-');
+            $(container + ' #websiteDnsRecordMethod').css('display', 'block');
         }
         
-        $('#websiteVerificationToken').val(websiteVerificationData.token);
-        $('#websiteVerificationFilename').val(websiteVerificationData.filename);
-        $('#websiteVerificationDnsName').val(websiteVerificationData.dnsName);
+        $(container + ' #websiteVerificationToken').val(websiteVerificationData.token);
+        $(container + ' #websiteVerificationFilename').val(websiteVerificationData.filename);
+        $(container + ' #websiteVerificationDnsName').val(websiteVerificationData.dnsName);
         
-        $('#websiteVerified').val('0');
-        $('#websiteVerificationStatus').html('');
+        $(container + ' #websiteVerified').val('0');
+        $(container + ' #websiteVerificationStatus').html('');
     }
     
-    $('#websiteVerificationMethod').on('change', function() {
+    $(document).on('change', '#websiteVerificationMethod', function() {
         const businessType = $('input[name="business_type"]:checked').val();
         if (businessType === 'domain') {
             updateDomainVerificationDisplay();
@@ -1171,7 +1175,7 @@ $(document).ready(function() {
         }
     });
     
-    $('#downloadWebsiteTxtFile').on('click', function() {
+    $(document).on('click', '#downloadWebsiteTxtFile', function() {
         const businessType = $('input[name="business_type"]:checked').val();
         let token, filename;
         
@@ -1199,10 +1203,11 @@ $(document).ready(function() {
         window.URL.revokeObjectURL(url);
     });
     
-    $('#verifyWebsiteBtn').on('click', function() {
+    $(document).on('click', '#verifyWebsiteBtn', function() {
         const btn = $(this);
         const businessType = $('input[name="business_type"]:checked').val();
-        const method = $('#websiteVerificationMethod').val();
+        const container = businessType === 'domain' ? '.domain-fields' : '.website-fields';
+        const method = $(container + ' #websiteVerificationMethod').val();
         let domain, token, filename, dnsName, errorMsg, successMsg;
         
         if (businessType === 'domain') {
@@ -1227,7 +1232,7 @@ $(document).ready(function() {
         }
         
         btn.prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i>@lang("Verifying...")');
-        $('#websiteVerificationStatus').html('');
+        $(container + ' #websiteVerificationStatus').html('');
         
         $.ajax({
             url: '{{ route("user.verification.verify-ajax") }}',
@@ -1242,18 +1247,18 @@ $(document).ready(function() {
             },
             success: function(response) {
                 if (response.success) {
-                    $('#websiteVerified').val('1');
-                    $('#websiteVerificationStatus').html('<span class="badge badge--success"><i class="las la-check-circle"></i> @lang("Verified")</span>');
+                    $(container + ' #websiteVerified').val('1');
+                    $(container + ' #websiteVerificationStatus').html('<span class="badge badge--success"><i class="las la-check-circle"></i> @lang("Verified")</span>');
                     notify('success', successMsg);
                 } else {
-                    $('#websiteVerified').val('0');
-                    $('#websiteVerificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Not Verified")</span>');
+                    $(container + ' #websiteVerified').val('0');
+                    $(container + ' #websiteVerificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Not Verified")</span>');
                     notify('error', response.message || '@lang("Verification failed. Please check and try again.")');
                 }
             },
             error: function(xhr) {
-                $('#websiteVerified').val('0');
-                $('#websiteVerificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Error")</span>');
+                $(container + ' #websiteVerified').val('0');
+                $(container + ' #websiteVerificationStatus').html('<span class="badge badge--danger"><i class="las la-times-circle"></i> @lang("Error")</span>');
                 const message = xhr.responseJSON?.message || '@lang("An error occurred during verification")';
                 notify('error', message);
             },
@@ -1274,24 +1279,20 @@ $(document).ready(function() {
         // Only check verification if it's required AND the business type needs it
         // IMPORTANT: Only check if verification is actually required (setting is ON)
         if (businessType === 'domain' && requireDomainVerification === true) {
-            if ($('#websiteVerified').length > 0) {
-                const verified = $('#websiteVerified').val();
-                if (verified !== '1') {
-                    shouldPreventSubmit = true;
-                    notify('error', '@lang("You must verify domain ownership before submitting the listing")');
-                    showStep(2);
-                }
+            const verified = $('.domain-fields #websiteVerified').val();
+            if (verified && verified !== '1') {
+                shouldPreventSubmit = true;
+                notify('error', '@lang("You must verify domain ownership before submitting the listing")');
+                showStep(2);
             }
         }
         
         if (businessType === 'website' && requireWebsiteVerification === true) {
-            if ($('#websiteVerified').length > 0) {
-                const verified = $('#websiteVerified').val();
-                if (verified !== '1') {
-                    shouldPreventSubmit = true;
-                    notify('error', '@lang("You must verify website ownership before submitting the listing")');
-                    showStep(2);
-                }
+            const verified = $('.website-fields #websiteVerified').val();
+            if (verified && verified !== '1') {
+                shouldPreventSubmit = true;
+                notify('error', '@lang("You must verify website ownership before submitting the listing")');
+                showStep(2);
             }
         }
         // If verification is not required, skip check entirely
