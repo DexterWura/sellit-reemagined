@@ -1074,12 +1074,16 @@ $(document).ready(function() {
             $('.domain-card-preview').removeClass('d-none');
             $('.image-upload-section').addClass('d-none');
             
-            // If domain is already entered, trigger input to update preview
-            const domainValue = $('#domainNameInput').val();
-            if (domainValue && domainValue.match(/^https?:\/\//i)) {
+            // If domain is already entered, update preview immediately
+            const domainInputEl = document.getElementById('domainNameInput');
+            const domainValue = domainInputEl ? domainInputEl.value : $('#domainNameInput').val();
+            if (domainValue && domainValue.trim()) {
+                // Update preview immediately
+                updateDomainCardPreview();
+                // Also trigger input event to ensure everything is synced
                 setTimeout(function() {
                     $('#domainNameInput').trigger('input');
-                }, 300);
+                }, 100);
             }
         } else if (preselectedType === 'website') {
             // Make sure website section is visible
@@ -1151,10 +1155,26 @@ $(document).ready(function() {
     
     // Update domain card preview
     function updateDomainCardPreview() {
-        const domainValue = $('#domainNameInput').val();
-        if (domainValue) {
-            const domainName = domainValue.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+        // Try multiple ways to get the value
+        const domainInputEl = document.getElementById('domainNameInput');
+        let domainValue = '';
+        
+        if (domainInputEl) {
+            domainValue = domainInputEl.value || '';
+        } else {
+            domainValue = $('#domainNameInput').val() || '';
+        }
+        
+        if (domainValue && domainValue.trim()) {
+            const trimmedValue = domainValue.trim();
+            const domainName = trimmedValue.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
             const displayName = domainName || 'example.com';
+            
+            console.log('Updating domain preview:', {
+                original: trimmedValue,
+                extracted: domainName,
+                display: displayName
+            });
             
             // Update domain name
             $('#domainNamePreview').text(displayName);
@@ -1175,6 +1195,10 @@ $(document).ready(function() {
             // Update background color
             const colors = getDomainColor(domainName);
             $('#domainCardImage').css('background', `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`);
+        } else {
+            // Reset to default if no value
+            $('#domainNamePreview').text('example.com');
+            $('#domainTitlePreview').text('@lang("Domain Name")');
         }
     }
     
