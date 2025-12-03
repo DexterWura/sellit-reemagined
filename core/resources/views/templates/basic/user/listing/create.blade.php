@@ -1309,6 +1309,12 @@ $(document).ready(function() {
     function updateDomainVerificationDisplay() {
         let method = $('#domainVerificationMethod').val();
         
+        if (!domainVerificationData.domain || !domainVerificationData.token) {
+            $('#txtFileMethod').hide();
+            $('#dnsRecordMethod').hide();
+            return;
+        }
+        
         if (!method) {
             method = 'txt_file';
             $('#domainVerificationMethod').val('txt_file');
@@ -1319,13 +1325,8 @@ $(document).ready(function() {
         
         if (method === 'txt_file') {
             $('#txtFileName').text(domainVerificationData.filename || '-');
-            $('#txtFileLocation').text(domainVerificationData.domain ? 'https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || '') : '-');
+            $('#txtFileLocation').text('https://' + domainVerificationData.domain + '/' + (domainVerificationData.filename || ''));
             $('#txtFileContent').text(domainVerificationData.token || '-');
-            if (domainVerificationData.token && domainVerificationData.filename) {
-                $('#downloadTxtFile').prop('disabled', false);
-            } else {
-                $('#downloadTxtFile').prop('disabled', true);
-            }
             $('#txtFileMethod').css('display', 'block');
         } else if (method === 'dns_record') {
             $('#dnsRecordName').text(domainVerificationData.dnsName || '-');
@@ -1333,11 +1334,9 @@ $(document).ready(function() {
             $('#dnsRecordMethod').css('display', 'block');
         }
         
-        if (domainVerificationData.token) {
-            $('#domainVerificationToken').val(domainVerificationData.token);
-            $('#domainVerificationFilename').val(domainVerificationData.filename);
-            $('#domainVerificationDnsName').val(domainVerificationData.dnsName);
-        }
+        $('#domainVerificationToken').val(domainVerificationData.token);
+        $('#domainVerificationFilename').val(domainVerificationData.filename);
+        $('#domainVerificationDnsName').val(domainVerificationData.dnsName);
         
         $('#domainVerified').val('0');
         $('#verificationStatus').html('');
