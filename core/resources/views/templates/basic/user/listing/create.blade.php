@@ -1173,12 +1173,55 @@ $(document).ready(function() {
     }
     
     $(document).on('change', '#websiteVerificationMethod', function() {
-        const businessType = $('input[name="business_type"]:checked').val();
-        if (businessType === 'domain') {
-        updateDomainVerificationDisplay();
-        } else {
-            updateWebsiteVerificationDisplay();
+        const $changedDropdown = $(this);
+        const $container = $changedDropdown.closest('.domain-fields, .website-fields');
+        
+        if ($container.length === 0) {
+            // Fallback to business type if container not found
+            const businessType = $('input[name="business_type"]:checked').val();
+            if (businessType === 'domain') {
+                updateDomainVerificationDisplay();
+            } else {
+                updateWebsiteVerificationDisplay();
+            }
+            return;
         }
+        
+        // Get the method value from the changed dropdown
+        const method = $changedDropdown.val();
+        
+        // Get verification data based on container type
+        const isDomain = $container.hasClass('domain-fields');
+        const verificationData = isDomain ? domainVerificationData : websiteVerificationData;
+        
+        if (!verificationData.domain || !verificationData.token) {
+            $container.find('#websiteTxtFileMethod').hide();
+            $container.find('#websiteDnsRecordMethod').hide();
+            return;
+        }
+        
+        // Hide both methods first
+        $container.find('#websiteTxtFileMethod').hide();
+        $container.find('#websiteDnsRecordMethod').hide();
+        
+        // Show the selected method
+        if (method === 'txt_file') {
+            $container.find('#websiteTxtFileName').text(verificationData.filename || '-');
+            $container.find('#websiteTxtFileLocation').text('https://' + verificationData.domain + '/' + (verificationData.filename || ''));
+            $container.find('#websiteTxtFileContent').text(verificationData.token || '-');
+            $container.find('#websiteTxtFileMethod').css('display', 'block');
+        } else if (method === 'dns_record') {
+            $container.find('#websiteDnsRecordName').text(verificationData.dnsName || '-');
+            $container.find('#websiteDnsRecordValue').text(verificationData.token || '-');
+            $container.find('#websiteDnsRecordMethod').css('display', 'block');
+        }
+        
+        // Update hidden fields
+        $container.find('#websiteVerificationToken').val(verificationData.token);
+        $container.find('#websiteVerificationFilename').val(verificationData.filename);
+        $container.find('#websiteVerificationDnsName').val(verificationData.dnsName);
+        $container.find('#websiteVerified').val('0');
+        $container.find('#websiteVerificationStatus').html('');
     });
     
     $(document).on('click', '#downloadWebsiteTxtFile', function() {
