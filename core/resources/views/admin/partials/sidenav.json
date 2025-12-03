@@ -870,8 +870,7 @@
                 ],
                 "title": "Update",
                 "route_name": "admin.system.update",
-                "menu_active": "admin.system.update*",
-                "counter": "updateAvailable"
+                "menu_active": "admin.system.update*"
             }
         ]
     },

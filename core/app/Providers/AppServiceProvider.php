@@ -142,7 +142,7 @@ class AppServiceProvider extends ServiceProvider
                         'pendingListingsCount'    => Listing::where('status', Status::LISTING_PENDING)->count(),
                         'pendingOffersCount'      => Offer::where('status', Status::OFFER_PENDING)->count(),
                         'pendingReviewsCount'     => Review::where('status', Status::REVIEW_PENDING)->count(),
-                        'updateAvailable'    => version_compare(gs('available_version'),systemDetails()['version'],'>') ? 'v'.gs('available_version') : false,
+                        'updateAvailable'    => false, // Update functionality disabled
                     ]);
                 } catch (\Exception $e) {
                     // Database might not be ready, use defaults
