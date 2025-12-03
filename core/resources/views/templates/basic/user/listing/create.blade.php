@@ -865,11 +865,12 @@ $(document).ready(function() {
         e.preventDefault();
         e.stopPropagation();
         
+        console.log('Button clicked!', $(this));
         const nextStep = parseInt($(this).data('next'));
         console.log('Continue button clicked. Current step:', currentStep, 'Next step:', nextStep);
         
         if (!nextStep || isNaN(nextStep)) {
-            console.error('Invalid next step:', nextStep);
+            console.error('Invalid next step:', nextStep, 'Button data:', $(this).data());
             notify('error', 'Invalid step configuration');
             return false;
         }
@@ -884,15 +885,31 @@ $(document).ready(function() {
             
             // Check if domain/website is entered
             if (businessType === 'domain') {
-                const domainInput = $('#domainNameInput').val().trim();
-                if (!domainInput) {
+                const domainInput = $('#domainNameInput').val();
+                if (!domainInput || !domainInput.trim()) {
                     notify('error', '@lang("Please enter a domain name")');
+                    $('#domainNameInput').focus();
+                    return false;
+                }
+                // Validate URL format
+                const trimmedDomain = domainInput.trim();
+                if (!trimmedDomain.match(/^https?:\/\//i)) {
+                    notify('error', '@lang("Domain must start with http:// or https://")');
+                    $('#domainNameInput').focus();
                     return false;
                 }
             } else if (businessType === 'website') {
-                const websiteInput = $('#websiteUrlInput').val().trim();
-                if (!websiteInput) {
+                const websiteInput = $('#websiteUrlInput').val();
+                if (!websiteInput || !websiteInput.trim()) {
                     notify('error', '@lang("Please enter a website URL")');
+                    $('#websiteUrlInput').focus();
+                    return false;
+                }
+                // Validate URL format
+                const trimmedWebsite = websiteInput.trim();
+                if (!trimmedWebsite.match(/^https?:\/\//i)) {
+                    notify('error', '@lang("Website URL must start with http:// or https://")');
+                    $('#websiteUrlInput').focus();
                     return false;
                 }
             }
@@ -936,6 +953,7 @@ $(document).ready(function() {
     // Business type change - show relevant fields in Step 1
     $('input[name="business_type"]').on('change', function() {
         const type = $(this).val();
+        console.log('Business type changed to:', type);
         
         // Hide all input sections
         $('#domainInputSection').hide();
@@ -945,9 +963,11 @@ $(document).ready(function() {
         if (type === 'domain') {
             $('#domainInputSection').show();
             $('#domainNameInput').attr('required', 'required');
+            console.log('Domain section shown');
         } else if (type === 'website') {
             $('#websiteInputSection').show();
             $('#websiteUrlInput').attr('required', 'required');
+            console.log('Website section shown');
         }
         
         // Always enable continue button - form validation will handle required fields
