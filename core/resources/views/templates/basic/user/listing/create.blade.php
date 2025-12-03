@@ -925,27 +925,30 @@ $(document).ready(function() {
         // Hide all input sections
         $('#domainInputSection').hide();
         $('#websiteInputSection').hide();
-        $('#step1ContinueBtn').prop('disabled', true);
         
         // Show relevant input section
         if (type === 'domain') {
             $('#domainInputSection').show();
             $('#domainNameInput').attr('required', 'required');
-            // Enable continue button if domain is already entered
+            // Check if domain is already entered and valid
             const domainValue = $('#domainNameInput').val();
             if (domainValue && domainValue.match(/^https?:\/\//i)) {
                 $('#step1ContinueBtn').prop('disabled', false);
+            } else {
+                $('#step1ContinueBtn').prop('disabled', true);
             }
         } else if (type === 'website') {
             $('#websiteInputSection').show();
             $('#websiteUrlInput').attr('required', 'required');
-            // Enable continue button if website is already entered
+            // Check if website is already entered and valid
             const websiteValue = $('#websiteUrlInput').val();
             if (websiteValue && websiteValue.match(/^https?:\/\//i)) {
                 $('#step1ContinueBtn').prop('disabled', false);
+            } else {
+                $('#step1ContinueBtn').prop('disabled', true);
             }
         } else {
-            // Other business types - enable continue button
+            // Other business types - enable continue button immediately
             $('#step1ContinueBtn').prop('disabled', false);
         }
         
@@ -1034,9 +1037,10 @@ $(document).ready(function() {
             $('.domain-card-preview').removeClass('d-none');
             $('.image-upload-section').addClass('d-none');
             
-            // If domain is already entered, trigger input to show verification
+            // If domain is already entered, enable button and trigger input
             const domainValue = $('#domainNameInput').val();
             if (domainValue && domainValue.match(/^https?:\/\//i)) {
+                $('#step1ContinueBtn').prop('disabled', false);
                 setTimeout(function() {
                     $('#domainNameInput').trigger('input');
                 }, 300);
@@ -1044,13 +1048,17 @@ $(document).ready(function() {
         } else if (preselectedType === 'website') {
             $('#websiteUrlInput').attr('required', 'required');
             
-            // If website is already entered, trigger input to show verification
+            // If website is already entered, enable button and trigger input
             const websiteValue = $('#websiteUrlInput').val();
             if (websiteValue && websiteValue.match(/^https?:\/\//i)) {
+                $('#step1ContinueBtn').prop('disabled', false);
                 setTimeout(function() {
                     $('#websiteUrlInput').trigger('input');
                 }, 300);
             }
+        } else {
+            // For other business types, enable button immediately
+            $('#step1ContinueBtn').prop('disabled', false);
         }
         $('input[name="business_type"]:checked').trigger('change');
     } else {
@@ -1162,9 +1170,12 @@ $(document).ready(function() {
             
             updateDomainCardPreview();
             
-            // Enable continue button if valid URL
+            // Enable continue button if valid URL, or if empty (user can fill it later)
             if (value && value.match(/^https?:\/\//i)) {
                 $('#step1ContinueBtn').prop('disabled', false);
+            } else if (!value) {
+                // If empty, keep button disabled (required field)
+                $('#step1ContinueBtn').prop('disabled', true);
             }
         }
     });
@@ -1184,9 +1195,12 @@ $(document).ready(function() {
             $(this).removeClass('is-invalid border-warning');
             helpText.html('@lang("Enter full URL starting with http:// or https://")');
             
-            // Enable continue button if valid URL
+            // Enable continue button if valid URL, or if empty (user can fill it later)
             if (value && value.match(/^https?:\/\//i)) {
                 $('#step1ContinueBtn').prop('disabled', false);
+            } else if (!value) {
+                // If empty, keep button disabled (required field)
+                $('#step1ContinueBtn').prop('disabled', true);
             }
         }
     });
