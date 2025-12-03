@@ -352,7 +352,7 @@
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label fw-semibold">@lang('Description') <span class="text-danger">*</span></label>
-                                        <textarea name="description" class="form-control" rows="6" required
+                                        <textarea name="description" class="form-control" rows="6" data-step-required="2"
                                                   placeholder="@lang('Describe your business in detail. Include information about traffic sources, monetization methods, growth potential, and what is included in the sale...')">{{ old('description', $draftData['description'] ?? '') }}</textarea>
                                         <small class="text-muted">@lang('Minimum 100 characters. Be detailed to attract serious buyers.')</small>
                                     </div>
@@ -735,6 +735,11 @@ $(document).ready(function() {
             return;
         }
         
+        // Remove required attribute from all fields in hidden steps to prevent HTML5 validation errors
+        $('.form-step.d-none [required]').each(function() {
+            $(this).attr('data-was-required', 'true').removeAttr('required');
+        });
+        
         // Hide all steps
         $('.form-step').addClass('d-none');
         
@@ -750,15 +755,20 @@ $(document).ready(function() {
         
         targetStep.removeClass('d-none');
         
+        // Restore required attribute for fields in the visible step
+        targetStep.find('[data-was-required="true"]').each(function() {
+            $(this).attr('required', 'required').removeAttr('data-was-required');
+        });
+        
         // Update progress
         $('.progress-steps .step').removeClass('active completed');
         $('.progress-steps .step').each(function() {
             const stepNum = parseInt($(this).attr('data-step'));
             if (!isNaN(stepNum)) {
-            if (stepNum < step) {
-                $(this).addClass('completed');
-            } else if (stepNum === step) {
-                $(this).addClass('active');
+                if (stepNum < step) {
+                    $(this).addClass('completed');
+                } else if (stepNum === step) {
+                    $(this).addClass('active');
                 }
             }
         });
@@ -876,7 +886,6 @@ $(document).ready(function() {
         }
         
         // Validation for step 1 - just check business type is selected
-        // Let HTML5 validation handle required fields
         if (currentStep === 1) {
             const businessType = $('input[name="business_type"]:checked').val();
             if (!businessType) {
@@ -887,15 +896,36 @@ $(document).ready(function() {
             // Make sure the relevant input section is visible
             if (businessType === 'domain') {
                 $('#domainInputSection').show();
+                // Validate only the domain field in current step
+                const domainInput = document.getElementById('domainNameInput');
+                if (domainInput && domainInput.hasAttribute('required')) {
+                    if (!domainInput.value || !domainInput.value.trim()) {
+                        notify('error', '@lang("Please enter a domain name")');
+                        domainInput.focus();
+                        return false;
+                    }
+                    if (!domainInput.value.trim().match(/^https?:\/\//i)) {
+                        notify('error', '@lang("Domain must start with http:// or https://")');
+                        domainInput.focus();
+                        return false;
+                    }
+                }
             } else if (businessType === 'website') {
                 $('#websiteInputSection').show();
-            }
-            
-            // Check HTML5 validation - if field is invalid, let browser handle it
-            const form = document.getElementById('listingForm');
-            if (form && !form.checkValidity()) {
-                form.reportValidity();
-                return false;
+                // Validate only the website field in current step
+                const websiteInput = document.getElementById('websiteUrlInput');
+                if (websiteInput && websiteInput.hasAttribute('required')) {
+                    if (!websiteInput.value || !websiteInput.value.trim()) {
+                        notify('error', '@lang("Please enter a website URL")');
+                        websiteInput.focus();
+                        return false;
+                    }
+                    if (!websiteInput.value.trim().match(/^https?:\/\//i)) {
+                        notify('error', '@lang("Website URL must start with http:// or https://")');
+                        websiteInput.focus();
+                        return false;
+                    }
+                }
             }
         }
         
