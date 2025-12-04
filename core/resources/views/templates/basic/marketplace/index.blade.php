@@ -5,7 +5,6 @@
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-lg-8 mx-auto text-center">
-                    <h1 class="text-white mb-3">@lang('Buy & Sell Online Businesses')</h1>
                     <p class="text-white-50 mb-4">@lang('Discover domains, websites, apps, and social media accounts for sale')</p>
                     
                     <form action="{{ route('marketplace.browse') }}" method="GET" class="search-form">

@@ -1,18 +1,5 @@
 @extends($activeTemplate . 'layouts.frontend')
 @section('content')
-<section class="py-5 bg--gradient">
-    <div class="container">
-        <div class="row align-items-center">
-            <div class="col-lg-8 mx-auto text-center">
-                <h1 class="text-white mb-3">
-                    <i class="las la-gavel"></i> @lang('Live Auctions')
-                </h1>
-                <p class="text-white-50">@lang('Bid on businesses and get great deals')</p>
-            </div>
-        </div>
-    </div>
-</section>
-
 <section class="py-5">
     <div class="container">
         <!-- Filters -->
