@@ -90,7 +90,7 @@ Route::middleware('auth')->name('user.')->group(function () {
 
                 Route::post('cancel/{id}', 'cancel')->middleware('marketplace.rate.limit:escrow_actions,5,1')->name('cancel');
                 Route::post('accept/{id}', 'accept')->middleware('marketplace.rate.limit:escrow_actions,3,10')->name('accept');
-                Route::post('dispute/{id}', 'dispute')->middleware('marketplace.rate.limit:escrow_dispute,1,1440')->name('dispute');
+                Route::post('dispute/{id}', 'dispute')->name('dispute');
                 Route::post('dispatch/{id}', 'dispatchEscrow')->middleware('marketplace.rate.limit:escrow_actions,5,1')->name('dispatch');
                 Route::post('pay-full/{id}', 'payFull')->middleware('marketplace.rate.limit:escrow_payment,5,10')->name('pay.full');
 
