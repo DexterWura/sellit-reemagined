@@ -1,26 +1,5 @@
 @extends($activeTemplate . 'layouts.frontend')
 @section('content')
-<section class="py-5 bg--gradient">
-    <div class="container">
-        <div class="row align-items-center">
-            <div class="col-lg-8 mx-auto text-center">
-                @php
-                    $icons = [
-                        'domain' => 'la-globe',
-                        'website' => 'la-laptop',
-                        'social_media_account' => 'la-share-alt',
-                        'mobile_app' => 'la-mobile-alt',
-                        'desktop_app' => 'la-desktop'
-                    ];
-                @endphp
-                <i class="las {{ $icons[$type] ?? 'la-store' }} text-white" style="font-size: 4rem;"></i>
-                <h1 class="text-white mb-3">{{ $businessTypes[$type] ?? ucfirst($type) }}</h1>
-                <p class="text-white-50">@lang('Browse') {{ strtolower($businessTypes[$type] ?? $type) }} @lang('for sale')</p>
-            </div>
-        </div>
-    </div>
-</section>
-
 <!-- Categories -->
 @if($categories->count() > 0)
 <section class="py-4 bg-light">
