@@ -12,15 +12,24 @@ class DomainVerification extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
+        'verification_data' => 'array',
         'last_attempt_at' => 'datetime',
         'verified_at' => 'datetime',
         'expires_at' => 'datetime',
     ];
 
-    const STATUS_PENDING = 0;
-    const STATUS_VERIFIED = 1;
-    const STATUS_FAILED = 2;
+    const STATUS_PENDING = 'pending';
+    const STATUS_VERIFIED = 'verified';
+    const STATUS_FAILED = 'failed';
+    const STATUS_EXPIRED = 'expired';
 
+    const METHOD_FILE = 'file';
+    const METHOD_DNS = 'dns';
+
+    // Legacy constants for backward compatibility
+    const STATUS_PENDING_LEGACY = 0;
+    const STATUS_VERIFIED_LEGACY = 1;
+    const STATUS_FAILED_LEGACY = 2;
     const METHOD_TXT_FILE = 'txt_file';
     const METHOD_DNS_RECORD = 'dns_record';
 
@@ -33,6 +42,11 @@ class DomainVerification extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function attempts()
+    {
+        return $this->hasMany(VerificationAttempt::class);
     }
 
     // Scopes
@@ -53,36 +67,34 @@ class DomainVerification extends Model
 
     public function scopeExpired($query)
     {
-        return $query->where('expires_at', '<', now());
+        return $query->where('status', self::STATUS_EXPIRED)
+                    ->orWhere('expires_at', '<', now());
     }
 
     public function scopeNotExpired($query)
     {
-        return $query->where(function ($q) {
-            $q->whereNull('expires_at')
-              ->orWhere('expires_at', '>', now());
-        });
+        return $query->where('status', '!=', self::STATUS_EXPIRED)
+                    ->where(function ($q) {
+                        $q->whereNull('expires_at')
+                          ->orWhere('expires_at', '>', now());
+                    });
     }
 
     // Helper Methods
     /**
-     * Generate a simple, reliable verification token
-     * Format: Simple alphanumeric string (no special chars that could cause issues)
+     * Generate a cryptographically secure verification token
      */
     public static function generateToken()
     {
-        // Generate a simple token: 40 characters, alphanumeric only
-        // This avoids issues with special characters, encoding, etc.
         return Str::random(40);
     }
 
     /**
-     * Generate a simple filename for verification file
+     * Generate filename for verification file
      */
-    public static function generateTxtFilename()
+    public static function generateFilename()
     {
-        // Simple filename: verification-{random}.txt
-        return 'verification-' . Str::random(16) . '.txt';
+        return 'verification-' . Str::random(32) . '.txt';
     }
 
     /**
@@ -90,42 +102,63 @@ class DomainVerification extends Model
      */
     public static function generateDnsRecordName()
     {
-        // Simple DNS record name: _verify{random}
-        // Using underscore prefix is standard for TXT records
-        return '_verify' . Str::random(8);
+        return '_verify' . Str::random(16);
     }
 
     /**
-     * Create a new verification for a listing
+     * Create a new verification for a domain
      */
-    public static function createForListing(Listing $listing, $method = self::METHOD_TXT_FILE)
+    public static function createForDomain($domain, $userId, $method = self::METHOD_FILE, $listingId = null)
     {
-        $domain = self::extractDomain($listing);
-        
         if (!$domain) {
             return null;
         }
 
         $token = self::generateToken();
-        
-        $verification = self::updateOrCreate(
-            ['listing_id' => $listing->id],
-            [
-                'user_id' => $listing->user_id,
-                'domain' => $domain,
-                'verification_method' => $method,
-                'verification_token' => $token,
-                'txt_filename' => $method === self::METHOD_TXT_FILE ? self::generateTxtFilename() : null,
-                'dns_record_name' => $method === self::METHOD_DNS_RECORD ? self::generateDnsRecordName() : null,
-                'dns_record_value' => $method === self::METHOD_DNS_RECORD ? $token : null,
-                'status' => self::STATUS_PENDING,
-                'attempts' => 0,
-                'error_message' => null,
-                'expires_at' => now()->addDays(7),
-            ]
-        );
+        $verificationData = [];
+
+        if ($method === self::METHOD_FILE) {
+            $verificationData = [
+                'filename' => self::generateFilename(),
+                'expected_path' => "https://{$domain}/.well-known/{$token}.txt"
+            ];
+        } elseif ($method === self::METHOD_DNS) {
+            $verificationData = [
+                'record_name' => self::generateDnsRecordName(),
+                'record_value' => $token
+            ];
+        }
+
+        $verification = self::create([
+            'domain' => $domain,
+            'user_id' => $userId,
+            'listing_id' => $listingId,
+            'verification_method' => $method,
+            'verification_token' => $token,
+            'verification_data' => $verificationData,
+            'status' => self::STATUS_PENDING,
+            'attempt_count' => 0,
+            'expires_at' => now()->addDays(7),
+        ]);
 
         return $verification;
+    }
+
+    /**
+     * Create a new verification for a listing (legacy method for backward compatibility)
+     */
+    public static function createForListing(Listing $listing, $method = self::METHOD_TXT_FILE)
+    {
+        $domain = self::extractDomain($listing);
+
+        if (!$domain) {
+            return null;
+        }
+
+        // Convert legacy method names
+        $newMethod = $method === self::METHOD_TXT_FILE ? self::METHOD_FILE : self::METHOD_DNS;
+
+        return self::createForDomain($domain, $listing->user_id, $newMethod, $listing->id);
     }
 
     /**
@@ -159,17 +192,63 @@ class DomainVerification extends Model
      */
     public function verify()
     {
-        $this->increment('attempts');
+        $startTime = microtime(true);
+
+        $this->attempt_count++;
         $this->last_attempt_at = now();
         $this->save();
 
         try {
-            if ($this->verification_method === self::METHOD_TXT_FILE) {
-                return $this->verifyTxtFile();
-            } else {
-                return $this->verifyDnsRecord();
+            $result = false;
+
+            if ($this->verification_method === self::METHOD_FILE) {
+                $service = app(\App\Services\FileVerificationService::class);
+                $result = $service->verifyDomain($this->domain, $this->verification_token);
+            } elseif ($this->verification_method === self::METHOD_DNS) {
+                $service = app(\App\Services\DNSVerificationService::class);
+                $result = $service->verifyDomain($this->domain, $this->verification_token);
             }
+
+            $duration = (microtime(true) - $startTime) * 1000;
+
+            // Log the attempt
+            VerificationAttempt::logAttempt(
+                $this,
+                $this->verification_method,
+                ['domain' => $this->domain, 'token' => $this->verification_token],
+                ['success' => $result],
+                $result ? null : 'Verification failed',
+                $duration
+            );
+
+            if ($result) {
+                $this->status = self::STATUS_VERIFIED;
+                $this->verified_at = now();
+                $this->error_message = null;
+                $this->save();
+                $this->updateListingStatus();
+            } else {
+                // Check if max attempts reached
+                if ($this->attempt_count >= \App\Models\VerificationSetting::getMaxAttempts()) {
+                    $this->status = self::STATUS_FAILED;
+                    $this->error_message = 'Maximum verification attempts exceeded';
+                }
+                $this->save();
+            }
+
+            return $result;
         } catch (\Exception $e) {
+            $duration = (microtime(true) - $startTime) * 1000;
+
+            VerificationAttempt::logAttempt(
+                $this,
+                $this->verification_method,
+                ['domain' => $this->domain, 'token' => $this->verification_token],
+                ['error' => $e->getMessage()],
+                $e->getMessage(),
+                $duration
+            );
+
             $this->error_message = $e->getMessage();
             $this->save();
             return false;
@@ -314,31 +393,15 @@ class DomainVerification extends Model
     }
 
     /**
-     * Mark as verified
+     * Update listing status when verification is successful
      */
-    public function markAsVerified()
+    protected function updateListingStatus()
     {
-        $this->status = self::STATUS_VERIFIED;
-        $this->verified_at = now();
-        $this->error_message = null;
-        $this->save();
-
-        // Update listing
         if ($this->listing) {
             $this->listing->is_verified = true;
-            $this->listing->verification_notes = 'Domain ownership verified via ' . ($this->verification_method === self::METHOD_TXT_FILE ? 'file upload' : 'DNS record');
+            $this->listing->verification_notes = 'Domain ownership verified via ' . $this->verification_method;
             $this->listing->save();
         }
-    }
-
-    /**
-     * Mark as failed
-     */
-    public function markAsFailed($reason = null)
-    {
-        $this->status = self::STATUS_FAILED;
-        $this->error_message = $reason;
-        $this->save();
     }
 
     /**
@@ -346,8 +409,37 @@ class DomainVerification extends Model
      */
     public function isValid()
     {
-        return $this->status !== self::STATUS_FAILED 
+        return $this->status === self::STATUS_VERIFIED
             && (!$this->expires_at || $this->expires_at->isFuture());
+    }
+
+    /**
+     * Check if verification has expired
+     */
+    public function isExpired()
+    {
+        return $this->status === self::STATUS_EXPIRED
+            || ($this->expires_at && $this->expires_at->isPast());
+    }
+
+    /**
+     * Get remaining attempts
+     */
+    public function getRemainingAttempts()
+    {
+        $maxAttempts = \App\Models\VerificationSetting::getMaxAttempts();
+        return max(0, $maxAttempts - $this->attempt_count);
+    }
+
+    /**
+     * Check if can attempt verification
+     */
+    public function canAttempt()
+    {
+        return !$this->isExpired()
+            && $this->status !== self::STATUS_VERIFIED
+            && $this->status !== self::STATUS_FAILED
+            && $this->getRemainingAttempts() > 0;
     }
 
     /**
@@ -355,32 +447,37 @@ class DomainVerification extends Model
      */
     public function getInstructions()
     {
-        if ($this->verification_method === self::METHOD_TXT_FILE) {
+        if ($this->verification_method === self::METHOD_FILE) {
+            $filename = $this->verification_data['filename'] ?? 'verification.txt';
+
             return [
                 'method' => 'File Upload',
                 'steps' => [
-                    '1. Download or create a text file named: <strong>' . $this->txt_filename . '</strong>',
+                    '1. Create a text file named: <strong>' . $filename . '</strong>',
                     '2. The file should contain ONLY this text: <code>' . $this->verification_token . '</code>',
-                    '3. Upload the file to your domain root: <code>https://' . $this->domain . '/' . $this->txt_filename . '</code>',
-                    '4. Or upload to: <code>https://' . $this->domain . '/.well-known/' . $this->txt_filename . '</code>',
+                    '3. Upload the file to: <code>https://' . $this->domain . '/.well-known/' . $filename . '</code>',
+                    '4. Or upload to: <code>https://' . $this->domain . '/' . $filename . '</code>',
                     '5. Click "Verify Now" to check',
                 ],
                 'download_content' => $this->verification_token,
-                'download_filename' => $this->txt_filename,
+                'download_filename' => $filename,
+                'expected_url' => 'https://' . $this->domain . '/.well-known/' . $filename,
             ];
         } else {
+            $recordName = $this->verification_data['record_name'] ?? '_verify';
+
             return [
                 'method' => 'DNS TXT Record',
                 'steps' => [
                     '1. Go to your domain registrar\'s DNS settings',
                     '2. Add a new TXT record',
-                    '3. Set the Name/Host to: <code>' . $this->dns_record_name . '</code>',
+                    '3. Set the Name/Host to: <code>' . $recordName . '</code>',
                     '4. Set the Value/Content to: <code>' . $this->verification_token . '</code>',
                     '5. Wait for DNS propagation (can take up to 24-48 hours)',
                     '6. Click "Verify Now" to check',
                 ],
                 'record_type' => 'TXT',
-                'record_name' => $this->dns_record_name,
+                'record_name' => $recordName,
                 'record_value' => $this->verification_token,
             ];
         }

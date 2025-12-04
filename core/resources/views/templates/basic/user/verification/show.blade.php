@@ -23,19 +23,28 @@
                             @endif
                         </div>
                         <div class="col-md-6 text-md-end">
-                            @if($verification->status == 0)
-                                <span class="badge badge--warning badge--lg">
-                                    <i class="las la-clock me-1"></i>@lang('Pending Verification')
-                                </span>
-                            @elseif($verification->status == 1)
-                                <span class="badge badge--success badge--lg">
-                                    <i class="las la-check-circle me-1"></i>@lang('Verified')
-                                </span>
-                            @else
-                                <span class="badge badge--danger badge--lg">
-                                    <i class="las la-times-circle me-1"></i>@lang('Failed')
-                                </span>
-                            @endif
+                            @switch($verification->status)
+                                @case('pending')
+                                    <span class="badge badge--warning badge--lg">
+                                        <i class="las la-clock me-1"></i>@lang('Pending Verification')
+                                    </span>
+                                    @break
+                                @case('verified')
+                                    <span class="badge badge--success badge--lg">
+                                        <i class="las la-check-circle me-1"></i>@lang('Verified')
+                                    </span>
+                                    @break
+                                @case('failed')
+                                    <span class="badge badge--danger badge--lg">
+                                        <i class="las la-times-circle me-1"></i>@lang('Failed')
+                                    </span>
+                                    @break
+                                @case('expired')
+                                    <span class="badge badge--secondary badge--lg">
+                                        <i class="las la-calendar-times me-1"></i>@lang('Expired')
+                                    </span>
+                                    @break
+                            @endswitch
                         </div>
                     </div>
 

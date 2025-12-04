@@ -172,6 +172,18 @@ Route::middleware('admin')->group(function () {
         Route::post('cancel/{id}', 'cancel')->name('cancel');
     });
 
+    // Domain Verification Management
+    Route::controller('AdminVerificationController')->prefix('verification')->name('verification.')->group(function () {
+        Route::get('settings', 'settings')->name('settings');
+        Route::post('settings', 'updateSettings')->name('settings.update');
+        Route::get('/', 'verifications')->name('index');
+        Route::get('statistics', 'statistics')->name('statistics');
+        Route::get('show/{id}', 'show')->name('show');
+        Route::post('expire/{id}', 'expire')->name('expire');
+        Route::post('delete/{id}', 'delete')->name('delete');
+        Route::post('cleanup', 'cleanup')->name('cleanup');
+    });
+
     // Reviews Management
     Route::controller('ReviewController')->prefix('reviews')->name('review.')->group(function () {
         Route::get('/', 'index')->name('index');

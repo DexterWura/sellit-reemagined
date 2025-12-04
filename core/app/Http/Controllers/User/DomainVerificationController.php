@@ -21,6 +21,57 @@ class DomainVerificationController extends Controller
         return view('templates.basic.user.verification.index', compact('pageTitle', 'verifications'));
     }
 
+    /**
+     * API: Start domain verification process
+     */
+    public function startVerification(Request $request)
+    {
+        $request->validate([
+            'domain' => 'required|string|max:255',
+            'method' => 'required|in:file,dns',
+            'listing_id' => 'nullable|integer|exists:listings,id',
+        ]);
+
+        $userId = auth()->id();
+        $domain = trim($request->domain);
+        $method = $request->method;
+        $listingId = $request->listing_id;
+
+        // Check if method is allowed
+        if (!\App\Models\VerificationSetting::isMethodAllowed($method)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This verification method is not allowed'
+            ], 400);
+        }
+
+        // Check if user already has a pending verification for this domain
+        $existing = DomainVerification::where('user_id', $userId)
+            ->where('domain', $domain)
+            ->where('status', DomainVerification::STATUS_PENDING)
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A verification is already in progress for this domain',
+                'verification_id' => $existing->id
+            ], 400);
+        }
+
+        // Create new verification
+        $verification = DomainVerification::createForDomain($domain, $userId, $method, $listingId);
+
+        return response()->json([
+            'success' => true,
+            'verification_id' => $verification->id,
+            'domain' => $verification->domain,
+            'method' => $verification->verification_method,
+            'instructions' => $verification->getInstructions(),
+            'expires_at' => $verification->expires_at?->toISOString(),
+        ]);
+    }
+
     public function show($id)
     {
         $verification = DomainVerification::where('user_id', auth()->id())
@@ -158,15 +209,64 @@ class DomainVerificationController extends Controller
     public function downloadFile($id)
     {
         $verification = DomainVerification::where('user_id', auth()->id())
-            ->where('verification_method', DomainVerification::METHOD_TXT_FILE)
+            ->where('verification_method', DomainVerification::METHOD_FILE)
             ->findOrFail($id);
 
         $content = $verification->verification_token;
-        $filename = $verification->txt_filename;
+        $filename = $verification->verification_data['filename'] ?? 'verification.txt';
 
         return response($content)
             ->header('Content-Type', 'text/plain')
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    }
+
+    /**
+     * API: Get verification status
+     */
+    public function getStatus($id)
+    {
+        $verification = DomainVerification::where('user_id', auth()->id())
+            ->findOrFail($id);
+
+        return response()->json([
+            'status' => $verification->status,
+            'domain' => $verification->domain,
+            'method' => $verification->verification_method,
+            'verified_at' => $verification->verified_at?->toISOString(),
+            'attempts_used' => $verification->attempt_count,
+            'attempts_remaining' => $verification->getRemainingAttempts(),
+            'can_attempt' => $verification->canAttempt(),
+            'expires_at' => $verification->expires_at?->toISOString(),
+            'error_message' => $verification->error_message,
+        ]);
+    }
+
+    /**
+     * API: Trigger verification check
+     */
+    public function checkVerification($id)
+    {
+        $verification = DomainVerification::where('user_id', auth()->id())
+            ->where('status', DomainVerification::STATUS_PENDING)
+            ->findOrFail($id);
+
+        if (!$verification->canAttempt()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot attempt verification. Check attempts remaining or expiration.',
+            ], 400);
+        }
+
+        $result = $verification->verify();
+
+        return response()->json([
+            'success' => $result,
+            'status' => $verification->status,
+            'message' => $result
+                ? 'Domain ownership verified successfully!'
+                : ($verification->error_message ?? 'Verification failed. Please try again.'),
+            'attempts_remaining' => $verification->getRemainingAttempts(),
+        ]);
     }
 
     /**

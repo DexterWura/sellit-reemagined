@@ -186,6 +186,11 @@ Route::middleware('auth')->name('user.')->group(function () {
                 Route::post('verify-ajax', 'verifyAjax')->name('verify-ajax');
                 Route::post('change-method/{id}', 'changeMethod')->name('change.method');
                 Route::get('download/{id}', 'downloadFile')->name('download');
+
+                // New API endpoints from technical plan
+                Route::post('start', 'startVerification')->name('start');
+                Route::get('status/{id}', 'getStatus')->name('status');
+                Route::post('check/{id}', 'checkVerification')->name('check');
             });
 
             // Withdraw

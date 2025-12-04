@@ -40,20 +40,27 @@
                                 @endif
                             </td>
                             <td>
-                                @if($verification->verification_method == 'txt_file')
-                                    <span class="badge badge--info">@lang('TXT File')</span>
+                                @if($verification->verification_method == 'file')
+                                    <span class="badge badge--info">@lang('File Upload')</span>
                                 @else
                                     <span class="badge badge--primary">@lang('DNS Record')</span>
                                 @endif
                             </td>
                             <td>
-                                @if($verification->status == 0)
-                                    <span class="badge badge--warning">@lang('Pending')</span>
-                                @elseif($verification->status == 1)
-                                    <span class="badge badge--success">@lang('Verified')</span>
-                                @else
-                                    <span class="badge badge--danger">@lang('Failed')</span>
-                                @endif
+                                @switch($verification->status)
+                                    @case('pending')
+                                        <span class="badge badge--warning">@lang('Pending')</span>
+                                        @break
+                                    @case('verified')
+                                        <span class="badge badge--success">@lang('Verified')</span>
+                                        @break
+                                    @case('failed')
+                                        <span class="badge badge--danger">@lang('Failed')</span>
+                                        @break
+                                    @case('expired')
+                                        <span class="badge badge--secondary">@lang('Expired')</span>
+                                        @break
+                                @endswitch
                             </td>
                             <td>{{ $verification->attempts }}</td>
                             <td>
