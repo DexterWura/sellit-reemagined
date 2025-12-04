@@ -36,9 +36,14 @@ class Listing extends Model
     {
         parent::boot();
 
-        // Validate data before saving
-        static::saving(function ($listing) {
+        // Validate data before creating
+        static::creating(function ($listing) {
             $listing->validateDataIntegrity();
+        });
+
+        // Validate data before saving (light validation for updates)
+        static::saving(function ($listing) {
+            $listing->validateUpdateDataIntegrity();
         });
 
         // Clean up related data when deleting
@@ -54,7 +59,7 @@ class Listing extends Model
     }
 
     /**
-     * Validate data integrity before saving
+     * Validate data integrity before creating
      */
     protected function validateDataIntegrity()
     {
@@ -71,14 +76,7 @@ class Listing extends Model
             }
         }
 
-        // Business logic validation
-        if ($this->monthly_profit > $this->monthly_revenue && $this->monthly_revenue > 0) {
-            throw new \InvalidArgumentException("Monthly profit cannot exceed monthly revenue");
-        }
-
-        if ($this->yearly_profit > $this->yearly_revenue && $this->yearly_revenue > 0) {
-            throw new \InvalidArgumentException("Yearly profit cannot exceed yearly revenue");
-        }
+        // Business logic validation moved to controller level for listing creation only
 
         // Auction validation
         if ($this->sale_type === 'auction') {
@@ -110,6 +108,46 @@ class Listing extends Model
         $validBusinessTypes = ['domain', 'website', 'social_media_account', 'mobile_app', 'desktop_app'];
         if (!in_array($this->business_type, $validBusinessTypes)) {
             throw new \InvalidArgumentException("Invalid business type");
+        }
+    }
+
+    /**
+     * Validate data integrity before updating (lighter validation)
+     */
+    protected function validateUpdateDataIntegrity()
+    {
+        // Only validate fields that are being updated or basic integrity checks
+
+        // Financial validation for negative values
+        $financialFields = [
+            'asking_price', 'starting_bid', 'reserve_price', 'buy_now_price',
+            'current_bid', 'final_price', 'monthly_revenue', 'monthly_profit',
+            'yearly_revenue', 'yearly_profit'
+        ];
+
+        foreach ($financialFields as $field) {
+            // Only validate if the field is being set and is negative
+            if ($this->isDirty($field) && $this->$field < 0) {
+                throw new \InvalidArgumentException("{$field} cannot be negative");
+            }
+        }
+
+        // Status validation
+        $validStatuses = [
+            Status::LISTING_DRAFT, Status::LISTING_PENDING, Status::LISTING_ACTIVE,
+            Status::LISTING_SOLD, Status::LISTING_EXPIRED, Status::LISTING_CANCELLED,
+            Status::LISTING_REJECTED
+        ];
+        if ($this->isDirty('status') && !in_array($this->status, $validStatuses)) {
+            throw new \InvalidArgumentException("Invalid listing status");
+        }
+
+        // Business type validation (only if being changed)
+        if ($this->isDirty('business_type')) {
+            $validBusinessTypes = ['domain', 'website', 'social_media_account', 'mobile_app', 'desktop_app'];
+            if (!in_array($this->business_type, $validBusinessTypes)) {
+                throw new \InvalidArgumentException("Invalid business type");
+            }
         }
     }
 
