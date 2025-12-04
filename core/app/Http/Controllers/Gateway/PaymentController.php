@@ -118,10 +118,6 @@ class PaymentController extends Controller
         $data                  = new Deposit();
         $data->user_id         = $user->id;
         $data->milestone_id    = @$checkOutData['milestone_id'] ?? 0;
-        // Store escrow_id in btc_wallet field temporarily if it's a full escrow payment
-        if (isset($checkOutData['type']) && $checkOutData['type'] == 'escrow_full_payment') {
-            $data->btc_wallet = 'escrow_' . (@$checkOutData['escrow_id'] ?? 0);
-        }
         $data->method_code     = $gate->method_code;
         $data->method_currency = strtoupper($gate->currency);
         $data->amount          = $amount;
@@ -129,7 +125,14 @@ class PaymentController extends Controller
         $data->rate            = $gate->rate;
         $data->final_amount    = $finalAmount;
         $data->btc_amount      = 0;
-        $data->btc_wallet      = "";
+
+        // Store escrow_id in btc_wallet field temporarily if it's a full escrow payment
+        // Only set btc_wallet if it's not already set for escrow payments
+        if (isset($checkOutData['type']) && $checkOutData['type'] == 'escrow_full_payment') {
+            $data->btc_wallet = 'escrow_' . (@$checkOutData['escrow_id'] ?? 0);
+        } else {
+            $data->btc_wallet = "";
+        }
         $data->trx             = getTrx();
         $data->success_url     = urlPath('user.deposit.history');
         $data->failed_url      = urlPath('user.deposit.history');
@@ -297,33 +300,81 @@ class PaymentController extends Controller
                     ->accepted()
                     ->where('status', '!=', Status::ESCROW_DISPUTED)
                     ->where('status', '!=', Status::ESCROW_CANCELLED)
+                    ->with('milestones')
                     ->first();
 
                 if ($escrow && $escrow->milestones->count() == 0) {
                     $totalAmount = $escrow->amount + $escrow->buyer_charge;
                     $remainingAmount = $totalAmount - $escrow->paid_amount;
 
-                    if ($remainingAmount > 0 && $user->balance >= $remainingAmount) {
-                        $user->balance -= $remainingAmount;
-                        $user->save();
+                    // Log escrow payment attempt
+                    \Log::info('Processing escrow full payment', [
+                        'escrow_id' => $escrow->id,
+                        'escrow_number' => $escrow->escrow_number,
+                        'user_balance' => $user->balance,
+                        'remaining_amount' => $remainingAmount,
+                        'total_amount' => $totalAmount,
+                        'paid_amount' => $escrow->paid_amount,
+                        'deposit_amount' => $deposit->amount
+                    ]);
 
-                        $transaction               = new Transaction();
-                        $transaction->user_id      = $user->id;
-                        $transaction->amount       = $remainingAmount;
-                        $transaction->post_balance = $user->balance;
-                        $transaction->charge       = 0;
-                        $transaction->trx_type     = '-';
-                        $transaction->details      = 'Full payment for escrow: ' . $escrow->escrow_number;
-                        $transaction->trx          = getTrx();
-                        $transaction->save();
+                    if ($remainingAmount > 0) {
+                        // For gateway payments, the deposit amount should cover the escrow payment
+                        // If user deposited more than needed, the excess stays in their balance
+                        if ($user->balance >= $remainingAmount) {
+                            $user->balance -= $remainingAmount;
+                            $user->save();
 
-                        $escrow->paid_amount += $remainingAmount;
-                        $escrow->save();
+                            $transaction               = new Transaction();
+                            $transaction->user_id      = $user->id;
+                            $transaction->amount       = $remainingAmount;
+                            $transaction->post_balance = $user->balance;
+                            $transaction->charge       = 0;
+                            $transaction->trx_type     = '-';
+                            $transaction->details      = 'Full payment for escrow: ' . $escrow->escrow_number;
+                            $transaction->trx          = getTrx();
+                            $transaction->save();
 
-                        notify($escrow->seller, 'ESCROW_FULLY_PAID', [
-                            'escrow_number' => $escrow->escrow_number,
-                            'amount' => showAmount($remainingAmount, currencyFormat: false),
-                            'currency' => gs()->cur_text,
+                            $escrow->paid_amount += $remainingAmount;
+                            $escrow->save();
+
+                            \Log::info('Escrow payment completed successfully', [
+                                'escrow_id' => $escrow->id,
+                                'amount_paid' => $remainingAmount,
+                                'new_paid_amount' => $escrow->paid_amount
+                            ]);
+
+                            notify($escrow->seller, 'ESCROW_FULLY_PAID', [
+                                'escrow_number' => $escrow->escrow_number,
+                                'amount' => showAmount($remainingAmount, currencyFormat: false),
+                                'currency' => gs()->cur_text,
+                            ]);
+                        } else {
+                            \Log::warning('Insufficient balance for escrow payment after deposit', [
+                                'escrow_id' => $escrow->id,
+                                'user_balance' => $user->balance,
+                                'remaining_amount' => $remainingAmount,
+                                'deposit_amount' => $deposit->amount
+                            ]);
+                        }
+                    } else {
+                        \Log::info('Escrow already fully paid', [
+                            'escrow_id' => $escrow->id,
+                            'paid_amount' => $escrow->paid_amount,
+                            'total_amount' => $totalAmount
+                        ]);
+                    }
+                } else {
+                    if (!$escrow) {
+                        \Log::warning('Escrow not found for payment processing', [
+                            'escrow_id' => $escrowId,
+                            'user_id' => $user->id,
+                            'btc_wallet' => $deposit->btc_wallet
+                        ]);
+                    } elseif ($escrow->milestones->count() > 0) {
+                        \Log::info('Escrow has milestones, skipping full payment processing', [
+                            'escrow_id' => $escrow->id,
+                            'milestone_count' => $escrow->milestones->count()
                         ]);
                     }
                 }
