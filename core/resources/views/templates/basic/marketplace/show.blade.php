@@ -134,14 +134,51 @@
                     @endif
                 </div>
                 @elseif($listing->business_type === 'domain')
-                <!-- Domain placeholder - no images for domain listings -->
-                <div class="domain-placeholder card mb-4 bg-light">
-                    <div class="card-body text-center py-5">
-                        <div class="domain-icon mb-3">
-                            <i class="las la-globe" style="font-size: 4rem; color: #6c757d;"></i>
+                <!-- Domain preview with gradient background -->
+                @php
+                    // Generate consistent color based on domain name
+                    $domainName = $listing->domain_name ?? 'example.com';
+                    $hash = 0;
+                    for ($i = 0; $i < strlen($domainName); $i++) {
+                        $hash = ord($domainName[$i]) + (($hash << 5) - $hash);
+                    }
+                    
+                    // Predefined color gradients
+                    $gradients = [
+                        ['#667eea', '#764ba2'], // Purple
+                        ['#f093fb', '#f5576c'], // Pink
+                        ['#4facfe', '#00f2fe'], // Blue
+                        ['#43e97b', '#38f9d7'], // Green
+                        ['#fa709a', '#fee140'], // Pink-Yellow
+                        ['#30cfd0', '#330867'], // Cyan-Purple
+                        ['#a8edea', '#fed6e3'], // Light Blue-Pink
+                        ['#ff9a9e', '#fecfef'], // Red-Pink
+                        ['#ffecd2', '#fcb69f'], // Orange
+                        ['#ff6e7f', '#bfe9ff'], // Red-Blue
+                    ];
+                    
+                    // Ensure hash is positive and calculate safe index
+                    $hash = abs($hash);
+                    $gradientCount = count($gradients);
+                    $index = $gradientCount > 0 ? ($hash % $gradientCount) : 0;
+                    
+                    // Double-check index is valid
+                    if ($index < 0 || $index >= $gradientCount) {
+                        $index = 0;
+                    }
+                    
+                    $colors = $gradients[$index] ?? $gradients[0];
+                @endphp
+                <div class="domain-preview mb-4 rounded overflow-hidden position-relative" 
+                     style="height: 400px; background: linear-gradient(135deg, {{ $colors[0] }} 0%, {{ $colors[1] }} 100%);">
+                    <div class="d-flex flex-column align-items-center justify-content-center h-100 text-center text-white" style="z-index: 1;">
+                        <i class="las la-globe mb-3" style="font-size: 5rem; opacity: 0.3;"></i>
+                        <div class="position-relative">
+                            <div class="position-absolute top-0 start-50 translate-middle-x" style="width: 100px; height: 2px; background: rgba(255,255,255,0.5); transform: translateX(-50%);"></div>
                         </div>
-                        <h5 class="card-title text-muted">@lang('Domain Listing')</h5>
-                        <p class="card-text">@lang('This domain listing does not include images. Focus on the domain details and value proposition below.')</p>
+                        <h2 class="mb-0 mt-4 fw-bold text-white" style="font-size: 2.5rem; text-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                            {{ $listing->domain_name ?? $listing->title }}
+                        </h2>
                     </div>
                 </div>
                 @endif
