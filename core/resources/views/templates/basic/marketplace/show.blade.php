@@ -1,4 +1,68 @@
 @extends($activeTemplate . 'layouts.frontend')
+
+@push('meta')
+@php
+    $seo = gs();
+    $metaDescription = $seoContents->description ?? ($listing->tagline ?? strip_tags(Str::limit($listing->description, 160)));
+    $metaImage = $seoImage ?? ($listing->primaryImage ? getImage(getFilePath('listing') . '/' . $listing->primaryImage->image) : getImage(getFilePath('seo') . '/' . gs('seo_image')));
+    $metaTitle = $listing->title . ' - ' . gs('site_name');
+    $listingUrl = route('marketplace.listing.show', $listing->slug);
+    $price = $listing->sale_type === 'auction' 
+        ? ($listing->current_bid > 0 ? $listing->current_bid : $listing->starting_bid)
+        : $listing->asking_price;
+@endphp
+<meta name="description" content="{{ $metaDescription }}">
+<meta name="keywords" content="{{ implode(',', $seoContents->keywords ?? []) }}">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="product">
+<meta property="og:url" content="{{ $listingUrl }}">
+<meta property="og:title" content="{{ $metaTitle }}">
+<meta property="og:description" content="{{ $metaDescription }}">
+<meta property="og:image" content="{{ $metaImage }}">
+<meta property="product:price:amount" content="{{ $price }}">
+<meta property="product:price:currency" content="{{ strtoupper(gs('cur_text')) }}">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="{{ $listingUrl }}">
+<meta name="twitter:title" content="{{ $metaTitle }}">
+<meta name="twitter:description" content="{{ $metaDescription }}">
+<meta name="twitter:image" content="{{ $metaImage }}">
+
+<!-- Schema.org structured data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "{{ $listing->title }}",
+  "description": "{{ $metaDescription }}",
+  "image": "{{ $metaImage }}",
+  "offers": {
+    "@type": "Offer",
+    "url": "{{ $listingUrl }}",
+    "priceCurrency": "{{ strtoupper(gs('cur_text')) }}",
+    "price": "{{ $price }}",
+    "availability": "https://schema.org/{{ $listing->status === \App\Constants\Status::LISTING_ACTIVE ? 'InStock' : 'OutOfStock' }}",
+    "seller": {
+      "@type": "Person",
+      "name": "{{ $listing->seller->username ?? 'Unknown' }}"
+    }
+  },
+  "brand": {
+    "@type": "Brand",
+    "name": "{{ $listing->domain_name ?? $listing->title }}"
+  },
+  "category": "{{ $listing->listingCategory->name ?? ucfirst($listing->business_type) }}",
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "{{ $listing->seller->avg_rating ?? 0 }}",
+    "reviewCount": "{{ $listing->seller->total_reviews ?? 0 }}"
+  }
+}
+</script>
+@endpush
+
 @section('content')
 <section class="py-5">
     <div class="container">

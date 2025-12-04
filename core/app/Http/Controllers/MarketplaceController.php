@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class MarketplaceController extends Controller
 {
@@ -343,6 +344,35 @@ class MarketplaceController extends Controller
 
         $pageTitle = $listing->title;
 
+        // Prepare SEO data
+        $seoDescription = $listing->tagline ?? strip_tags(Str::limit($listing->description, 160));
+        if ($listing->monthly_revenue > 0) {
+            $seoDescription .= ' | Monthly Revenue: ' . showAmount($listing->monthly_revenue);
+        }
+        if ($listing->asking_price > 0) {
+            $seoDescription .= ' | Price: ' . showAmount($listing->asking_price);
+        }
+        
+        $seoImage = $listing->primaryImage 
+            ? getImage(getFilePath('listing') . '/' . $listing->primaryImage->image)
+            : getImage(getFilePath('seo') . '/' . gs('seo_image'));
+        
+        $seoContents = (object) [
+            'description' => $seoDescription,
+            'social_title' => $listing->title . ' - ' . gs('site_name'),
+            'social_description' => $seoDescription,
+            'keywords' => array_filter([
+                $listing->business_type,
+                $listing->listingCategory->name ?? null,
+                $listing->domain_name ?? null,
+                'online business',
+                'for sale',
+                'marketplace'
+            ])
+        ];
+        
+        $seoImage = $seoImage;
+
         // Track view
         $this->trackView($listing);
 
@@ -402,7 +432,9 @@ class MarketplaceController extends Controller
             'sellerStats',
             'sellerReviews',
             'similarListings',
-            'isWatching'
+            'isWatching',
+            'seoContents',
+            'seoImage'
         ));
     }
 

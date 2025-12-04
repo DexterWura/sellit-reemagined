@@ -30,7 +30,7 @@
         </div>
         
         <div class="row g-4">
-            @foreach($featuredListings as $listing)
+            @foreach($featuredListings->take(6) as $listing)
                 @include('templates.basic.partials.listing_card', ['listing' => $listing])
             @endforeach
         </div>

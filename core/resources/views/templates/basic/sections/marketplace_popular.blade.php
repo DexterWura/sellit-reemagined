@@ -29,7 +29,7 @@
         </div>
         
         <div class="row g-4">
-            @foreach($popularListings as $listing)
+            @foreach($popularListings->take(6) as $listing)
                 @include('templates.basic.partials.listing_card', ['listing' => $listing])
             @endforeach
         </div>

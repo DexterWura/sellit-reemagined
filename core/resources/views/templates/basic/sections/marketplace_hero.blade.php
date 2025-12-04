@@ -5,7 +5,7 @@
     // Stats removed - not exposing business metrics publicly
 @endphp
 
-<section class="flippa-hero">
+<section class="flippa-hero" style="min-height: 600px; position: relative;">
     <div class="hero-background">
         <div class="wave-pattern"></div>
     </div>

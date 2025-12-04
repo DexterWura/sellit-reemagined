@@ -2,7 +2,7 @@
     $content = getContent('marketplace_websites.content', true);
     if(!@$content->data_values->status) return;
     
-    $limit = @$content->data_values->limit ?? 4;
+    $limit = @$content->data_values->limit ?? 6;
     $websiteListings = \App\Models\Listing::active()
         ->where('business_type', 'website')
         ->with(['seller', 'primaryImage', 'listingCategory'])
@@ -30,7 +30,7 @@
         </div>
         
         <div class="row g-4">
-            @foreach($websiteListings as $listing)
+            @foreach($websiteListings->take(6) as $listing)
                 @include('templates.basic.partials.listing_card', ['listing' => $listing])
             @endforeach
         </div>
