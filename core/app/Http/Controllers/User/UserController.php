@@ -9,7 +9,6 @@ use App\Lib\GoogleAuthenticator;
 use App\Models\DeviceToken;
 use App\Models\Escrow;
 use App\Models\Form;
-use App\Models\NotificationLog;
 use App\Models\Transaction;
 use App\Models\Listing;
 use App\Models\Bid;
@@ -76,17 +75,11 @@ class UserController extends Controller
         $data['pendingWithdrawals'] = $user->withdrawals()->pending()->count();
 
         $transactions = Transaction::where('user_id', auth()->id())->latest()->limit(5)->get();
-
-        // Get recent notifications for the dashboard
-        $notifications = NotificationLog::where('user_id', auth()->id())
-            ->latest()
-            ->limit(10)
-            ->get();
-
+        
         // Get pending escrow actions for reminders
         $pendingActions = $this->getPendingEscrowActions($user);
-
-        return view('Template::user.dashboard', compact('pageTitle', 'user', 'transactions', 'data', 'notifications', 'pendingActions'));
+        
+        return view('Template::user.dashboard', compact('pageTitle', 'user', 'transactions', 'data', 'pendingActions'));
 
     }
 

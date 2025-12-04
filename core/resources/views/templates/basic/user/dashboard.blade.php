@@ -90,42 +90,6 @@
                     @endforeach
                 @endif
 
-                {{-- Recent Notifications --}}
-                @if(isset($notifications) && $notifications->count() > 0)
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">
-                                    <i class="las la-bell"></i> @lang('Recent Notifications')
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="notification-list">
-                                    @foreach($notifications as $notification)
-                                        <div class="notification-item d-flex align-items-start mb-3 pb-3 border-bottom">
-                                            <div class="notification-icon me-3">
-                                                <i class="las la-info-circle text-primary"></i>
-                                            </div>
-                                            <div class="notification-content flex-grow-1">
-                                                <div class="notification-message">
-                                                    {!! $notification->message !!}
-                                                </div>
-                                                <small class="text-muted">
-                                                    {{ $notification->created_at->diffForHumans() }}
-                                                </small>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                                @if($notifications->count() >= 10)
-                                    <div class="text-center mt-3">
-                                        <small class="text-muted">@lang('Showing latest 10 notifications')</small>
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                @endif
 
                 <div class="col-lg-8 col-xl-9">
 
