@@ -151,6 +151,35 @@ class EscrowController extends Controller
         ]);
 
         $escrow = Escrow::disputed()->findOrFail($request->escrow_id);
+
+        // Common sense logic: if no funds were actually paid, only allow cancellation
+        if ($escrow->paid_amount == 0) {
+            if ($request->status == Status::ESCROW_COMPLETED) {
+                $notify[] = ['error', 'Cannot complete escrow - no funds were paid'];
+                return back()->withNotify($notify);
+            }
+            if ($request->buyer_amount > 0 || $request->seller_amount > 0) {
+                $notify[] = ['error', 'Cannot distribute funds - no funds were paid'];
+                return back()->withNotify($notify);
+            }
+            // For unfunded escrows, only allow cancellation with no financial transactions
+            $escrow->status = Status::ESCROW_CANCELLED;
+            $escrow->dispute_charge = 0;
+            $escrow->save();
+
+            // Clear escrow_id from listing so it appears in marketplace again
+            $listing = \App\Models\Listing::where('escrow_id', $escrow->id)->first();
+            if ($listing && $listing->status === Status::LISTING_ACTIVE) {
+                $listing->escrow_id = null;
+                $listing->winner_id = null;
+                $listing->final_price = null;
+                $listing->save();
+            }
+
+            $notify[] = ['success', 'Escrow cancelled successfully - no funds were involved'];
+            return back()->withNotify($notify);
+        }
+
         $charge = $escrow->paid_amount - $request->buyer_amount + $request->seller_amount;
 
         if ($charge < 0) {

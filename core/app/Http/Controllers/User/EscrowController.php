@@ -490,6 +490,12 @@ class EscrowController extends Controller
             return back()->withNotify($notify);
         }
 
+        // Common sense: Prevent disputing escrows with no funds paid
+        if ($escrow->paid_amount == 0) {
+            $notify[] = ['error', 'Cannot dispute escrow - no payment has been made yet. Please cancel the escrow instead.'];
+            return back()->withNotify($notify);
+        }
+
         // Rate limiting for disputes - prevent spam disputes
         $recentDisputes = Escrow::where('disputer_id', $user->id)
             ->where('created_at', '>', now()->subHours(24))
