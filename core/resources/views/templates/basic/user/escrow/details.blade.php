@@ -58,7 +58,7 @@
                                     $canPayFull = !$hasMilestones && $remainingAmount > 0;
                                 @endphp
                                 @if($canPayFull)
-                                    <button type="button" class="btn btn-sm btn--success" data-bs-toggle="modal" data-bs-target="#payFullModal">
+                                    <button type="button" class="btn btn-sm btn--dark" data-bs-toggle="modal" data-bs-target="#payFullModal">
                                         <i class="las la-money-bill-wave"></i> @lang('Pay Full Amount')
                                     </button>
                                 @endif
