@@ -67,7 +67,7 @@
                                             </div>
                                         </td>
                                         <td>
-                                            {{ $escrow->category->name }}
+                                            {{ $escrow->category ? $escrow->category->name : 'N/A' }}
                                         </td>
                                         <td>
                                             @if ($escrow->charge_payer == Status::CHARGE_PAYER_SELLER)
