@@ -54,23 +54,85 @@
                 </div>
                 
                 <!-- Images -->
-                @if($listing->images->count() > 0)
+                @if($listing->business_type !== 'domain' && $listing->images->count() > 0)
                 <div class="listing-images mb-4">
-                    <div class="main-image mb-3">
-                        <img src="{{ getImage(getFilePath('listing') . '/' . $listing->images->first()->image) }}" 
-                             alt="{{ $listing->title }}" class="img-fluid rounded w-100" id="mainImage">
+                    <div class="main-image-container mb-3 position-relative">
+                        <!-- Loading skeleton -->
+                        <div class="image-skeleton rounded w-100" id="imageSkeleton"
+                             style="height: 400px; display: block;">
+                        </div>
+
+                        <img src="{{ getImage(getFilePath('listing') . '/' . $listing->images->first()->image) }}"
+                             alt="{{ $listing->title }}"
+                             class="img-fluid rounded w-100 main-image"
+                             id="mainImage"
+                             style="transition: opacity 0.3s ease-in-out; display: none; cursor: pointer;"
+                             onclick="openFullscreenGallery(currentIndex)"
+                             onload="hideSkeleton()"
+                             onerror="showErrorPlaceholder()">
+
+                        @if($listing->images->count() > 1)
+                        <!-- Navigation arrows -->
+                        <button class="btn btn-dark btn-sm position-absolute top-50 start-0 translate-middle-y ms-2 nav-arrow prev-arrow"
+                                id="prevImage" style="display: none; opacity: 0.7;">
+                            <i class="las la-chevron-left"></i>
+                        </button>
+                        <button class="btn btn-dark btn-sm position-absolute top-50 end-0 translate-middle-y me-2 nav-arrow next-arrow"
+                                id="nextImage" style="opacity: 0.7;">
+                            <i class="las la-chevron-right"></i>
+                        </button>
+
+                        <!-- Image counter -->
+                        <div class="position-absolute bottom-0 end-0 mb-2 me-2">
+                            <span class="badge bg-dark bg-opacity-75 text-white px-2 py-1">
+                                <span id="currentImageIndex">1</span> / {{ $listing->images->count() }}
+                            </span>
+                        </div>
+                        @endif
                     </div>
+
                     @if($listing->images->count() > 1)
-                    <div class="thumbnail-images d-flex gap-2 flex-wrap">
-                        @foreach($listing->images as $image)
-                            <img src="{{ getImage(getFilePath('listing') . '/' . $image->image) }}" 
-                                 alt="{{ $listing->title }}" 
-                                 class="img-thumbnail thumbnail-item" 
-                                 style="width: 80px; height: 60px; object-fit: cover; cursor: pointer;"
-                                 onclick="document.getElementById('mainImage').src = this.src">
-                        @endforeach
+                    <div class="thumbnail-container">
+                        <div class="thumbnail-images d-flex gap-2 overflow-auto pb-2" id="thumbnailStrip">
+                            @foreach($listing->images as $index => $image)
+                                <div class="thumbnail-wrapper position-relative" data-index="{{ $index }}">
+                                    <img src="{{ getImage(getFilePath('listing') . '/' . $image->image) }}"
+                                         alt="{{ $listing->title }}"
+                                         class="img-thumbnail thumbnail-item {{ $index === 0 ? 'active' : '' }}"
+                                         style="width: 80px; height: 60px; object-fit: cover; cursor: pointer; border: 2px solid {{ $index === 0 ? '#007bff' : 'transparent' }}; transition: all 0.3s ease;"
+                                         data-index="{{ $index }}">
+
+                                    <!-- Active indicator -->
+                                    @if($index === 0)
+                                    <div class="position-absolute top-0 end-0 mt-1 me-1">
+                                        <i class="las la-check-circle text-primary" style="font-size: 14px;"></i>
+                                    </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <!-- Thumbnail scroll indicators -->
+                        @if($listing->images->count() > 6)
+                        <div class="thumbnail-scroll-hint text-center mt-2">
+                            <small class="text-muted">
+                                <i class="las la-arrows-alt-h"></i> Scroll for more images
+                            </small>
+                        </div>
+                        @endif
                     </div>
                     @endif
+                </div>
+                @elseif($listing->business_type === 'domain')
+                <!-- Domain placeholder - no images for domain listings -->
+                <div class="domain-placeholder card mb-4 bg-light">
+                    <div class="card-body text-center py-5">
+                        <div class="domain-icon mb-3">
+                            <i class="las la-globe" style="font-size: 4rem; color: #6c757d;"></i>
+                        </div>
+                        <h5 class="card-title text-muted">@lang('Domain Listing')</h5>
+                        <p class="card-text">@lang('This domain listing does not include images. Focus on the domain details and value proposition below.')</p>
+                    </div>
                 </div>
                 @endif
                 
@@ -498,6 +560,419 @@
             alert('@lang("Link copied to clipboard!")');
         }
     }
+
+    // Enhanced Image Gallery with Animations (only for non-domain listings)
+    @if($listing->business_type !== 'domain' && $listing->images->count() > 0)
+    document.addEventListener('DOMContentLoaded', function() {
+        const images = @json($listing->images->pluck('image')->toArray());
+        let currentIndex = 0;
+        let fullscreenCurrentIndex = 0;
+        const mainImage = document.getElementById('mainImage');
+        const thumbnailItems = document.querySelectorAll('.thumbnail-item');
+        const prevArrow = document.getElementById('prevImage');
+        const nextArrow = document.getElementById('nextImage');
+        const currentImageIndex = document.getElementById('currentImageIndex');
+        const thumbnailStrip = document.getElementById('thumbnailStrip');
+
+        // Image navigation functions
+        function updateMainImage(index, animate = true) {
+            // Show skeleton while loading
+            const skeleton = document.getElementById('imageSkeleton');
+            const errorPlaceholder = document.querySelector('.error-placeholder');
+
+            if (skeleton) {
+                skeleton.style.display = 'block';
+            }
+            if (errorPlaceholder) {
+                errorPlaceholder.remove();
+            }
+            mainImage.style.display = 'none';
+
+            if (animate) {
+                // Fade out current image
+                mainImage.style.opacity = '0';
+
+                setTimeout(() => {
+                    const imagePath = '{{ getImage(getFilePath("listing") . "/") }}/' + images[index];
+                    mainImage.src = imagePath;
+
+                    // Handle load/error events
+                    mainImage.onload = function() {
+                        if (skeleton) skeleton.style.display = 'none';
+                        mainImage.style.display = 'block';
+                        mainImage.style.opacity = '1';
+                    };
+
+                    mainImage.onerror = function() {
+                        window.showErrorPlaceholder();
+                    };
+
+                }, 150);
+            } else {
+                const imagePath = '{{ getImage(getFilePath("listing") . "/") }}/' + images[index];
+                mainImage.src = imagePath;
+
+                // Handle load/error events for initial load
+                mainImage.onload = function() {
+                    if (skeleton) skeleton.style.display = 'none';
+                    mainImage.style.display = 'block';
+                    mainImage.style.opacity = '1';
+                };
+
+                mainImage.onerror = function() {
+                    window.showErrorPlaceholder();
+                };
+            }
+
+            // Update thumbnails
+            thumbnailItems.forEach((thumb, i) => {
+                if (i === index) {
+                    thumb.classList.add('active');
+                    thumb.style.borderColor = '#007bff';
+                    thumb.style.transform = 'scale(1.05)';
+                } else {
+                    thumb.classList.remove('active');
+                    thumb.style.borderColor = 'transparent';
+                    thumb.style.transform = 'scale(1)';
+                }
+            });
+
+            // Update counter
+            if (currentImageIndex) {
+                currentImageIndex.textContent = index + 1;
+            }
+
+            // Update navigation arrows
+            if (prevArrow) {
+                prevArrow.style.display = index === 0 ? 'none' : 'block';
+            }
+            if (nextArrow) {
+                nextArrow.style.display = index === images.length - 1 ? 'none' : 'block';
+            }
+
+            // Auto-scroll thumbnail into view
+            const activeThumbnail = document.querySelector('.thumbnail-item.active');
+            if (activeThumbnail) {
+                activeThumbnail.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest',
+                    inline: 'center'
+                });
+            }
+        }
+
+        // Thumbnail click handlers
+        thumbnailItems.forEach((thumbnail, index) => {
+            thumbnail.addEventListener('click', function() {
+                currentIndex = index;
+                updateMainImage(currentIndex);
+            });
+
+            // Hover effects
+            thumbnail.addEventListener('mouseenter', function() {
+                if (!this.classList.contains('active')) {
+                    this.style.transform = 'scale(1.1)';
+                    this.style.borderColor = '#6c757d';
+                }
+            });
+
+            thumbnail.addEventListener('mouseleave', function() {
+                if (!this.classList.contains('active')) {
+                    this.style.transform = 'scale(1)';
+                    this.style.borderColor = 'transparent';
+                }
+            });
+        });
+
+        // Navigation arrows
+        if (prevArrow) {
+            prevArrow.addEventListener('click', function() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateMainImage(currentIndex);
+                }
+            });
+        }
+
+        if (nextArrow) {
+            nextArrow.addEventListener('click', function() {
+                if (currentIndex < images.length - 1) {
+                    currentIndex++;
+                    updateMainImage(currentIndex);
+                }
+            });
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                currentIndex--;
+                updateMainImage(currentIndex);
+            } else if (e.key === 'ArrowRight' && currentIndex < images.length - 1) {
+                currentIndex++;
+                updateMainImage(currentIndex);
+            }
+        });
+
+        // Touch/swipe support for mobile
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        mainImage.addEventListener('touchstart', function(e) {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+
+        mainImage.addEventListener('touchend', function(e) {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        });
+
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            if (touchEndX < touchStartX - swipeThreshold && currentIndex < images.length - 1) {
+                // Swipe left - next image
+                currentIndex++;
+                updateMainImage(currentIndex);
+            } else if (touchEndX > touchStartX + swipeThreshold && currentIndex > 0) {
+                // Swipe right - previous image
+                currentIndex--;
+                updateMainImage(currentIndex);
+            }
+        }
+
+        // Auto-play functionality (optional)
+        let autoPlayInterval = null;
+        const autoPlayDelay = 4000; // 4 seconds
+
+        function startAutoPlay() {
+            if (images.length > 1) {
+                autoPlayInterval = setInterval(() => {
+                    currentIndex = (currentIndex + 1) % images.length;
+                    updateMainImage(currentIndex);
+                }, autoPlayDelay);
+            }
+        }
+
+        function stopAutoPlay() {
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+            }
+        }
+
+        // Pause auto-play on user interaction
+        const galleryContainer = document.querySelector('.listing-images');
+        if (galleryContainer) {
+            ['click', 'touchstart', 'keydown'].forEach(event => {
+                galleryContainer.addEventListener(event, stopAutoPlay, { passive: true });
+            });
+        }
+
+        // Start auto-play after 5 seconds of inactivity
+        let autoPlayTimeout = setTimeout(startAutoPlay, 5000);
+
+        function resetAutoPlayTimer() {
+            clearTimeout(autoPlayTimeout);
+            stopAutoPlay();
+            autoPlayTimeout = setTimeout(startAutoPlay, 5000);
+        }
+
+        // Reset auto-play timer on any user interaction
+        if (galleryContainer) {
+            galleryContainer.addEventListener('mouseenter', resetAutoPlayTimer);
+            galleryContainer.addEventListener('touchstart', resetAutoPlayTimer, { passive: true });
+        }
+
+        // Preload images for better performance
+        function preloadImages() {
+            images.forEach((image, index) => {
+                if (index !== 0) { // Skip first image as it's already loaded
+                    const img = new Image();
+                    img.src = '{{ getImage(getFilePath("listing") . "/") }}/' + image;
+                }
+            });
+        }
+
+        preloadImages();
+
+        // Initialize gallery state
+        updateMainImage(0, false);
+
+        // Fullscreen Gallery Functions
+        window.openFullscreenGallery = function(startIndex = currentIndex) {
+            const galleryHtml = `
+                <div id="fullscreenGallery" class="fullscreen-gallery">
+                    <div class="gallery-overlay" onclick="closeFullscreenGallery()"></div>
+                    <div class="gallery-content">
+                        <button class="gallery-close" onclick="closeFullscreenGallery()">
+                            <i class="las la-times"></i>
+                        </button>
+
+                        <button class="gallery-nav gallery-prev" onclick="navigateFullscreen(-1)">
+                            <i class="las la-chevron-left"></i>
+                        </button>
+
+                        <img id="fullscreenImage" src="" alt="" class="gallery-image">
+
+                        <button class="gallery-nav gallery-next" onclick="navigateFullscreen(1)">
+                            <i class="las la-chevron-right"></i>
+                        </button>
+
+                        <div class="gallery-indicators">
+                            <span id="fullscreenCounter">1 / ${images.length}</span>
+                        </div>
+
+                        <div class="gallery-thumbnails">
+                            ${images.map((image, index) => `
+                                <img src="{{ getImage(getFilePath('listing') . '/') }}/${image}"
+                                     alt=""
+                                     class="gallery-thumb ${index === startIndex ? 'active' : ''}"
+                                     onclick="goToFullscreenImage(${index})">
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', galleryHtml);
+            document.body.style.overflow = 'hidden';
+
+            // Initialize fullscreen gallery
+            fullscreenCurrentIndex = startIndex;
+            updateFullscreenImage();
+
+            // Add keyboard support
+            document.addEventListener('keydown', handleFullscreenKeydown);
+        };
+
+        window.closeFullscreenGallery = function() {
+            const gallery = document.getElementById('fullscreenGallery');
+            if (gallery) {
+                gallery.remove();
+                document.body.style.overflow = '';
+                document.removeEventListener('keydown', handleFullscreenKeydown);
+            }
+        };
+
+        window.navigateFullscreen = function(direction) {
+            const newIndex = fullscreenCurrentIndex + direction;
+            if (newIndex >= 0 && newIndex < images.length) {
+                fullscreenCurrentIndex = newIndex;
+                updateFullscreenImage();
+            }
+        };
+
+        window.goToFullscreenImage = function(index) {
+            fullscreenCurrentIndex = index;
+            updateFullscreenImage();
+        };
+
+        function updateFullscreenImage() {
+            const fullscreenImage = document.getElementById('fullscreenImage');
+            const fullscreenCounter = document.getElementById('fullscreenCounter');
+            const galleryThumbs = document.querySelectorAll('.gallery-thumb');
+
+            if (fullscreenImage) {
+                const imagePath = '{{ getImage(getFilePath("listing") . "/") }}/' + images[fullscreenCurrentIndex];
+                fullscreenImage.src = imagePath;
+            }
+
+            if (fullscreenCounter) {
+                fullscreenCounter.textContent = `${fullscreenCurrentIndex + 1} / ${images.length}`;
+            }
+
+            // Update thumbnail indicators
+            galleryThumbs.forEach((thumb, index) => {
+                thumb.classList.toggle('active', index === fullscreenCurrentIndex);
+            });
+        }
+
+        function handleFullscreenKeydown(e) {
+            switch(e.key) {
+                case 'Escape':
+                    closeFullscreenGallery();
+                    break;
+                case 'ArrowLeft':
+                    navigateFullscreen(-1);
+                    break;
+                case 'ArrowRight':
+                    navigateFullscreen(1);
+                    break;
+            }
+        }
+
+        // Touch gesture support for fullscreen
+        let fullscreenTouchStartX = 0;
+        let fullscreenTouchEndX = 0;
+
+        document.addEventListener('touchstart', function(e) {
+            if (document.getElementById('fullscreenGallery')) {
+                fullscreenTouchStartX = e.changedTouches[0].screenX;
+            }
+        });
+
+        document.addEventListener('touchend', function(e) {
+            if (document.getElementById('fullscreenGallery')) {
+                fullscreenTouchEndX = e.changedTouches[0].screenX;
+                handleFullscreenSwipe();
+            }
+        });
+
+        function handleFullscreenSwipe() {
+            const swipeThreshold = 50;
+            if (fullscreenTouchEndX < fullscreenTouchStartX - swipeThreshold) {
+                navigateFullscreen(1); // Swipe left - next
+            } else if (fullscreenTouchEndX > fullscreenTouchStartX + swipeThreshold) {
+                navigateFullscreen(-1); // Swipe right - previous
+            }
+        }
+
+        // Image loading functions
+        window.hideSkeleton = function() {
+            const skeleton = document.getElementById('imageSkeleton');
+            const mainImage = document.getElementById('mainImage');
+
+            if (skeleton && mainImage) {
+                skeleton.style.display = 'none';
+                mainImage.style.display = 'block';
+            }
+        };
+
+        window.showErrorPlaceholder = function() {
+            const skeleton = document.getElementById('imageSkeleton');
+            const mainImage = document.getElementById('mainImage');
+            const container = document.querySelector('.main-image-container');
+
+            if (skeleton) {
+                skeleton.style.display = 'none';
+            }
+
+            if (mainImage) {
+                mainImage.style.display = 'none';
+            }
+
+            // Show error placeholder
+            if (container && !container.querySelector('.error-placeholder')) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-placeholder d-flex align-items-center justify-content-center bg-light rounded';
+                errorDiv.style.cssText = 'height: 400px; color: #6c757d;';
+                errorDiv.innerHTML = `
+                    <div class="text-center">
+                        <i class="las la-exclamation-triangle fs-1 mb-3"></i>
+                        <h6>@lang('Image failed to load')</h6>
+                        <small>@lang('Please try refreshing the page')</small>
+                    </div>
+                `;
+                container.appendChild(errorDiv);
+            }
+        };
+    });
+    @endif
 </script>
+
+
+
+
+
 @endpush
 
