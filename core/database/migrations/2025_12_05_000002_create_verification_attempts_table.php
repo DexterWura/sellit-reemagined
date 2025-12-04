@@ -16,7 +16,7 @@ return new class extends Migration
             $table->jsonb('request_data')->nullable();
             $table->jsonb('response_data')->nullable();
             $table->text('error_message')->nullable();
-            $table->inet('ip_address')->nullable();
+            $table->string('ip_address')->nullable();
             $table->text('user_agent')->nullable();
             $table->timestamp('attempted_at');
             $table->integer('duration_ms')->nullable();

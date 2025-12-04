@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -15,24 +16,43 @@ return new class extends Migration
             $table->timestamp('last_attempt_at')->nullable()->after('attempt_count');
             $table->timestamp('verified_at')->nullable()->after('last_attempt_at');
 
-            // Rename status values to match technical plan
-            // We'll handle data migration in a separate seeder if needed
-
             // Add indexes as per technical plan
             $table->index(['status'], 'idx_domain_verifications_status');
             $table->index(['user_id'], 'idx_domain_verifications_user');
             $table->index(['listing_id'], 'idx_domain_verifications_listing');
             $table->index(['expires_at'], 'idx_domain_verifications_expires');
 
-            // Add unique constraint as per technical plan
-            // First drop existing unique constraint if it exists
+            // Drop existing unique constraint if it exists and create new one
             try {
-                $table->dropUnique('listing_id');
+                $table->dropUnique('domain_verifications_listing_id_unique');
             } catch (\Exception $e) {
                 // Constraint might not exist, continue
             }
 
             $table->unique(['domain', 'user_id', 'listing_id'], 'unique_domain_user_listing');
+        });
+
+        // Data migration: Convert status values from integers to strings
+        DB::statement("UPDATE domain_verifications SET status = CASE
+            WHEN status = '0' THEN 'pending'
+            WHEN status = '1' THEN 'verified'
+            WHEN status = '2' THEN 'failed'
+            ELSE 'pending'
+        END");
+
+        // Data migration: Convert verification_method values
+        DB::statement("UPDATE domain_verifications SET verification_method = CASE
+            WHEN verification_method = 'txt_file' THEN 'file'
+            WHEN verification_method = 'dns_record' THEN 'dns'
+            ELSE verification_method
+        END");
+
+        // Data migration: Copy attempts to attempt_count
+        DB::statement("UPDATE domain_verifications SET attempt_count = COALESCE(attempts, 0) WHERE attempt_count = 0");
+
+        // Now change the status column type (this needs to be done after data migration)
+        Schema::table('domain_verifications', function (Blueprint $table) {
+            $table->string('status', 20)->default('pending')->change();
         });
     }
 

@@ -15,7 +15,6 @@ return new class extends Migration
             $table->integer('max_verification_attempts')->default(5);
             $table->integer('verification_timeout_seconds')->default(300);
             $table->timestamps();
-            $table->timestamp('updated_at')->nullable()->useCurrentOnUpdate();
         });
     }
 
