@@ -15,6 +15,54 @@ class Bid extends Model
         'is_buy_now' => 'boolean',
     ];
 
+    /**
+     * Boot the model and add event listeners for data integrity
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Validate data before saving
+        static::saving(function ($bid) {
+            $bid->validateDataIntegrity();
+        });
+    }
+
+    /**
+     * Validate data integrity before saving
+     */
+    protected function validateDataIntegrity()
+    {
+        // Amount validation
+        if ($this->amount <= 0) {
+            throw new \InvalidArgumentException("Bid amount must be greater than 0");
+        }
+
+        // Max bid validation
+        if ($this->max_bid !== null && $this->max_bid < $this->amount) {
+            throw new \InvalidArgumentException("Maximum bid cannot be less than bid amount");
+        }
+
+        // Status validation
+        $validStatuses = [0, 1, 2, 3, 4, 5]; // ACTIVE, OUTBID, WINNING, WON, LOST, CANCELLED
+        if (!in_array($this->status, $validStatuses)) {
+            throw new \InvalidArgumentException("Invalid bid status");
+        }
+
+        // Prevent duplicate active bids from same user on same listing
+        if ($this->isDirty() && in_array($this->status, [0, 2])) { // ACTIVE or WINNING
+            $existingActiveBid = static::where('listing_id', $this->listing_id)
+                ->where('user_id', $this->user_id)
+                ->whereIn('status', [0, 2])
+                ->where('id', '!=', $this->id ?? 0)
+                ->exists();
+
+            if ($existingActiveBid) {
+                throw new \InvalidArgumentException("User already has an active bid on this listing");
+            }
+        }
+    }
+
     public function listing()
     {
         return $this->belongsTo(Listing::class);

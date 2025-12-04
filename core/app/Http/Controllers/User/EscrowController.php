@@ -352,9 +352,26 @@ class EscrowController extends Controller
             $escrow = Escrow::checkUser()->where('creator_id', '!=', auth()->id())->notAccepted()->findOrFail($id);
             $user = auth()->user();
 
+            // Additional security validation
+            if ($escrow->buyer_id !== $user->id && $escrow->seller_id !== $user->id) {
+                Log::warning('Unauthorized escrow access attempt', [
+                    'escrow_id' => $id,
+                    'user_id' => $user->id,
+                    'buyer_id' => $escrow->buyer_id,
+                    'seller_id' => $escrow->seller_id
+                ]);
+                abort(403, 'Unauthorized access to escrow');
+            }
+
             // Check if already accepted
             if ($escrow->status === Status::ESCROW_ACCEPTED) {
                 $notify[] = ['error', 'Escrow has already been accepted'];
+                return back()->withNotify($notify);
+            }
+
+            // Prevent accepting escrows that are disputed or cancelled
+            if (in_array($escrow->status, [Status::ESCROW_DISPUTED, Status::ESCROW_CANCELLED])) {
+                $notify[] = ['error', 'Cannot accept an escrow that is disputed or cancelled'];
                 return back()->withNotify($notify);
             }
 
@@ -364,6 +381,21 @@ class EscrowController extends Controller
                 if ($user->balance < $totalNeeded) {
                     $shortfall = $totalNeeded - $user->balance;
                     $notify[] = ['error', 'Insufficient balance to accept escrow. You need ' . showAmount($totalNeeded) . ' (including fees) but only have ' . showAmount($user->balance) . '. Please deposit ' . showAmount($shortfall) . ' more.'];
+                    return back()->withNotify($notify);
+                }
+
+                // Additional validation: prevent buyers from accepting their own escrows
+                if ($escrow->creator_id === $user->id) {
+                    $notify[] = ['error', 'You cannot accept an escrow you created yourself'];
+                    return back()->withNotify($notify);
+                }
+            }
+
+            // For sellers: basic validation
+            if ($escrow->seller_id == $user->id) {
+                // Sellers can only accept escrows they didn't create
+                if ($escrow->creator_id === $user->id) {
+                    $notify[] = ['error', 'Invalid escrow acceptance request'];
                     return back()->withNotify($notify);
                 }
             }
@@ -427,6 +459,18 @@ class EscrowController extends Controller
         ]);
 
         $escrow = Escrow::checkUser()->accepted()->findOrFail($id);
+        $user = auth()->user();
+
+        // Additional security validation
+        if ($escrow->buyer_id !== $user->id && $escrow->seller_id !== $user->id) {
+            Log::warning('Unauthorized escrow dispute attempt', [
+                'escrow_id' => $id,
+                'user_id' => $user->id,
+                'buyer_id' => $escrow->buyer_id,
+                'seller_id' => $escrow->seller_id
+            ]);
+            abort(403, 'Unauthorized access to escrow');
+        }
 
         // Check if already disputed
         if ($escrow->status == Status::ESCROW_DISPUTED) {
@@ -437,6 +481,22 @@ class EscrowController extends Controller
         // Check if already completed
         if ($escrow->status == Status::ESCROW_COMPLETED) {
             $notify[] = ['error', 'Cannot dispute a completed escrow'];
+            return back()->withNotify($notify);
+        }
+
+        // Prevent disputing cancelled escrows
+        if ($escrow->status == Status::ESCROW_CANCELLED) {
+            $notify[] = ['error', 'Cannot dispute a cancelled escrow'];
+            return back()->withNotify($notify);
+        }
+
+        // Rate limiting for disputes - prevent spam disputes
+        $recentDisputes = Escrow::where('disputer_id', $user->id)
+            ->where('created_at', '>', now()->subHours(24))
+            ->count();
+
+        if ($recentDisputes >= 5) { // Max 5 disputes per 24 hours
+            $notify[] = ['error', 'You have reached the maximum number of disputes allowed per day. Please contact support.'];
             return back()->withNotify($notify);
         }
 

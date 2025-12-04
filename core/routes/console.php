@@ -30,3 +30,10 @@ Schedule::command('auctions:process-ending --minutes=5')
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/auction-processing.log'));
+
+// Marketplace cleanup - run daily at 2 AM
+Schedule::command('marketplace:cleanup')
+    ->dailyAt('02:00')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/marketplace-cleanup.log'));

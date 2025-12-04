@@ -36,36 +36,40 @@ class ProcessAuctionEnd implements ShouldQueue
     public function handle(): void
     {
         try {
-            // Lock listing to prevent concurrent processing
-            $listing = Listing::lockForUpdate()
-                ->where('id', $this->listingId)
-                ->where('sale_type', 'auction')
-                ->where('status', Status::LISTING_ACTIVE)
-                ->first();
-
-            if (!$listing) {
-                Log::info('Auction already processed or not found', ['listing_id' => $this->listingId]);
-                return;
-            }
-
-            // Double-check auction has actually ended
-            if ($listing->auction_end && $listing->auction_end->isFuture()) {
-                Log::info('Auction has not ended yet', [
-                    'listing_id' => $this->listingId,
-                    'auction_end' => $listing->auction_end
-                ]);
-                return;
-            }
-
-            // Check if already processed
-            if (in_array($listing->status, [Status::LISTING_SOLD, Status::LISTING_EXPIRED])) {
-                Log::info('Auction already processed', ['listing_id' => $this->listingId, 'status' => $listing->status]);
-                return;
-            }
-
             DB::beginTransaction();
-            
+
             try {
+                // Lock listing to prevent concurrent processing with exclusive lock
+                $listing = Listing::lockForUpdate()
+                    ->where('id', $this->listingId)
+                    ->where('sale_type', 'auction')
+                    ->where('status', Status::LISTING_ACTIVE)
+                    ->first();
+
+                if (!$listing) {
+                    Log::info('Auction already processed or not found', ['listing_id' => $this->listingId]);
+                    DB::rollBack();
+                    return;
+                }
+
+                // Double-check auction has actually ended
+                if ($listing->auction_end && $listing->auction_end->isFuture()) {
+                    Log::info('Auction has not ended yet', [
+                        'listing_id' => $this->listingId,
+                        'auction_end' => $listing->auction_end
+                    ]);
+                    DB::rollBack();
+                    return;
+                }
+
+                // Check if already processed (double-check after lock)
+                if (in_array($listing->status, [Status::LISTING_SOLD, Status::LISTING_EXPIRED, Status::LISTING_CANCELLED])) {
+                    Log::info('Auction already processed', ['listing_id' => $this->listingId, 'status' => $listing->status]);
+                    DB::rollBack();
+                    return;
+                }
+
+                // Verify auction actually ended and lock bids for this listing
                 $winningBid = Bid::where('listing_id', $listing->id)
                     ->where('status', Status::BID_WINNING)
                     ->with('user')
@@ -129,6 +133,34 @@ class ProcessAuctionEnd implements ShouldQueue
                     return;
                 }
 
+                // Validate winning bid data integrity
+                if (!$winningBid->user || $winningBid->user->status !== Status::USER_ACTIVE) {
+                    Log::error('Invalid winning bidder', [
+                        'listing_id' => $listing->id,
+                        'bid_id' => $winningBid->id,
+                        'user_id' => $winningBid->user_id,
+                        'user_status' => $winningBid->user?->status
+                    ]);
+
+                    // Mark auction as expired instead of processing invalid winner
+                    $listing->status = Status::LISTING_EXPIRED;
+                    $listing->save();
+
+                    // Mark all bids as lost
+                    Bid::where('listing_id', $listing->id)
+                        ->whereIn('status', [Status::BID_ACTIVE, Status::BID_WINNING, Status::BID_OUTBID])
+                        ->update(['status' => Status::BID_LOST]);
+
+                    DB::commit();
+
+                    notify($listing->seller, 'AUCTION_ENDED_INVALID_WINNER', [
+                        'listing_title' => $listing->title,
+                        'listing_number' => $listing->listing_number,
+                    ]);
+
+                    return;
+                }
+
                 // Winner found - process sale
                 $winningBid->status = Status::BID_WON;
                 $winningBid->save();
@@ -139,16 +171,40 @@ class ProcessAuctionEnd implements ShouldQueue
                     ->whereIn('status', [Status::BID_ACTIVE, Status::BID_OUTBID])
                     ->update(['status' => Status::BID_LOST]);
 
-                // Update listing - don't mark as SOLD yet, just set escrow_id to hide from public
-                // Keep status as LISTING_ACTIVE - it will be hidden from public because escrow_id is set
+                // Update listing - set escrow_id to hide from public
                 $listing->winner_id = $winningBid->user_id;
                 $listing->final_price = $winningBid->amount;
                 // Don't set sold_at yet - will be set when escrow is completed
+                // Keep status as LISTING_ACTIVE - it will be hidden from public because escrow_id is set
 
-                // Create escrow
-                $escrow = $this->createEscrow($listing, $winningBid->user, $winningBid->amount);
-                $listing->escrow_id = $escrow->id;
-                $listing->save();
+                // Create escrow with validation
+                try {
+                    $escrow = $this->createEscrow($listing, $winningBid->user, $winningBid->amount);
+                    $listing->escrow_id = $escrow->id;
+                    $listing->save();
+                } catch (\Exception $e) {
+                    Log::error('Failed to create escrow for auction', [
+                        'listing_id' => $listing->id,
+                        'bid_id' => $winningBid->id,
+                        'error' => $e->getMessage()
+                    ]);
+
+                    // Rollback bid changes and mark auction as expired
+                    $winningBid->status = Status::BID_LOST;
+                    $winningBid->save();
+
+                    $listing->status = Status::LISTING_EXPIRED;
+                    $listing->save();
+
+                    DB::commit();
+
+                    notify($listing->seller, 'AUCTION_PROCESSING_ERROR', [
+                        'listing_title' => $listing->title,
+                        'listing_number' => $listing->listing_number,
+                    ]);
+
+                    return;
+                }
 
                 // Auto-generate milestones from template if available
                 $this->generateMilestonesFromTemplate($escrow, $listing);
@@ -218,6 +274,19 @@ class ProcessAuctionEnd implements ShouldQueue
      */
     private function createEscrow($listing, $buyer, $amount)
     {
+        // Validate required data
+        if (!$listing->seller) {
+            throw new \Exception('Listing seller not found');
+        }
+
+        if (!$buyer || $buyer->status !== Status::USER_ACTIVE) {
+            throw new \Exception('Invalid or inactive buyer');
+        }
+
+        if ($amount <= 0) {
+            throw new \Exception('Invalid escrow amount');
+        }
+
         $seller = $listing->seller;
         $general = gs();
 
@@ -227,6 +296,11 @@ class ProcessAuctionEnd implements ShouldQueue
 
         if ($charge > ($general->charge_cap ?? 0) && $general->charge_cap > 0) {
             $charge = $general->charge_cap;
+        }
+
+        // Ensure buyer has sufficient balance for charges
+        if ($buyer->balance < $charge) {
+            throw new \Exception('Buyer has insufficient balance for escrow charges');
         }
 
         $escrow = new Escrow();
@@ -242,14 +316,22 @@ class ProcessAuctionEnd implements ShouldQueue
         $escrow->title = 'Auction Won: ' . $listing->title;
         $escrow->details = "Escrow for auction: {$listing->title}\nListing #: {$listing->listing_number}";
         $escrow->status = Status::ESCROW_ACCEPTED;
-        $escrow->save();
+
+        if (!$escrow->save()) {
+            throw new \Exception('Failed to save escrow record');
+        }
 
         // Create conversation
         $conversation = new \App\Models\Conversation();
         $conversation->escrow_id = $escrow->id;
         $conversation->buyer_id = $buyer->id;
         $conversation->seller_id = $seller->id;
-        $conversation->save();
+
+        if (!$conversation->save()) {
+            // If conversation fails, delete escrow and rethrow
+            $escrow->delete();
+            throw new \Exception('Failed to create escrow conversation');
+        }
 
         return $escrow;
     }

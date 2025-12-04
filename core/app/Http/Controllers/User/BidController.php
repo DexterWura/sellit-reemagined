@@ -36,6 +36,9 @@ class BidController extends Controller
     {
         try {
             $user = auth()->user();
+
+            // Use safe database operation wrapper
+            return $this->safeDatabaseOperation(function() use ($request, $listingId, $user) {
             
             // Lock listing row to prevent race conditions
             $listing = Listing::lockForUpdate()
@@ -64,9 +67,9 @@ class BidController extends Controller
             $amount = $request->amount;
             $maxBid = $request->max_bid ?? 0;
 
-            // Validate bid amount
+            // Validate bid amount - comprehensive business rules
             if ($amount < $listing->minimum_bid) {
-                $notify[] = ['error', 'Bid must be at least ' . showAmount($listing->minimum_bid)];
+                $notify[] = ['error', 'Bid must be at least ' . showAmount($listing->minimum_bid) . ' (minimum bid for this listing)'];
                 return back()->withNotify($notify);
             }
 
@@ -74,22 +77,74 @@ class BidController extends Controller
             if ($listing->bid_increment > 0 && $listing->current_bid > 0) {
                 $minimumBid = $listing->current_bid + $listing->bid_increment;
                 if ($amount < $minimumBid) {
-                    $notify[] = ['error', 'Bid must be at least ' . showAmount($minimumBid) . ' (current bid + increment of ' . showAmount($listing->bid_increment) . ')'];
+                    $notify[] = ['error', 'Bid must be at least ' . showAmount($minimumBid) . ' (current highest bid of ' . showAmount($listing->current_bid) . ' + minimum increment of ' . showAmount($listing->bid_increment) . ')'];
                     return back()->withNotify($notify);
                 }
             }
 
-            // Check if auction has ended
-            if ($listing->auction_end && $listing->auction_end <= now()) {
+            // Prevent bids that are unreasonably high (potential manipulation)
+            $maxReasonableBid = $listing->current_bid > 0 ? $listing->current_bid * 10 : $listing->starting_bid * 100;
+            if ($amount > $maxReasonableBid) {
+                $notify[] = ['error', 'Bid amount seems unreasonably high. Please contact support if this is a legitimate bid.'];
+                return back()->withNotify($notify);
+            }
+
+            // Validate reserve price logic
+            if ($listing->reserve_price > 0 && $amount < $listing->reserve_price && $listing->current_bid >= $listing->reserve_price) {
+                // This shouldn't happen due to minimum_bid logic, but double-check
+                $notify[] = ['error', 'Invalid bid amount'];
+                return back()->withNotify($notify);
+            }
+
+            // Check if auction has ended with buffer time
+            if ($listing->auction_end && $listing->auction_end <= now()->addSeconds(5)) {
                 $notify[] = ['error', 'This auction has ended'];
                 return back()->withNotify($notify);
             }
 
+            // Prevent bidding in the last few seconds (anti-sniping protection)
+            if ($listing->auction_end && $listing->auction_end->diffInSeconds(now()) <= 30) {
+                $notify[] = ['error', 'Bidding is not allowed in the last 30 seconds of an auction'];
+                return back()->withNotify($notify);
+            }
+
+            // Check for existing active bid from this user on this listing
+            $existingBid = Bid::where('listing_id', $listingId)
+                ->where('user_id', $user->id)
+                ->whereIn('status', [Status::BID_ACTIVE, Status::BID_WINNING])
+                ->first();
+
+            if ($existingBid) {
+                $notify[] = ['error', 'You already have an active bid on this listing. You can only have one active bid per listing.'];
+                return back()->withNotify($notify);
+            }
+
+            // Prevent spam bidding - check recent bids from this user
+            $recentBidsCount = Bid::where('user_id', $user->id)
+                ->where('created_at', '>', now()->subMinutes(5))
+                ->count();
+
+            if ($recentBidsCount >= 10) { // Allow max 10 bids per 5 minutes
+                $notify[] = ['error', 'You are bidding too frequently. Please wait a moment before placing another bid.'];
+                return back()->withNotify($notify);
+            }
+
+            // Check if user has been placing bids on too many listings recently (potential bot detection)
+            $recentListingsCount = Bid::where('user_id', $user->id)
+                ->where('created_at', '>', now()->subMinutes(10))
+                ->distinct('listing_id')
+                ->count('listing_id');
+
+            if ($recentListingsCount >= 20) { // Max 20 different listings in 10 minutes
+                $notify[] = ['error', 'You are bidding on too many listings. Please slow down.'];
+                return back()->withNotify($notify);
+            }
+
             // Check user balance (for buy now, not for bids - bids don't require immediate payment)
-            // But check if user has sufficient balance for potential win
-            $totalNeeded = $amount + ($listing->buy_now_price > 0 ? 0 : $amount * 0.1); // Rough estimate
-            if ($user->balance < $totalNeeded) {
-                $notify[] = ['warning', 'You may need to deposit funds if you win this auction. Current balance: ' . showAmount($user->balance)];
+            // But warn if user might not have sufficient balance for potential win
+            $estimatedTotal = $amount + ($amount * 0.15); // Rough estimate including fees
+            if ($user->balance < $estimatedTotal && $user->balance < 100) { // Only warn if very low balance
+                $notify[] = ['warning', 'Consider adding funds to your account in case you win this auction. Current balance: ' . showAmount($user->balance)];
                 // Don't block, just warn
             }
 
@@ -143,17 +198,6 @@ class BidController extends Controller
                     'user_agent' => $request->userAgent()
                 ]);
 
-            // Prevent duplicate bids from same user within short time (spam prevention)
-            $recentBid = Bid::where('listing_id', $listing->id)
-                ->where('user_id', $user->id)
-                ->where('created_at', '>', now()->subSeconds(5))
-                ->first();
-            
-            if ($recentBid) {
-                DB::rollBack();
-                $notify[] = ['error', 'Please wait a moment before placing another bid'];
-                return back()->withNotify($notify);
-            }
 
             // Check for auto-extend on last-minute bids
             $this->checkAutoExtend($listing);
@@ -192,7 +236,7 @@ class BidController extends Controller
 
                 $notify[] = ['success', 'Bid placed successfully'];
                 return back()->withNotify($notify);
-                
+
             } catch (\Exception $e) {
                 DB::rollBack();
                 Log::error('Bid placement failed: ' . $e->getMessage(), [
@@ -203,13 +247,12 @@ class BidController extends Controller
                 ]);
                 throw $e;
             }
-            
+            }, $request, 'bid_placement');
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
-            Log::error('Bid placement error: ' . $e->getMessage());
-            $notify[] = ['error', 'An error occurred while placing your bid. Please try again.'];
-            return back()->withNotify($notify);
+            return $this->handleException($e, $request, 'bid_placement');
         }
     }
 

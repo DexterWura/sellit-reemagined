@@ -88,14 +88,14 @@ Route::middleware('auth')->name('user.')->group(function () {
                 // Manual escrow creation removed - escrow is only created automatically during purchases
                 Route::get('details/{id}', 'details')->name('details');
 
-                Route::post('cancel/{id}', 'cancel')->name('cancel');
-                Route::post('accept/{id}', 'accept')->name('accept');
-                Route::post('dispute/{id}', 'dispute')->name('dispute');
-                Route::post('dispatch/{id}', 'dispatchEscrow')->name('dispatch');
-                Route::post('pay-full/{id}', 'payFull')->name('pay.full');
+                Route::post('cancel/{id}', 'cancel')->middleware('marketplace.rate.limit:escrow_actions,5,1')->name('cancel');
+                Route::post('accept/{id}', 'accept')->middleware('marketplace.rate.limit:escrow_actions,3,10')->name('accept');
+                Route::post('dispute/{id}', 'dispute')->middleware('marketplace.rate.limit:escrow_dispute,1,1440')->name('dispute');
+                Route::post('dispatch/{id}', 'dispatchEscrow')->middleware('marketplace.rate.limit:escrow_actions,5,1')->name('dispatch');
+                Route::post('pay-full/{id}', 'payFull')->middleware('marketplace.rate.limit:escrow_payment,5,10')->name('pay.full');
 
-                Route::post('message-reply', 'replyMessage')->name('message.reply');
-                Route::get('get-messages', 'getMessages')->name('message.get');
+                Route::post('message-reply', 'replyMessage')->middleware('marketplace.rate.limit:messaging,30,1')->name('message.reply');
+                Route::get('get-messages', 'getMessages')->middleware('marketplace.rate.limit:messaging,60,1')->name('message.get');
                 Route::get('{type?}', 'index')->name('index');
             });
 
@@ -113,17 +113,17 @@ Route::middleware('auth')->name('user.')->group(function () {
             Route::controller('ListingController')->name('listing.')->prefix('listing')->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::get('create', 'create')->name('create');
-                Route::post('store', 'store')->name('store');
-                Route::post('draft/save', 'saveDraft')->name('draft.save');
-                Route::post('draft/clear', 'clearDraft')->name('draft.clear');
+                Route::post('store', 'store')->middleware('marketplace.rate.limit:listing_create,2,60')->name('store');
+                Route::post('draft/save', 'saveDraft')->middleware('marketplace.rate.limit:draft_save,20,1')->name('draft.save');
+                Route::post('draft/clear', 'clearDraft')->middleware('marketplace.rate.limit:draft_actions,10,1')->name('draft.clear');
                 Route::get('edit/{id}', 'edit')->name('edit');
-                Route::post('update/{id}', 'update')->name('update');
+                Route::post('update/{id}', 'update')->middleware('marketplace.rate.limit:listing_update,5,1')->name('update');
                 Route::get('show/{id}', 'show')->name('show');
-                Route::post('cancel/{id}', 'cancel')->name('cancel');
-                Route::delete('image/{id}', 'deleteImage')->name('image.delete');
-                Route::post('image/primary/{id}', 'setPrimaryImage')->name('image.primary');
-                Route::post('metrics/{id}', 'addMetrics')->name('metrics.add');
-                Route::post('question/answer/{id}', 'answerQuestion')->name('question.answer');
+                Route::post('cancel/{id}', 'cancel')->middleware('marketplace.rate.limit:listing_actions,10,1')->name('cancel');
+                Route::delete('image/{id}', 'deleteImage')->middleware('marketplace.rate.limit:image_actions,20,1')->name('image.delete');
+                Route::post('image/primary/{id}', 'setPrimaryImage')->middleware('marketplace.rate.limit:image_actions,20,1')->name('image.primary');
+                Route::post('metrics/{id}', 'addMetrics')->middleware('marketplace.rate.limit:listing_actions,10,1')->name('metrics.add');
+                Route::post('question/answer/{id}', 'answerQuestion')->middleware('marketplace.rate.limit:question_actions,20,1')->name('question.answer');
             });
 
             // Social Media Verification
@@ -136,9 +136,9 @@ Route::middleware('auth')->name('user.')->group(function () {
             // Bids
             Route::controller('BidController')->name('bid.')->prefix('bid')->group(function () {
                 Route::get('/', 'index')->name('index');
-                Route::post('place/{listingId}', 'place')->name('place');
-                Route::post('buy-now/{listingId}', 'buyNow')->name('buy.now');
-                Route::post('cancel/{id}', 'cancel')->name('cancel');
+                Route::post('place/{listingId}', 'place')->middleware('marketplace.rate.limit:bidding,10,1')->name('place');
+                Route::post('buy-now/{listingId}', 'buyNow')->middleware('marketplace.rate.limit:buy_now,3,10')->name('buy.now');
+                Route::post('cancel/{id}', 'cancel')->middleware('marketplace.rate.limit:bid_actions,5,1')->name('cancel');
                 Route::get('won', 'wonAuctions')->name('won');
             });
 

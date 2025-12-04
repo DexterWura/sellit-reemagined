@@ -29,6 +29,90 @@ class Listing extends Model
         'assets_included' => 'array',
     ];
 
+    /**
+     * Boot the model and add event listeners for data integrity
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Validate data before saving
+        static::saving(function ($listing) {
+            $listing->validateDataIntegrity();
+        });
+
+        // Clean up related data when deleting
+        static::deleting(function ($listing) {
+            // Cancel all active bids
+            $listing->bids()->whereIn('status', [0, 2])->update(['status' => 5]); // BID_CANCELLED
+
+            // Cancel escrow if exists and not completed
+            if ($listing->escrow && !in_array($listing->escrow->status, [1, 8])) { // Not completed or disputed
+                $listing->escrow->update(['status' => 9]); // ESCROW_CANCELLED
+            }
+        });
+    }
+
+    /**
+     * Validate data integrity before saving
+     */
+    protected function validateDataIntegrity()
+    {
+        // Financial validation
+        $financialFields = [
+            'asking_price', 'starting_bid', 'reserve_price', 'buy_now_price',
+            'current_bid', 'final_price', 'monthly_revenue', 'monthly_profit',
+            'yearly_revenue', 'yearly_profit'
+        ];
+
+        foreach ($financialFields as $field) {
+            if ($this->$field < 0) {
+                throw new \InvalidArgumentException("{$field} cannot be negative");
+            }
+        }
+
+        // Business logic validation
+        if ($this->monthly_profit > $this->monthly_revenue && $this->monthly_revenue > 0) {
+            throw new \InvalidArgumentException("Monthly profit cannot exceed monthly revenue");
+        }
+
+        if ($this->yearly_profit > $this->yearly_revenue && $this->yearly_revenue > 0) {
+            throw new \InvalidArgumentException("Yearly profit cannot exceed yearly revenue");
+        }
+
+        // Auction validation
+        if ($this->sale_type === 'auction') {
+            if ($this->starting_bid <= 0) {
+                throw new \InvalidArgumentException("Starting bid must be greater than 0 for auctions");
+            }
+
+            if ($this->reserve_price > 0 && $this->reserve_price < $this->starting_bid) {
+                throw new \InvalidArgumentException("Reserve price cannot be less than starting bid");
+            }
+
+            if ($this->buy_now_price > 0 && $this->buy_now_price < $this->starting_bid) {
+                throw new \InvalidArgumentException("Buy now price cannot be less than starting bid");
+            }
+        }
+
+        // Fixed price validation
+        if ($this->sale_type === 'fixed_price' && $this->asking_price <= 0) {
+            throw new \InvalidArgumentException("Asking price must be greater than 0 for fixed price listings");
+        }
+
+        // Status validation
+        $validStatuses = [0, 1, 2, 3, 4, 5, 6]; // DRAFT, PENDING, ACTIVE, SOLD, EXPIRED, CANCELLED, REJECTED
+        if (!in_array($this->status, $validStatuses)) {
+            throw new \InvalidArgumentException("Invalid listing status");
+        }
+
+        // Business type validation
+        $validBusinessTypes = ['domain', 'website', 'social_media_account', 'mobile_app', 'desktop_app'];
+        if (!in_array($this->business_type, $validBusinessTypes)) {
+            throw new \InvalidArgumentException("Invalid business type");
+        }
+    }
+
     // Relationships
     public function user()
     {
@@ -249,21 +333,23 @@ class Listing extends Model
 
     public function scopeSearch($query, $search)
     {
-        return $query->where(function ($q) use ($search) {
-            $q->where('title', 'LIKE', "%{$search}%")
-                ->orWhere('description', 'LIKE', "%{$search}%")
-                ->orWhere('tagline', 'LIKE', "%{$search}%")
-                ->orWhere('domain_name', 'LIKE', "%{$search}%")
-                ->orWhere('niche', 'LIKE', "%{$search}%")
-                ->orWhere('listing_number', 'LIKE', "%{$search}%")
-                ->orWhereHas('seller', function ($sellerQuery) use ($search) {
-                    $sellerQuery->where('username', 'LIKE', "%{$search}%")
-                        ->orWhere('firstname', 'LIKE', "%{$search}%")
-                        ->orWhere('lastname', 'LIKE', "%{$search}%")
-                        ->orWhereRaw("CONCAT(firstname, ' ', lastname) LIKE ?", ["%{$search}%"]);
+        $searchTerm = trim($search);
+        if (empty($searchTerm)) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($searchTerm) {
+            $q->where('title', 'LIKE', "%{$searchTerm}%")
+                ->orWhere('tagline', 'LIKE', "%{$searchTerm}%")
+                ->orWhere('domain_name', 'LIKE', "%{$searchTerm}%")
+                ->orWhere('niche', 'LIKE', "%{$searchTerm}%")
+                ->orWhere('listing_number', 'LIKE', "%{$searchTerm}%")
+                ->orWhereHas('seller', function ($sellerQuery) use ($searchTerm) {
+                    $sellerQuery->where('username', 'LIKE', "%{$searchTerm}%")
+                        ->orWhereRaw("CONCAT(firstname, ' ', lastname) LIKE ?", ["%{$searchTerm}%"]);
                 })
-                ->orWhereHas('listingCategory', function ($catQuery) use ($search) {
-                    $catQuery->where('name', 'LIKE', "%{$search}%");
+                ->orWhereHas('listingCategory', function ($catQuery) use ($searchTerm) {
+                    $catQuery->where('name', 'LIKE', "%{$searchTerm}%");
                 });
         });
     }
@@ -377,6 +463,94 @@ class Listing extends Model
     public function incrementViews()
     {
         $this->increment('view_count');
+    }
+
+    /**
+     * Optimized method to get active listings with eager loading
+     */
+    public function scopeActiveWithDetails($query)
+    {
+        return $query->active()
+            ->with([
+                'user:id,username,firstname,lastname,email',
+                'listingCategory:id,name,slug',
+                'primaryImage:id,listing_id,image_path',
+                'seller:id,username,firstname,lastname'
+            ])
+            ->select([
+                'id', 'listing_number', 'title', 'slug', 'tagline', 'business_type',
+                'sale_type', 'asking_price', 'starting_bid', 'current_bid', 'reserve_price',
+                'buy_now_price', 'user_id', 'listing_category_id', 'status', 'is_featured',
+                'featured_until', 'auction_start', 'auction_end', 'domain_name', 'website_url',
+                'monthly_revenue', 'monthly_profit', 'view_count', 'created_at'
+            ]);
+    }
+
+    /**
+     * Get listings for marketplace browse page with pagination
+     */
+    public function scopeForBrowse($query, $filters = [])
+    {
+        $query = $query->activeWithDetails();
+
+        // Apply filters
+        if (!empty($filters['business_type'])) {
+            $query->where('business_type', $filters['business_type']);
+        }
+
+        if (!empty($filters['sale_type'])) {
+            $query->where('sale_type', $filters['sale_type']);
+        }
+
+        if (!empty($filters['category'])) {
+            $query->where('listing_category_id', $filters['category']);
+        }
+
+        if (!empty($filters['min_price'])) {
+            if ($filters['sale_type'] === 'auction') {
+                $query->where(function ($q) use ($filters) {
+                    $q->where('current_bid', '>=', $filters['min_price'])
+                      ->orWhere('starting_bid', '>=', $filters['min_price']);
+                });
+            } else {
+                $query->where('asking_price', '>=', $filters['min_price']);
+            }
+        }
+
+        if (!empty($filters['max_price'])) {
+            if ($filters['sale_type'] === 'auction') {
+                $query->where(function ($q) use ($filters) {
+                    $q->where('current_bid', '<=', $filters['max_price'])
+                      ->orWhere('starting_bid', '<=', $filters['max_price']);
+                });
+            } else {
+                $query->where('asking_price', '<=', $filters['max_price']);
+            }
+        }
+
+        // Apply sorting
+        $sortBy = $filters['sort'] ?? 'created_at';
+        $sortDirection = $filters['direction'] ?? 'desc';
+
+        switch ($sortBy) {
+            case 'price':
+                if ($filters['sale_type'] === 'auction') {
+                    $query->orderByRaw('COALESCE(current_bid, starting_bid) ' . $sortDirection);
+                } else {
+                    $query->orderBy('asking_price', $sortDirection);
+                }
+                break;
+            case 'views':
+                $query->orderBy('view_count', $sortDirection);
+                break;
+            case 'ending_soon':
+                $query->auction()->orderBy('auction_end', 'asc');
+                break;
+            default:
+                $query->orderBy($sortBy, $sortDirection);
+        }
+
+        return $query;
     }
 }
 

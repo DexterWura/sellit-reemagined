@@ -5,6 +5,7 @@ use App\Http\Middleware\CheckStatus;
 use App\Http\Middleware\Demo;
 use App\Http\Middleware\KycMiddleware;
 use App\Http\Middleware\MaintenanceMode;
+use App\Http\Middleware\RateLimitMarketplace;
 use App\Http\Middleware\RedirectIfAdmin;
 use App\Http\Middleware\RedirectIfAuthenticated;
 use App\Http\Middleware\RedirectIfNotAdmin;
@@ -70,6 +71,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'kyc' => KycMiddleware::class,
             'registration.complete' => RegistrationStep::class,
             'maintenance' => MaintenanceMode::class,
+            'marketplace.rate.limit' => RateLimitMarketplace::class,
         ]);
 
         $middleware->validateCsrfTokens(

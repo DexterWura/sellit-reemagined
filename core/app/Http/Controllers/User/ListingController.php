@@ -150,22 +150,46 @@ class ListingController extends Controller
             $request->merge(['website_url' => normalizeUrl($request->website_url)]);
         }
 
-        // Simple validation
+        // Rate limiting for listing creation
+        $recentListings = Listing::where('user_id', $user->id)
+            ->where('created_at', '>', now()->subHours(24))
+            ->count();
+
+        if ($recentListings >= 10) { // Max 10 listings per 24 hours
+            $notify[] = ['error', 'You have reached the maximum number of listings you can create per day. Please try again tomorrow.'];
+            return back()->withInput()->withNotify($notify);
+        }
+
+        // Sanitize and validate input data
+        $this->sanitizeListingInput($request);
+
+        // Comprehensive validation with business logic
         $request->validate([
-            'description' => 'required|string|min:' . $minDescription,
+            'title' => 'nullable|string|max:255|regex:/^[a-zA-Z0-9\s\-\.\,\&\(\)\[\]]+$/',
+            'tagline' => 'nullable|string|max:200',
+            'description' => 'required|string|min:' . $minDescription . '|max:10000',
             'business_type' => 'required|in:domain,website,social_media_account,mobile_app,desktop_app',
             'sale_type' => 'required|in:fixed_price,auction',
-            'asking_price' => 'required_if:sale_type,fixed_price|nullable|numeric|min:1',
-            'starting_bid' => 'required_if:sale_type,auction|nullable|numeric|min:1',
-            'reserve_price' => 'nullable|numeric|min:0',
-            'buy_now_price' => 'nullable|numeric|min:0',
-            'bid_increment' => 'nullable|numeric|min:1',
+            'asking_price' => 'required_if:sale_type,fixed_price|nullable|numeric|min:1|max:999999999',
+            'starting_bid' => 'required_if:sale_type,auction|nullable|numeric|min:1|max:999999999',
+            'reserve_price' => 'nullable|numeric|min:0|max:999999999',
+            'buy_now_price' => 'nullable|numeric|min:0|max:999999999',
+            'bid_increment' => 'nullable|numeric|min:1|max:999999',
             'auction_duration' => 'required_if:sale_type,auction|nullable|integer|min:' . $minAuctionDays . '|max:' . $maxAuctionDays,
             'listing_category_id' => 'nullable|exists:listing_categories,id',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'domain_name' => 'required_if:business_type,domain|nullable|url|regex:/^https?:\/\/.+/i',
-            'website_url' => 'required_if:business_type,website|nullable|url|regex:/^https?:\/\/.+/i',
+            'domain_name' => 'required_if:business_type,domain|nullable|url|regex:/^https?:\/\/.+/i|max:500',
+            'website_url' => 'required_if:business_type,website|nullable|url|regex:/^https?:\/\/.+/i|max:500',
+            'monthly_revenue' => 'nullable|numeric|min:0|max:999999999',
+            'monthly_profit' => 'nullable|numeric|min:0|max:999999999',
+            'monthly_visitors' => 'nullable|numeric|min:0|max:999999999',
+            'is_confidential' => 'nullable|boolean',
+            'requires_nda' => 'nullable|boolean',
+            'confidential_reason' => 'nullable|string|max:1000',
         ]);
+
+        // Business logic validation
+        $this->validateListingBusinessLogic($request, $user);
 
         // Verification logic removed - no verification required
 
@@ -760,6 +784,109 @@ class ListingController extends Controller
             'snapchat' => 'Snapchat',
             'twitch' => 'Twitch',
         ];
+    }
+
+    /**
+     * Sanitize listing input data
+     */
+    private function sanitizeListingInput(Request $request)
+    {
+        // Sanitize text inputs
+        $textFields = ['title', 'tagline', 'description', 'confidential_reason'];
+        foreach ($textFields as $field) {
+            if ($request->has($field) && $request->$field) {
+                // Remove potentially harmful HTML/script content
+                $request->merge([$field => strip_tags($request->$field)]);
+                // Trim whitespace
+                $request->merge([$field => trim($request->$field)]);
+            }
+        }
+
+        // Sanitize URLs
+        if ($request->has('domain_name') && $request->domain_name) {
+            $request->merge(['domain_name' => filter_var($request->domain_name, FILTER_SANITIZE_URL)]);
+        }
+        if ($request->has('website_url') && $request->website_url) {
+            $request->merge(['website_url' => filter_var($request->website_url, FILTER_SANITIZE_URL)]);
+        }
+
+        // Ensure numeric fields are properly formatted
+        $numericFields = ['asking_price', 'starting_bid', 'reserve_price', 'buy_now_price',
+                         'bid_increment', 'monthly_revenue', 'monthly_profit', 'yearly_revenue',
+                         'yearly_profit', 'monthly_visitors', 'yearly_visitors'];
+
+        foreach ($numericFields as $field) {
+            if ($request->has($field) && $request->$field !== null) {
+                $value = floatval($request->$field);
+                if ($value < 0) $value = 0;
+                $request->merge([$field => $value]);
+            }
+        }
+    }
+
+    /**
+     * Validate listing business logic
+     */
+    private function validateListingBusinessLogic(Request $request, $user)
+    {
+        $saleType = $request->sale_type;
+
+        // Auction-specific validations
+        if ($saleType === 'auction') {
+            // Reserve price cannot be lower than starting bid
+            if ($request->reserve_price > 0 && $request->reserve_price <= $request->starting_bid) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'reserve_price' => ['Reserve price must be higher than the starting bid']
+                ]);
+            }
+
+            // Buy now price must be reasonable
+            if ($request->buy_now_price > 0 && $request->buy_now_price <= $request->starting_bid) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'buy_now_price' => ['Buy now price must be higher than the starting bid']
+                ]);
+            }
+
+            // Bid increment validation
+            if ($request->bid_increment > $request->starting_bid * 0.5) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'bid_increment' => ['Bid increment cannot be more than 50% of the starting bid']
+                ]);
+            }
+        }
+
+        // Financial validation - profit cannot exceed revenue
+        if ($request->monthly_profit > $request->monthly_revenue) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'monthly_profit' => ['Monthly profit cannot exceed monthly revenue']
+            ]);
+        }
+
+        if ($request->yearly_profit > $request->yearly_revenue) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'yearly_profit' => ['Yearly profit cannot exceed yearly revenue']
+            ]);
+        }
+
+        // Domain/website validation
+        if ($request->business_type === 'domain' && $request->domain_name) {
+            // Check for suspicious domains
+            $suspiciousPatterns = ['/localhost/i', '/127\.0\.0\.1/i', '/\.local/i'];
+            foreach ($suspiciousPatterns as $pattern) {
+                if (preg_match($pattern, $request->domain_name)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'domain_name' => ['Invalid domain name']
+                    ]);
+                }
+            }
+        }
+
+        // User status validation
+        if ($user->status !== \App\Constants\Status::USER_ACTIVE) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'user' => ['Your account must be active to create listings']
+            ]);
+        }
     }
 }
 
