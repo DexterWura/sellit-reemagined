@@ -785,8 +785,14 @@ $(document).ready(function() {
                     $('#validateOwnershipBtn').hide();
                     self.showInstructions();
                 } else if (self.verificationToken) {
+                    // Token exists, show instructions and validate button
                     self.showInstructions();
+                    $('#validateOwnershipBtn').show();
+                    $('#generateTokenBtn').hide();
                 } else {
+                    // No token yet - show generate token button and instructions
+                    $('#generateTokenBtn').show();
+                    $('#validateOwnershipBtn').hide();
                     notify('info', 'Please generate a verification token first');
                 }
             });
@@ -842,6 +848,10 @@ $(document).ready(function() {
                 success: function(response) {
                     if (response.success) {
                         self.renderMethods(response.methods);
+                        // Show generate token button when methods are loaded (for non-OAuth methods)
+                        if (self.businessType !== 'social_media_account' && !self.verificationToken) {
+                            $('#generateTokenBtn').show();
+                        }
                     }
                 },
                 error: function() {
@@ -875,6 +885,13 @@ $(document).ready(function() {
                     container.append(methodHtml);
                 }
             });
+            
+            // If token already exists and a method is selected, show instructions and validate button
+            if (self.verificationToken && self.selectedMethod && self.selectedMethod !== 'oauth_login') {
+                self.showInstructions();
+                $('#validateOwnershipBtn').show();
+                $('#generateTokenBtn').hide();
+            }
         },
         
         renderOAuthButtons: function(platform) {
@@ -922,7 +939,6 @@ $(document).ready(function() {
                         self.verificationToken = response.token;
                         if (response.instructions) {
                             self.instructions = response.instructions;
-                            self.showInstructions(response.instructions);
                         }
                         
                         // For social media OAuth, don't show validate button
@@ -930,9 +946,16 @@ $(document).ready(function() {
                             // OAuth buttons are rendered in renderMethods
                             self.loadValidationMethods();
                         } else {
+                            // Hide generate button, show validate button
+                            $('#generateTokenBtn').hide();
                             $('#validateOwnershipBtn').show();
+                            
+                            // If a method is already selected, show instructions
+                            if (self.selectedMethod) {
+                                self.showInstructions();
+                            }
                         }
-                        notify('success', 'Verification token generated');
+                        notify('success', 'Verification token generated. Select a verification method and follow the instructions.');
                     }
                 },
                 error: function(xhr) {
