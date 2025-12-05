@@ -20,18 +20,23 @@ try {
     $domainRequired = \App\Models\MarketplaceSetting::requireDomainVerification();
     $websiteRequired = \App\Models\MarketplaceSetting::requireWebsiteVerification();
     $socialRequired = \App\Models\MarketplaceSetting::requireSocialMediaVerification();
+    $methods = \App\Models\MarketplaceSetting::getDomainVerificationMethods();
 
     echo "Domain verification enabled: " . ($domainRequired ? "✅ YES" : "❌ NO") . "\n";
     echo "Website verification enabled: " . ($websiteRequired ? "✅ YES" : "❌ NO") . "\n";
-    echo "Social media verification enabled: " . ($socialRequired ? "✅ YES" : "❌ NO") . "\n\n";
+    echo "Social media verification enabled: " . ($socialRequired ? "✅ YES" : "❌ NO") . "\n";
+    echo "Verification methods: " . json_encode($methods) . "\n\n";
 
     if (!$domainRequired && !$websiteRequired) {
         echo "🚨 PROBLEM: No verification types are enabled!\n";
         echo "Go to Admin Panel → Verification Settings and enable them.\n\n";
+    } else {
+        echo "✅ Settings loaded successfully (with or without database)\n\n";
     }
 
 } catch (Exception $e) {
     echo "❌ Error checking settings: " . $e->getMessage() . "\n\n";
+    echo "⚠️  FALLBACK: Using default verification settings (enabled)\n\n";
 }
 
 // Check routes

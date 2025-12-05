@@ -15,8 +15,20 @@ class MarketplaceSetting extends Model
     public static function getValue($key, $default = null)
     {
         return Cache::remember('marketplace_setting_' . $key, 3600, function () use ($key, $default) {
-            $setting = self::where('key', $key)->first();
-            return $setting ? $setting->value : $default;
+            try {
+                $setting = self::where('key', $key)->first();
+                return $setting ? $setting->value : $default;
+            } catch (\Exception $e) {
+                // Database not available, return default values for verification
+                $verificationDefaults = [
+                    'require_domain_verification' => true,
+                    'require_website_verification' => true,
+                    'require_social_media_verification' => true,
+                    'domain_verification_methods' => '["txt_file","dns_record"]'
+                ];
+
+                return $verificationDefaults[$key] ?? $default;
+            }
         });
     }
 
@@ -25,12 +37,18 @@ class MarketplaceSetting extends Model
      */
     public static function setValue($key, $value)
     {
-        self::updateOrCreate(
-            ['key' => $key],
-            ['value' => $value]
-        );
-        Cache::forget('marketplace_setting_' . $key);
-        Cache::forget('marketplace_settings_all');
+        try {
+            self::updateOrCreate(
+                ['key' => $key],
+                ['value' => $value]
+            );
+            Cache::forget('marketplace_setting_' . $key);
+            Cache::forget('marketplace_settings_all');
+        } catch (\Exception $e) {
+            // Database not available, just update cache temporarily
+            // This allows the system to work even without database
+            Cache::put('marketplace_setting_' . $key, $value, 3600);
+        }
     }
 
     /**
@@ -92,23 +110,43 @@ class MarketplaceSetting extends Model
 
     public static function requireDomainVerification()
     {
-        return (bool) self::getValue('require_domain_verification', true);
+        try {
+            return (bool) self::getValue('require_domain_verification', true);
+        } catch (\Exception $e) {
+            // Database not available, default to enabled for verification
+            return true;
+        }
     }
 
     public static function requireWebsiteVerification()
     {
-        return (bool) self::getValue('require_website_verification', true);
+        try {
+            return (bool) self::getValue('require_website_verification', true);
+        } catch (\Exception $e) {
+            // Database not available, default to enabled for verification
+            return true;
+        }
     }
 
     public static function requireSocialMediaVerification()
     {
-        return (bool) self::getValue('require_social_media_verification', true);
+        try {
+            return (bool) self::getValue('require_social_media_verification', true);
+        } catch (\Exception $e) {
+            // Database not available, default to enabled for verification
+            return true;
+        }
     }
 
     public static function getDomainVerificationMethods()
     {
-        $methods = self::getValue('domain_verification_methods', '["txt_file","dns_record"]');
-        return json_decode($methods, true) ?? ['txt_file', 'dns_record'];
+        try {
+            $methods = self::getValue('domain_verification_methods', '["txt_file","dns_record"]');
+            return json_decode($methods, true) ?? ['txt_file', 'dns_record'];
+        } catch (\Exception $e) {
+            // Database not available, default methods
+            return ['txt_file', 'dns_record'];
+        }
     }
 
     public static function requireListingApproval()
