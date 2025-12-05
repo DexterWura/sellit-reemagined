@@ -1562,8 +1562,11 @@
             // Listen for step changes to display relevant UI
             $(document).on('stepChange', function(e, step) {
                  if (step === 3) {
-                     const assetInfo = ListingFormController.getCurrentAssetInfo();
-                     self.handleAssetChange(assetInfo);
+                     // Use requestAnimationFrame to ensure step is fully rendered first
+                     requestAnimationFrame(() => {
+                         const assetInfo = ListingFormController.getCurrentAssetInfo();
+                         self.handleAssetChange(assetInfo);
+                     });
                  } else {
                      // Hide validation UI when not on step 3
                      $('#ownershipValidationSection').hide();
@@ -1602,18 +1605,14 @@
             const { businessType, primaryAssetUrl } = assetInfo;
             const requiresValidation = ['domain', 'website', 'social_media_account'];
             
-            // 1. Check if asset type or URL changed and requires reset
-            const typeChanged = this.businessType && this.businessType !== businessType;
-            const urlChanged = this.primaryAssetUrl && this.normalizeUrl(this.primaryAssetUrl) !== this.normalizeUrl(primaryAssetUrl);
-            const needsReset = (typeChanged || urlChanged) && requiresValidation.includes(this.businessType);
+            // 1. Check if asset type or URL changed and requires reset (check OLD values before updating)
+            const oldBusinessType = this.businessType;
+            const oldPrimaryAssetUrl = this.primaryAssetUrl;
+            const typeChanged = oldBusinessType && oldBusinessType !== businessType;
+            const urlChanged = oldPrimaryAssetUrl && this.normalizeUrl(oldPrimaryAssetUrl) !== this.normalizeUrl(primaryAssetUrl);
+            // Check if the OLD type required validation (to know if we need to clear)
+            const needsReset = (typeChanged || urlChanged) && oldBusinessType && requiresValidation.includes(oldBusinessType);
 
-            if (needsReset) {
-                this.clearValidationState(typeChanged ? 
-                    'Business type changed. Please verify ownership again.' : 
-                    'Asset URL changed. Please generate a new verification token.'
-                );
-            }
-            
             // 2. Update current state
             this.businessType = businessType;
             this.primaryAssetUrl = primaryAssetUrl;
@@ -1622,18 +1621,44 @@
             // 3. Render the UI for Step 3 if currently viewing it
             if (ListingFormController.currentStep === 3) {
                 if (!requiresValidation.includes(businessType)) {
+                    // Validation not required for this type
                     $('#ownershipValidationSection').hide();
-                    $('#verificationNotRequiredMessage').show();
+                    $('#verificationNotRequiredMessage').show().css('display', 'block');
                 } else if (!primaryAssetUrl || !primaryAssetUrl.trim()) {
-                    $('#ownershipValidationSection').show();
+                    // No URL provided yet
+                    $('#ownershipValidationSection').show().css('display', 'block');
                     $('#validationStatus').hide();
                     $('#validationMethodsList').html('<div class="alert alert-warning"><i class="las la-exclamation-triangle me-2"></i>Please complete asset details in Step 2 first.</div>');
                     $('#generateTokenBtn, #validateOwnershipBtn').hide();
                     $('#verificationNotRequiredMessage').hide();
                 } else {
-                    $('#ownershipValidationSection').show();
+                    // Show the validation section - always ensure it's visible
+                    $('#ownershipValidationSection').show().css({
+                        'display': 'block',
+                        'opacity': '1',
+                        'visibility': 'visible'
+                    });
                     $('#verificationNotRequiredMessage').hide();
-                    this.checkVerificationStatus();
+                    
+                    // If reset is needed, clear state first, then load methods
+                    if (needsReset) {
+                        this.clearValidationState(typeChanged ? 
+                            'Business type changed. Please verify ownership again.' : 
+                            'Asset URL changed. Please generate a new verification token.'
+                        );
+                        // After clearing, load methods
+                        requestAnimationFrame(() => {
+                            $('#ownershipValidationSection').show().css({
+                                'display': 'block',
+                                'opacity': '1',
+                                'visibility': 'visible'
+                            });
+                            this.checkVerificationStatus();
+                        });
+                    } else {
+                        // No reset needed, just check status
+                        this.checkVerificationStatus();
+                    }
                 }
             } else if (ListingFormController.currentStep === 2) {
                 // On Step 2, hide validation UI (preview message is handled separately)
@@ -1666,12 +1691,18 @@
             $('#verificationMethodInput').val('');
             $('#isVerifiedInput').val('0');
 
-            // Clear UI
+            // Clear UI but keep section visible
             $('#validationStatus').hide();
             $('#validationMethodsList').html('<div class="text-center py-2"><i class="las la-spinner la-spin"></i> <small>Loading methods...</small></div>');
             $('#validationInstructions').hide();
             $('#validationResult').hide();
             $('#oauthLoginButtons').hide().empty();
+            
+            // Ensure the validation section is visible if on Step 3
+            if (ListingFormController.currentStep === 3) {
+                $('#ownershipValidationSection').show().css('display', 'block');
+                $('#verificationNotRequiredMessage').hide();
+            }
             
             // Force reload methods to clear method list/cache
             this.methodsCache = null;
