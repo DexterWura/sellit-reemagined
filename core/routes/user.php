@@ -131,6 +131,7 @@ Route::middleware('auth')->name('user.')->group(function () {
                 Route::get('methods', 'getMethods')->name('methods');
                 Route::post('generate-token', 'generateToken')->name('generate.token');
                 Route::post('validate', 'validate')->name('validate');
+                Route::post('clear', 'clear')->name('clear');
                 Route::get('oauth/{platform}', 'redirectToOAuth')->name('oauth.redirect');
                 // Note: OAuth callback is handled by SocialiteController which checks session flag
             });

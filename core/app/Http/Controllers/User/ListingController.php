@@ -61,6 +61,16 @@ class ListingController extends Controller
         $draftData = session('listing_draft', []);
         $currentStage = session('listing_draft_stage', 1);
 
+        // Pass ownership validation session data to view
+        $ownershipValidationData = [
+            'is_verified' => session('ownership_verified', false),
+            'verification_token' => session('ownership_verification_token'),
+            'verification_method' => session('ownership_verification_method'),
+            'verification_asset' => session('ownership_verification_asset'),
+            'verification_business_type' => session('ownership_verification_business_type'),
+            'verification_platform' => session('ownership_verification_platform'),
+        ];
+
         return view('Template::user.listing.create', compact(
             'pageTitle',
             'categories',
@@ -69,7 +79,8 @@ class ListingController extends Controller
             'platforms',
             'marketplaceSettings',
             'draftData',
-            'currentStage'
+            'currentStage',
+            'ownershipValidationData'
         ));
     }
 

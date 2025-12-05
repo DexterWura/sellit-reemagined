@@ -29,10 +29,23 @@ class OwnershipValidationController extends Controller
         
         $methods = $this->validationService->getAvailableMethods($request->business_type);
         
-        return response()->json([
+        // If user has a token in session, include it in response
+        $token = session()->get('ownership_verification_token');
+        $assetUrl = session()->get('ownership_verification_asset');
+        $businessType = session()->get('ownership_verification_business_type');
+        
+        $response = [
             'success' => true,
             'methods' => $methods
-        ]);
+        ];
+        
+        // If we have token and asset URL, include instructions
+        if ($token && $assetUrl && $businessType === $request->business_type) {
+            $response['token'] = $token;
+            $response['instructions'] = $this->getInstructions($businessType, $token, $assetUrl);
+        }
+        
+        return response()->json($response);
     }
     
     /**
