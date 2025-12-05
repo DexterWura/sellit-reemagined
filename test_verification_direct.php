@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Complete Domain Verification Test</title>
     <style>
         body {
@@ -173,6 +174,70 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         var verificationData = null;
+        var csrfToken = '';
+
+        // Get CSRF token on page load
+        function getCsrfToken() {
+            // Try meta tag first
+            var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+            if (tokenMeta && tokenMeta.getAttribute('content')) {
+                csrfToken = tokenMeta.getAttribute('content');
+                console.log('CSRF token from meta tag:', csrfToken.substring(0, 10) + '...');
+                return csrfToken;
+            }
+
+            // Try cookies
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                if (cookie.startsWith('XSRF-TOKEN=')) {
+                    csrfToken = decodeURIComponent(cookie.substring(12));
+                    console.log('CSRF token from cookie:', csrfToken.substring(0, 10) + '...');
+                    return csrfToken;
+                }
+            }
+
+            // Try to find in DOM
+            var tokenInput = document.querySelector('input[name="_token"]');
+            if (tokenInput) {
+                csrfToken = tokenInput.value;
+                console.log('CSRF token from input:', csrfToken.substring(0, 10) + '...');
+                return csrfToken;
+            }
+
+            console.warn('No CSRF token found');
+            return '';
+        }
+
+        // Initialize CSRF token
+        csrfToken = getCsrfToken();
+
+        function fetchCsrfToken(callback) {
+            if (csrfToken) {
+                callback();
+                return;
+            }
+
+            console.log('Fetching fresh CSRF token...');
+            $.ajax({
+                url: window.location.origin,
+                method: 'GET',
+                success: function(response) {
+                    // Look for token in response
+                    var tokenMatch = response.match(/name="csrf-token" content="([^"]+)"/);
+                    if (tokenMatch) {
+                        csrfToken = tokenMatch[1];
+                        console.log('Fetched CSRF token:', csrfToken.substring(0, 10) + '...');
+                    }
+                    callback();
+                },
+                error: function() {
+                    console.warn('Could not fetch CSRF token');
+                    csrfToken = 'fallback_token_' + Date.now();
+                    callback();
+                }
+            });
+        }
 
         function updateProgress(step) {
             var progress = (step / 3) * 100;
@@ -202,11 +267,17 @@
 
             console.log('Generating verification for:', {domain: domain, method: method});
 
-            $.ajax({
+            // Ensure we have a CSRF token
+            fetchCsrfToken(function() {
+                $.ajax({
                 url: 'user/verification/generate',
                 method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
                 data: {
-                    _token: 'test',
+                    _token: csrfToken,
                     domain: domain,
                     method: method
                 },
@@ -237,6 +308,7 @@
                     document.getElementById('generateBtn').textContent = 'Generate Verification Data';
                 }
             });
+            }); // Close fetchCsrfToken callback
         }
 
         function showConfigurationStep() {
@@ -317,11 +389,17 @@
 
             console.log('Verifying domain:', verificationData);
 
-            $.ajax({
+            // Ensure we have a CSRF token
+            fetchCsrfToken(function() {
+                $.ajax({
                 url: 'user/verification/verify',
                 method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
                 data: {
-                    _token: 'test',
+                    _token: csrfToken,
                     domain: verificationData.domain,
                     method: verificationData.method,
                     token: verificationData.token,
@@ -364,6 +442,7 @@
                     `;
                 }
             });
+            }); // Close fetchCsrfToken callback
         }
 
         // Initialize
