@@ -246,15 +246,43 @@ class SystemController extends Controller
     public function installComposerProcess()
     {
         try {
-            // Check if composer is available
+            // Check if composer is available via different methods
+            $composerAvailable = false;
+            $composerPath = '';
+
+            // Check system composer
             $composerCheck = shell_exec('composer --version 2>&1');
-            if (!$composerCheck) {
-                $notify[] = ['error', 'Composer is not installed or not available in PATH'];
+            if ($composerCheck && strpos($composerCheck, 'Composer') !== false) {
+                $composerAvailable = true;
+                $composerPath = 'composer';
+            }
+
+            // Check for composer.phar in project root
+            if (!$composerAvailable && file_exists(base_path('composer.phar'))) {
+                $composerCheck = shell_exec('php ' . base_path('composer.phar') . ' --version 2>&1');
+                if ($composerCheck && strpos($composerCheck, 'Composer') !== false) {
+                    $composerAvailable = true;
+                    $composerPath = 'php ' . base_path('composer.phar');
+                }
+            }
+
+            // Check for global composer.phar
+            if (!$composerAvailable) {
+                $composerCheck = shell_exec('php composer.phar --version 2>&1');
+                if ($composerCheck && strpos($composerCheck, 'Composer') !== false) {
+                    $composerAvailable = true;
+                    $composerPath = 'php composer.phar';
+                }
+            }
+
+            if (!$composerAvailable) {
+                $notify[] = ['error', 'Composer is not available. Please install composer or upload composer.phar to your project root.'];
+                $notify[] = ['info', 'Alternative: Run "curl -sS https://getcomposer.org/installer | php" to install composer.phar'];
                 return back()->withNotify($notify);
             }
 
             // Change to core directory and run composer install
-            $command = 'cd ' . base_path() . ' && composer install --no-dev --optimize-autoloader 2>&1';
+            $command = 'cd ' . base_path() . ' && ' . $composerPath . ' install --no-dev --optimize-autoloader 2>&1';
             $output = shell_exec($command);
 
             if ($output === null) {
@@ -266,11 +294,39 @@ class SystemController extends Controller
             Artisan::call('optimize:clear');
 
             $notify[] = ['success', 'Composer dependencies installed successfully'];
-            $notify[] = ['info', 'Output: ' . $output];
+            $notify[] = ['info', 'Output: ' . substr($output, 0, 500) . (strlen($output) > 500 ? '...' : '')];
             return back()->withNotify($notify);
 
         } catch (\Exception $e) {
             $notify[] = ['error', 'Composer installation failed: ' . $e->getMessage()];
+            return back()->withNotify($notify);
+        }
+    }
+
+    public function downloadComposerPhar()
+    {
+        try {
+            // Download composer.phar
+            $composerPharUrl = 'https://getcomposer.org/composer.phar';
+            $composerPharPath = base_path('composer.phar');
+
+            $composerPhar = file_get_contents($composerPharUrl);
+            if ($composerPhar === false) {
+                $notify[] = ['error', 'Failed to download composer.phar'];
+                return back()->withNotify($notify);
+            }
+
+            if (file_put_contents($composerPharPath, $composerPhar) === false) {
+                $notify[] = ['error', 'Failed to save composer.phar to project root'];
+                return back()->withNotify($notify);
+            }
+
+            $notify[] = ['success', 'composer.phar downloaded successfully'];
+            $notify[] = ['info', 'You can now use the Install Composer Dependencies button'];
+            return back()->withNotify($notify);
+
+        } catch (\Exception $e) {
+            $notify[] = ['error', 'Failed to download composer.phar: ' . $e->getMessage()];
             return back()->withNotify($notify);
         }
     }

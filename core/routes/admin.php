@@ -402,6 +402,7 @@ Route::middleware('admin')->group(function () {
         Route::get('optimize-clear', 'optimizeClear')->name('optimize.clear');
         Route::get('composer-install', 'installComposer')->name('composer');
         Route::post('composer-install', 'installComposerProcess')->name('composer.install');
+        Route::post('composer-download', 'downloadComposerPhar')->name('composer.download');
         Route::get('system-update', 'systemUpdate')->name('update');
         // Update process route disabled - functionality removed
         // Route::post('system-update', 'systemUpdateProcess')->name('update.process');

@@ -23,12 +23,29 @@
                     </ul>
                 </div>
                 <div class="card-footer">
-                    <form action="{{ route('admin.system.composer.install') }}" method="POST">
-                        @csrf
-                        <button type="submit" class="btn btn--primary w-100 h-45">
-                            <i class="las la-download"></i> @lang('Install Composer Dependencies')
-                        </button>
-                    </form>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <form action="{{ route('admin.system.composer.download') }}" method="POST">
+                                @csrf
+                                <button type="submit" class="btn btn--warning w-100 h-45">
+                                    <i class="las la-cloud-download-alt"></i> @lang('Download Composer.phar')
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-md-6">
+                            <form action="{{ route('admin.system.composer.install') }}" method="POST">
+                                @csrf
+                                <button type="submit" class="btn btn--primary w-100 h-45">
+                                    <i class="las la-download"></i> @lang('Install Dependencies')
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            @lang('If composer is not available, first download composer.phar, then install dependencies.')
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
