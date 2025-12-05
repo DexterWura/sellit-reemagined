@@ -780,16 +780,16 @@ $(document).ready(function() {
         updateVerificationUI: function(data) {
             var method = data.method;
 
-            if (method === 'file') {
+            if (method === 'txt_file') {
                 $('#websiteTxtFileName').text(data.instructions.download_filename);
                 $('#websiteTxtFileLocation').text('https://' + data.domain + '/');
                 $('#websiteTxtFileContent').text(data.instructions.download_content);
                 $('#websiteTxtFileUrl').text(data.instructions.expected_url);
                 $('#websiteVerificationFilename').val(data.instructions.download_filename);
-            } else if (method === 'dns') {
-                $('#websiteDnsRecordName').text(data.instructions.steps[0].match(/<code>(.*?)<\/code>/)[1]);
-                $('#websiteDnsRecordValue').text(data.instructions.download_content);
-                $('#websiteVerificationDnsName').val(data.instructions.steps[0].match(/<code>(.*?)<\/code>/)[1]);
+            } else if (method === 'dns_record') {
+                $('#websiteDnsRecordName').text(data.instructions.dns_name);
+                $('#websiteDnsRecordValue').text(data.instructions.dns_value);
+                $('#websiteVerificationDnsName').val(data.instructions.dns_name);
             }
         },
 

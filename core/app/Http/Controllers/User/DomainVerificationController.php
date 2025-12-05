@@ -28,19 +28,15 @@ class DomainVerificationController extends Controller
     {
         $request->validate([
             'domain' => 'required|string|max:255',
-            'method' => 'required|in:file,dns',
-            'listing_id' => 'nullable|integer|exists:listings,id',
+            'method' => 'required|in:txt_file,dns_record',
         ]);
 
-        $userId = auth()->id();
         $domain = trim($request->domain);
         $method = $request->method;
-        $listingId = $request->listing_id;
 
-        // Check if verification is required at all (at least one type must be required)
+        // Check if verification is required at all
         if (!MarketplaceSetting::requireDomainVerification() &&
-            !MarketplaceSetting::requireWebsiteVerification() &&
-            !MarketplaceSetting::requireSocialMediaVerification()) {
+            !MarketplaceSetting::requireWebsiteVerification()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Domain verification is not required'
@@ -49,13 +45,7 @@ class DomainVerificationController extends Controller
 
         // Check if method is allowed
         $allowedMethods = MarketplaceSetting::getDomainVerificationMethods();
-        $methodMap = [
-            'file' => 'txt_file',
-            'dns' => 'dns_record'
-        ];
-        $legacyMethod = $methodMap[$method] ?? $method;
-
-        if (!in_array($legacyMethod, $allowedMethods)) {
+        if (!in_array($method, $allowedMethods)) {
             return response()->json([
                 'success' => false,
                 'message' => 'This verification method is not allowed'
@@ -63,30 +53,50 @@ class DomainVerificationController extends Controller
         }
 
         // Check if user already has a pending verification for this domain
-        $existing = DomainVerification::where('user_id', $userId)
+        $existing = DomainVerification::where('user_id', auth()->id())
             ->where('domain', $domain)
             ->where('status', DomainVerification::STATUS_PENDING)
             ->first();
 
         if ($existing) {
-            return response()->json([
-                'success' => false,
-                'message' => 'A verification is already in progress for this domain',
-                'verification_id' => $existing->id
-            ], 400);
+            // Return existing verification data
+            return $this->formatVerificationResponse($existing, $method);
         }
 
-        // Create new verification
-        $verification = DomainVerification::createForDomain($domain, $userId, $method, $listingId);
+        // Convert method names for model
+        $modelMethod = ($method === 'txt_file') ? DomainVerification::METHOD_FILE : DomainVerification::METHOD_DNS;
 
-        return response()->json([
+        // Create new verification
+        $verification = DomainVerification::createForDomain($domain, auth()->id(), $modelMethod);
+
+        return $this->formatVerificationResponse($verification, $method);
+    }
+
+    private function formatVerificationResponse(DomainVerification $verification, string $uiMethod)
+    {
+        $response = [
             'success' => true,
             'verification_id' => $verification->id,
             'domain' => $verification->domain,
-            'method' => $verification->verification_method,
-            'instructions' => $verification->getInstructions(),
-            'expires_at' => $verification->expires_at?->toISOString(),
-        ]);
+            'method' => $uiMethod,
+        ];
+
+        if ($verification->verification_method === DomainVerification::METHOD_FILE) {
+            $filename = $verification->verification_data['filename'] ?? 'verification.txt';
+            $response['instructions'] = [
+                'download_filename' => $filename,
+                'download_content' => $verification->verification_token,
+                'expected_url' => 'https://' . $verification->domain . '/' . $filename,
+            ];
+        } else {
+            $dnsName = $verification->verification_data['record_name'] ?? '_verify';
+            $response['instructions'] = [
+                'dns_name' => $dnsName,
+                'dns_value' => $verification->verification_token,
+            ];
+        }
+
+        return response()->json($response);
     }
 
     public function show($id)

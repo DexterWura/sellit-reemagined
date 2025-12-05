@@ -203,15 +203,20 @@ class ListingController extends Controller
 
         // If verification is required, check if it was completed
         if ($requiresVerification) {
-            if (!$request->has('domain_verified') || $request->domain_verified != '1') {
-                $notify[] = ['error', 'You must verify ownership of your ' . str_replace('_', ' ', $businessType) . ' before submitting the listing.'];
-                return back()->withInput()->withNotify($notify);
-            }
-
-            if (!$request->has('verification_token') || empty($request->verification_token)) {
-                $notify[] = ['error', 'Verification token is required.'];
-                return back()->withInput()->withNotify($notify);
-            }
+            $request->validate([
+                'domain_verified' => 'required|in:1',
+                'verification_token' => 'required|string',
+                'verification_method' => 'required|in:txt_file,dns_record',
+                'verification_filename' => 'required_if:verification_method,txt_file',
+                'verification_dns_name' => 'required_if:verification_method,dns_record',
+            ], [
+                'domain_verified.required' => 'You must verify ownership of your ' . str_replace('_', ' ', $businessType) . ' before submitting the listing.',
+                'domain_verified.in' => 'Verification must be completed before submitting.',
+                'verification_token.required' => 'Verification token is missing.',
+                'verification_method.required' => 'Verification method is required.',
+                'verification_filename.required_if' => 'Verification filename is required.',
+                'verification_dns_name.required_if' => 'DNS record name is required.',
+            ]);
         }
 
         // Extract domain/website info
