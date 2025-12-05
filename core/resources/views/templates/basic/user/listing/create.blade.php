@@ -1589,10 +1589,13 @@
             $(document).on('change', 'input[name="validation_method"]', function() {
                 self.selectedMethod = $(this).val();
                 self.renderActionButtons();
-                self.showInstructions();
                 // Update hidden field for draft saving
                 $('#verificationMethodInput').val(self.selectedMethod);
                 ListingFormController.triggerInputEvent();
+                // Show instructions - use setTimeout to ensure DOM is ready
+                setTimeout(() => {
+                    self.showInstructions();
+                }, 50);
             });
         },
         
@@ -1795,15 +1798,17 @@
                             self.verificationToken = response.token;
                             $('#verificationTokenInput').val(response.token);
                             self.instructions = response.instructions;
-                        } else {
-                            // Backend didn't return instructions (URL doesn't match or no token)
-                            // Ensure we're cleared if we had old data
+                        } else if (response.token && !response.instructions) {
+                            // Backend returned token but no instructions - this means URL doesn't match
+                            // Clear old instructions/token if we had them
                             if (self.verificationToken || self.instructions) {
                                 self.instructions = null;
                                 self.verificationToken = null;
                                 $('#verificationTokenInput').val('');
                             }
                         }
+                        // If backend doesn't return token at all, don't clear existing instructions
+                        // (they might have been just generated and not yet in session)
                         
                         self.renderMethods(response.methods);
                     } else {
@@ -1856,6 +1861,8 @@
              // Re-select method if it was restored from draft/session
              if (this.selectedMethod) {
                  $(`input[name="validation_method"][value="${this.selectedMethod}"]`).prop('checked', true);
+                 // Show instructions if method is selected and instructions exist
+                 this.showInstructions();
              }
         },
         
@@ -1952,14 +1959,17 @@
                         $('#verificationTokenInput').val(response.token);
                         
                         // Re-render to update instructions and buttons
-                        self.renderMethods(self.methodsCache.methods);
+                        self.renderMethods(self.methodsCache ? self.methodsCache.methods : response.methods);
                         self.renderActionButtons();
                         
                         notify('success', 'Verification token generated. Please select a verification method and follow instructions.');
                         
-                        // Try to automatically show instructions if a method was pre-selected
+                        // Show instructions if a method is already selected
+                        // (renderMethods will also call showInstructions if method is selected)
                         if (self.selectedMethod) {
-                            self.showInstructions();
+                            setTimeout(() => {
+                                self.showInstructions();
+                            }, 100);
                         }
                         
                     } else {
@@ -1976,13 +1986,24 @@
         },
 
         showInstructions: function() {
-            if (!this.selectedMethod || !this.instructions) {
+            // Check prerequisites
+            if (!this.selectedMethod) {
+                $('#validationInstructions').hide();
+                return;
+            }
+            
+            if (!this.instructions || typeof this.instructions !== 'object') {
+                $('#validationInstructions').hide();
+                return;
+            }
+            
+            if (!this.verificationToken) {
                 $('#validationInstructions').hide();
                 return;
             }
             
             const methodInstructions = this.instructions[this.selectedMethod];
-            if (methodInstructions && this.verificationToken) {
+            if (methodInstructions && methodInstructions.steps && Array.isArray(methodInstructions.steps)) {
                 let stepsHtml = '<ol class="mb-0">';
                 methodInstructions.steps.forEach(function(step) {
                     // Replace placeholder with actual token
@@ -1991,7 +2012,8 @@
                 }.bind(this)); // Bind 'this' to access verificationToken
                 stepsHtml += '</ol>';
                 
-                $('#instructionsContent').html(`<h6>${methodInstructions.title}</h6>${stepsHtml}`);
+                const title = methodInstructions.title || 'Verification Instructions';
+                $('#instructionsContent').html(`<h6>${title}</h6>${stepsHtml}`);
                 $('#validationInstructions').show();
             } else {
                 $('#validationInstructions').hide();
