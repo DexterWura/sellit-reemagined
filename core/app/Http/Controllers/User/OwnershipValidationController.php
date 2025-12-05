@@ -19,6 +19,26 @@ class OwnershipValidationController extends Controller
     }
     
     /**
+     * Clear ownership validation session data
+     */
+    public function clear(Request $request)
+    {
+        session()->forget([
+            'ownership_verified',
+            'ownership_verification_token',
+            'ownership_verification_asset',
+            'ownership_verification_business_type',
+            'ownership_verification_method',
+            'ownership_verification_platform'
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Ownership validation cleared'
+        ]);
+    }
+    
+    /**
      * Get available validation methods for a business type
      */
     public function getMethods(Request $request)
