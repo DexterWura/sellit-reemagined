@@ -30,40 +30,36 @@
                 
                 <div id="websiteTxtFileMethod" class="verification-method-content" style="display: none;">
                     <div class="alert alert-info border">
-                        <h6 class="mb-3"><i class="las la-file-alt me-2"></i>@lang('File Upload Method')</h6>
-                        
+                        <h6 class="mb-3"><i class="las la-file-alt me-2"></i>@lang('TXT File Upload Method')</h6>
+
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">@lang('Step 1: Download the verification file')</label>
-                            <button type="button" class="btn btn-sm btn-primary" id="downloadWebsiteTxtFile">
-                                <i class="las la-download me-1"></i>@lang('Download File')
+                            <label class="form-label fw-semibold">@lang('Create a file named zimadsense.txt and upload it to your domain root')</label>
+                            <button type="button" class="btn btn-sm btn-primary me-2" id="downloadWebsiteTxtFile">
+                                <i class="las la-download me-1"></i>@lang('Download zimadsense.txt')
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="window.WebsiteVerificationHandler.copyVerificationToken()">
+                                <i class="las la-copy me-1"></i>@lang('Copy Token')
                             </button>
                         </div>
-                        
+
                         <div class="mb-3 p-3 bg-light rounded">
-                            <small class="text-muted d-block mb-2"><strong>@lang('File Details'):</strong></small>
-                            <table class="table table-sm table-bordered mb-0">
-                                <tr>
-                                    <td width="40%" class="fw-semibold">@lang('File Name'):</td>
-                                    <td><code id="websiteTxtFileName" class="text-break">-</code></td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-semibold">@lang('Upload Location'):</td>
-                                    <td><code id="websiteTxtFileLocation" class="text-break">-</code></td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-semibold">@lang('File Content'):</td>
-                                    <td><code id="websiteTxtFileContent" class="text-break small">-</code></td>
-                                </tr>
-                            </table>
+                            <small class="text-muted d-block mb-2"><strong>@lang('Verification Details'):</strong></small>
+                            <div class="mb-2">
+                                <strong>@lang('File URL'):</strong> <code id="websiteTxtFileUrl" class="text-break">http://yourdomain.com/zimadsense.txt</code>
+                            </div>
+                            <div class="mb-2">
+                                <strong>@lang('Token'):</strong> <code id="verificationToken" class="text-break text-danger fw-bold">zimadsense-verification=...</code>
+                            </div>
                         </div>
-                        
+
                         <div class="mb-0">
-                            <label class="form-label fw-semibold">@lang('Step 2: Upload the file')</label>
+                            <label class="form-label fw-semibold">@lang('Instructions')</label>
                             <ol class="small mb-0">
-                                <li>@lang('Upload the downloaded file to your website root directory')</li>
+                                <li>@lang('Click "Download zimadsense.txt" to get the verification file')</li>
+                                <li>@lang('Upload the file to your website root directory')</li>
                                 <li>@lang('Common locations:') <code>public_html/</code>, <code>www/</code>, <code>public/</code>, or <code>htdocs/</code></li>
-                                <li>@lang('The file must be accessible at:') <code id="websiteTxtFileUrl">-</code></li>
-                                <li>@lang('Make sure the file contains ONLY the verification token (no extra text)')</li>
+                                <li>@lang('The file must be accessible at the URL shown above')</li>
+                                <li>@lang('The file should contain ONLY the verification token')</li>
                             </ol>
                         </div>
                     </div>
@@ -72,37 +68,26 @@
                 <div id="websiteDnsRecordMethod" class="verification-method-content" style="display: none;">
                     <div class="alert alert-info border">
                         <h6 class="mb-3"><i class="las la-server me-2"></i>@lang('DNS TXT Record Method')</h6>
-                        
+
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">@lang('Step 1: Add DNS TXT Record')</label>
-                            <p class="small mb-2">@lang('Go to your domain registrar or DNS provider and add the following TXT record:')</p>
-                            
-                            <div class="table-responsive">
-                                <table class="table table-bordered">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th width="20%">@lang('Type')</th>
-                                            <th width="30%">@lang('Name/Host')</th>
-                                            <th width="50%">@lang('Value/Content')</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td><code>TXT</code></td>
-                                            <td><code id="websiteDnsRecordName" class="text-break">-</code></td>
-                                            <td><code id="websiteDnsRecordValue" class="text-break small">-</code></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                            <label class="form-label fw-semibold">@lang('Add DNS TXT Record')</label>
+                            <p class="small mb-2">@lang('Add the following TXT record to your domain\'s DNS settings:')</p>
+
+                            <div class="mb-2">
+                                <strong>@lang('Record Name/Host'):</strong> <code id="websiteDnsRecordName" class="text-break">_zimadsense_verification.yourdomain.com.</code>
+                            </div>
+                            <div class="mb-2">
+                                <strong>@lang('Value/Content'):</strong> <code id="dnsVerificationToken" class="text-break text-danger fw-bold">zimadsense-verification=...</code>
                             </div>
                         </div>
-                        
+
                         <div class="mb-0">
-                            <label class="form-label fw-semibold">@lang('Step 2: Wait for DNS propagation')</label>
+                            <label class="form-label fw-semibold">@lang('Instructions')</label>
                             <ul class="small mb-0">
+                                <li>@lang('Go to your domain registrar\'s DNS settings')</li>
+                                <li>@lang('Add a new TXT record with the details shown above')</li>
                                 <li>@lang('DNS changes typically take 5-30 minutes, but can take up to 48 hours')</li>
                                 <li>@lang('After adding the record, wait a few minutes before clicking "Verify Ownership"')</li>
-                                <li>@lang('You can check if the record is live using online DNS lookup tools')</li>
                             </ul>
                         </div>
                     </div>

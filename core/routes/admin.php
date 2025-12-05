@@ -172,13 +172,6 @@ Route::middleware('admin')->group(function () {
         Route::post('cancel/{id}', 'cancel')->name('cancel');
     });
 
-    // Domain Verification Management (View Only - Settings Controlled by Marketplace Config)
-    Route::controller('AdminVerificationController')->prefix('verification')->name('verification.')->group(function () {
-        Route::get('/', 'verifications')->name('index');
-        Route::get('settings', 'settings')->name('settings');
-        Route::post('settings', 'updateSettings')->name('update.settings');
-        Route::get('debug', 'debug')->name('debug');
-    });
 
     // Reviews Management
     Route::controller('ReviewController')->prefix('reviews')->name('review.')->group(function () {

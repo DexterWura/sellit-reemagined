@@ -177,18 +177,6 @@ Route::middleware('auth')->name('user.')->group(function () {
                 Route::get('/', 'myNdas')->name('index');
             });
 
-            // Domain Verification
-            Route::controller('DomainVerificationController')->name('verification.')->prefix('verification')->group(function () {
-                Route::post('generate', 'generateVerification')->name('generate');
-                Route::post('verify', 'verifyDomain')->name('verify');
-                Route::get('download', 'downloadFile')->name('download');
-            });
-
-            // Social Media Verification
-            Route::controller('SocialMediaVerificationController')->name('social.verification.')->prefix('social-verification')->group(function () {
-                Route::post('generate', 'generateVerification')->name('generate');
-                Route::post('verify-social', 'verifySocialMedia')->name('verify-social');
-            });
 
             // Withdraw
             Route::controller('WithdrawController')->prefix('withdraw')->name('withdraw')->group(function () {

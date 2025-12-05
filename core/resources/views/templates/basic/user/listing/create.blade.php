@@ -701,26 +701,20 @@ $(document).ready(function() {
     // Website/Domain Verification Handler
     @if(\App\Models\MarketplaceSetting::requireWebsiteVerification() || \App\Models\MarketplaceSetting::requireDomainVerification())
     window.WebsiteVerificationHandler = {
+        currentToken: '',
+        currentDomain: '',
+
         init: function() {
             this.bindEvents();
             this.checkVerificationRequirement();
         },
 
         bindEvents: function() {
-            // Method change
             $('#websiteVerificationMethod').on('change', this.onMethodChange.bind(this));
-
-            // Verify button
-            $('#verifyWebsiteBtn').on('click', this.verifyWebsite.bind(this));
-
-            // Download file button
-            $('#downloadWebsiteTxtFile').on('click', this.downloadTxtFile.bind(this));
-
-            // Business type change
+            $('#verifyWebsiteBtn').on('click', this.verifyDomain.bind(this));
+            $('#downloadWebsiteTxtFile').on('click', this.downloadFile.bind(this));
             $('input[name="business_type"]').on('change', this.checkVerificationRequirement.bind(this));
-
-            // Website/Domain URL change
-            $('#website_url, #domain_name').on('input', this.checkVerificationRequirement.bind(this));
+            $('#website_url, #domain_name').on('input', this.generateVerificationToken.bind(this));
         },
 
         checkVerificationRequirement: function() {
@@ -743,198 +737,126 @@ $(document).ready(function() {
 
             if (requiresVerification && hasUrl) {
                 $('#websiteVerificationSection').show();
-                // Trigger method change to show correct content, then generate data
-                this.onMethodChange();
-                setTimeout(function() {
-                    this.generateVerificationData();
-                }.bind(this), 100);
+                this.generateVerificationToken();
             } else {
                 $('#websiteVerificationSection').hide();
                 $('#websiteVerified').val('0');
             }
         },
 
-        generateVerificationData: function() {
+        generateVerificationToken: function() {
             var businessType = $('input[name="business_type"]:checked').val();
-            var url = businessType === 'website' ? $('#website_url').val() : $('#domain_name').val();
+            var domain = businessType === 'website' ? $('#website_url').val() : $('#domain_name').val();
 
-            console.log('generateVerificationData called', {
-                businessType: businessType,
-                url: url,
-                method: $('#websiteVerificationMethod').val()
-            });
-
-            if (!url) {
-                console.log('No URL provided, returning');
+            if (!domain || !domain.includes('.')) {
+                $('#websiteVerificationSection').hide();
                 return;
             }
 
-            this.showStatus('Generating verification data...', 'info');
+            domain = domain.replace(/^https?:\/\//, '').split('/')[0];
+            this.currentDomain = domain;
 
-            // Generate verification data
-            $.ajax({
-                url: '{{ route("user.verification.generate") }}',
-                method: 'POST',
-                data: {
-                    _token: '{{ csrf_token() }}',
-                    domain: url,
-                    method: $('#websiteVerificationMethod').val() || 'txt_file'
-                },
-                success: function(response) {
-                    console.log('AJAX success response:', response);
-                    console.log('Response type:', typeof response);
-                    console.log('Response keys:', Object.keys(response));
-
-                    if (response.success) {
-                        console.log('Response successful, updating UI');
-                        console.log('Token:', response.token);
-                        console.log('Filename:', response.filename);
-                        console.log('Method:', response.method);
-
-                        $('#websiteVerificationToken').val(response.token || '');
-                        $('#websiteVerificationFilename').val(response.filename || '');
-                        $('#websiteVerificationDnsName').val(response.dns_name || '');
-
-                        // Force method selection based on response
-                        if (response.method) {
-                            $('#websiteVerificationMethod').val(response.method);
-                        }
-
-                        this.updateVerificationUI(response);
-                        this.showStatus('Verification data generated successfully', 'success');
-                    } else {
-                        console.log('Response not successful:', response);
-                        this.showStatus(response.message || 'Failed to generate verification data', 'danger');
-                    }
-                }.bind(this),
-                error: function(xhr, status, error) {
-                    console.error('AJAX error:', {
-                        status: status,
-                        error: error,
-                        responseText: xhr.responseText,
-                        responseJSON: xhr.responseJSON
-                    });
-
-                    var errorMsg = xhr.responseJSON?.message || 'Failed to generate verification data';
-                    this.showStatus(errorMsg, 'danger');
-                }.bind(this)
-            });
-        },
-
-        updateVerificationUI: function(data) {
-            console.log('updateVerificationUI called with data:', data);
-
-            var method = data.method || $('#websiteVerificationMethod').val() || 'txt_file';
-            console.log('Using method:', method);
-
-            // Update the method dropdown to match the response
-            if (data.method) {
-                $('#websiteVerificationMethod').val(data.method);
+            // Generate persistent token for this domain
+            var sessionKey = 'zimadsense_verification_' + domain;
+            var uniquePart = sessionStorage.getItem(sessionKey);
+            if (!uniquePart) {
+                uniquePart = crypto.randomUUID().replace(/-/g, '');
+                sessionStorage.setItem(sessionKey, uniquePart);
             }
 
-            // Hide all method content first
+            this.currentToken = 'zimadsense-verification=' + uniquePart;
+
+            // Update UI
+            this.updateVerificationUI();
+        },
+
+        updateVerificationUI: function() {
+            var method = $('#websiteVerificationMethod').val();
+
             $('.verification-method-content').hide();
 
             if (method === 'txt_file') {
-                console.log('Updating TXT file UI');
-
-                var filename = data.filename || 'verification.txt';
-                var domain = data.domain || 'yourdomain.com';
-                var token = data.content || data.token || '';
-
-                $('#websiteTxtFileName').text(filename);
-                $('#websiteTxtFileLocation').text('https://' + domain + '/');
-                $('#websiteTxtFileContent').text(token);
-                $('#websiteTxtFileUrl').text('https://' + domain + '/' + filename);
-
                 $('#websiteTxtFileMethod').show();
-                console.log('TXT file UI updated - filename:', filename, 'token:', token);
-
+                $('#websiteTxtFileUrl').text('http://' + this.currentDomain + '/zimadsense.txt');
+                $('#verificationToken').text(this.currentToken);
             } else if (method === 'dns_record') {
-                console.log('Updating DNS record UI');
-
-                var dnsName = data.dns_name || '_verify';
-                var dnsValue = data.dns_value || data.token || '';
-
-                $('#websiteDnsRecordName').text(dnsName);
-                $('#websiteDnsRecordValue').text(dnsValue);
-
                 $('#websiteDnsRecordMethod').show();
-                console.log('DNS record UI updated - name:', dnsName, 'value:', dnsValue);
+                $('#websiteDnsRecordName').text('_zimadsense_verification.' + this.currentDomain + '.');
+                $('#dnsVerificationToken').text(this.currentToken);
             }
-
-            console.log('UI update complete');
         },
 
         onMethodChange: function() {
-            var method = $('#websiteVerificationMethod').val();
-
-            $('.verification-method-content').hide();
             $('#websiteVerified').val('0');
-
-            if (method === 'txt_file') {
-                $('#websiteTxtFileMethod').show();
-            } else if (method === 'dns_record') {
-                $('#websiteDnsRecordMethod').show();
-            }
-
-            this.generateVerificationData();
+            this.updateVerificationUI();
         },
 
-        verifyWebsite: function() {
-            var verificationId = $('#websiteVerificationToken').val();
+        verifyDomain: function() {
             var method = $('#websiteVerificationMethod').val();
 
-            if (!verificationId) {
-                this.showStatus('Please select a verification method first.', 'danger');
+            if (!this.currentDomain || !this.currentToken) {
+                this.showStatus('Please enter domain and generate verification data first.', 'danger');
                 return;
             }
 
             $('#verifyWebsiteBtn').prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i>Verifying...');
-            this.showStatus('Verifying ownership...', 'info');
+            this.showStatus('Attempting verification...', 'info');
 
-            $.ajax({
-                url: '{{ route("user.verification.verify") }}',
-                method: 'POST',
-                data: {
-                    _token: '{{ csrf_token() }}',
-                    domain: $('input[name="business_type"]:checked').val() === 'website' ? $('#website_url').val() : $('#domain_name').val(),
-                    method: $('#websiteVerificationMethod').val(),
-                    token: $('#websiteVerificationToken').val(),
-                    filename: $('#websiteVerificationFilename').val(),
-                    dns_name: $('#websiteVerificationDnsName').val()
-                },
-                success: function(response) {
-                    if (response.success) {
-                        $('#websiteVerified').val('1');
-                        this.showStatus('Domain ownership verified successfully!', 'success');
-                        $('#verifyWebsiteBtn').html('<i class="las la-check-circle me-1"></i>Verified');
-                        $('#verifyWebsiteBtn').removeClass('btn--base').addClass('btn-success');
-                    } else {
-                        this.showStatus(response.message, 'danger');
-                        $('#verifyWebsiteBtn').prop('disabled', false).html('<i class="las la-check-circle me-1"></i>Verify Ownership');
-                    }
-                }.bind(this),
-                error: function(xhr) {
-                    var response = xhr.responseJSON;
-                    var message = response && response.message ? response.message : 'Verification failed. Please try again.';
-                    this.showStatus(message, 'danger');
-                    $('#verifyWebsiteBtn').prop('disabled', false).html('<i class="las la-check-circle me-1"></i>Verify Ownership');
-                }.bind(this)
+            if (method === 'dns_record') {
+                this.showStatus('DNS verification requires a backend server to query DNS records.', 'warning');
+                $('#verifyWebsiteBtn').prop('disabled', false).html('<i class="las la-check-circle me-1"></i>Verify Domain Now');
+                return;
+            }
+
+            // TXT File verification with CORS handling
+            var fileUrl = 'http://' + this.currentDomain + '/zimadsense.txt';
+
+            fetch(fileUrl, {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-store'
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.text();
+                } else {
+                    throw new Error('File not found (HTTP ' + response.status + ')');
+                }
+            })
+            .then(content => {
+                if (content.trim() === this.currentToken) {
+                    $('#websiteVerified').val('1');
+                    this.showStatus('SUCCESS! Domain verified via TXT file.', 'success');
+                    $('#verifyWebsiteBtn').html('<i class="las la-check-circle me-1"></i>Verified');
+                } else {
+                    $('#websiteVerified').val('0');
+                    this.showStatus('FAILURE: TXT file found, but content does not match the token.', 'danger');
+                    $('#verifyWebsiteBtn').prop('disabled', false).html('<i class="las la-check-circle me-1"></i>Verify Domain Now');
+                }
+            })
+            .catch(error => {
+                console.error('Verification error:', error);
+                $('#websiteVerified').val('0');
+                this.showStatus('VERIFICATION BLOCKED (CORS Error). File must be uploaded to your domain first.', 'warning');
+                $('#verifyWebsiteBtn').prop('disabled', false).html('<i class="las la-check-circle me-1"></i>Verify Domain Now');
             });
         },
 
-        downloadTxtFile: function() {
-            var token = $('#websiteVerificationToken').val();
-            var filename = $('#websiteVerificationFilename').val();
-            var domain = $('input[name="business_type"]:checked').val() === 'website' ? $('#website_url').val() : $('#domain_name').val();
-
-            if (token && filename) {
-                var url = '{{ route("user.verification.download") }}?token=' + encodeURIComponent(token) +
-                         '&filename=' + encodeURIComponent(filename) +
-                         '&domain=' + encodeURIComponent(domain);
-                window.open(url, '_blank');
+        downloadFile: function() {
+            if (!this.currentToken) {
+                alert('No verification token available');
+                return;
             }
+
+            var blob = new Blob([this.currentToken], { type: 'text/plain;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'zimadsense.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         },
 
         showStatus: function(message, type) {
@@ -942,6 +864,28 @@ $(document).ready(function() {
             statusEl.removeClass('text-success text-danger text-info text-warning');
             statusEl.addClass('text-' + type);
             statusEl.html('<i class="las la-info-circle me-1"></i>' + message);
+        },
+
+        copyVerificationToken: function() {
+            if (!this.currentToken) {
+                alert('No token to copy');
+                return;
+            }
+
+            // Create temporary textarea
+            var tempInput = document.createElement('textarea');
+            tempInput.value = this.currentToken;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+
+            try {
+                document.execCommand('copy');
+                this.showStatus('Token copied to clipboard!', 'success');
+            } catch (err) {
+                this.showStatus('Failed to copy token', 'danger');
+            }
+
+            document.body.removeChild(tempInput);
         }
     };
 
