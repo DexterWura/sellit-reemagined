@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Constants\Status;
+use App\Http\Controllers\Controller;
 use App\Models\Listing;
 use App\Models\NdaDocument;
 use Illuminate\Http\Request;
