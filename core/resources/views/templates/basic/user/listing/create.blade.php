@@ -879,7 +879,19 @@
                 clearTimeout(self.assetDetailTimeout);
                 self.assetDetailTimeout = setTimeout(() => {
                     // Notify the validation module about a potential asset change
-                    $(document).trigger('assetDetailChange', self.getCurrentAssetInfo());
+                    const assetInfo = self.getCurrentAssetInfo();
+                    $(document).trigger('assetDetailChange', assetInfo);
+                    
+                    // If on Step 2 and URL is entered, show validation preview
+                    if (self.currentStep === 2 && assetInfo.primaryAssetUrl) {
+                        const requiresValidation = ['domain', 'website', 'social_media_account'];
+                        if (requiresValidation.includes(assetInfo.businessType)) {
+                            // Show a preview message that verification will be needed
+                            if ($('#validationPreviewMessage').length === 0) {
+                                $('#ownershipValidationSection').after('<div id="validationPreviewMessage" class="alert alert-info mt-3"><i class="las la-info-circle me-2"></i>Ownership verification will be required in the next step.</div>');
+                            }
+                        }
+                    }
                 }, 300);
                 self.triggerInputEvent();
             });
@@ -968,6 +980,9 @@
                 }
             }
 
+            // Trigger step change event for other controllers
+            $(document).trigger('stepChange', step);
+
             // Handle conditional field display (business type fields)
             this.handleAssetTypeChange($('input[name="business_type"]:checked').val());
             this.handleSaleTypeChange($('input[name="sale_type"]:checked').val());
@@ -1012,14 +1027,57 @@
                 }
             } else if (step === 2) {
                 const businessType = $('input[name="business_type"]:checked').val();
-                // Check required fields for the selected asset type
-                currentStep.find(`.business-fields.${businessType}-fields input[data-required="${businessType}"], .business-fields.${businessType}-fields select[data-required="${businessType}"]`).each(function() {
-                    if (!$(this).val() || $(this).val().trim() === '') {
-                        $(this).addClass('is-invalid');
-                        $(this).after('<div class="invalid-feedback">This field is required for the selected asset type.</div>');
+                
+                if (businessType === 'domain') {
+                    const domainInput = $('#domainNameInput');
+                    if (!domainInput.val() || !domainInput.val().trim()) {
+                        domainInput.addClass('is-invalid');
+                        domainInput.closest('.mb-3').append('<div class="invalid-feedback">Domain name is required.</div>');
+                        isValid = false;
+                    } else if (!domainInput.val().trim().match(/^https?:\/\//i)) {
+                        domainInput.addClass('is-invalid');
+                        domainInput.closest('.mb-3').append('<div class="invalid-feedback">Domain must start with http:// or https://</div>');
                         isValid = false;
                     }
-                });
+                } else if (businessType === 'website') {
+                    const websiteInput = $('#websiteUrlInput');
+                    if (!websiteInput.val() || !websiteInput.val().trim()) {
+                        websiteInput.addClass('is-invalid');
+                        websiteInput.closest('.mb-3').append('<div class="invalid-feedback">Website URL is required.</div>');
+                        isValid = false;
+                    } else if (!websiteInput.val().trim().match(/^https?:\/\//i)) {
+                        websiteInput.addClass('is-invalid');
+                        websiteInput.closest('.mb-3').append('<div class="invalid-feedback">Website URL must start with http:// or https://</div>');
+                        isValid = false;
+                    }
+                } else if (businessType === 'social_media_account') {
+                    const platform = $('#socialPlatformSelect');
+                    const username = $('#socialUsernameInput');
+                    if (!platform.val() || !platform.val().trim()) {
+                        platform.addClass('is-invalid');
+                        platform.closest('.col-md-6').append('<div class="invalid-feedback">Platform is required.</div>');
+                        isValid = false;
+                    }
+                    if (!username.val() || !username.val().trim()) {
+                        username.addClass('is-invalid');
+                        username.closest('.col-md-6').append('<div class="invalid-feedback">Username/handle is required.</div>');
+                        isValid = false;
+                    }
+                } else if (businessType === 'mobile_app') {
+                    const appName = $('input[name="mobile_app_name"]');
+                    if (!appName.val() || !appName.val().trim()) {
+                        appName.addClass('is-invalid');
+                        appName.closest('.col-md-6').append('<div class="invalid-feedback">App name is required.</div>');
+                        isValid = false;
+                    }
+                } else if (businessType === 'desktop_app') {
+                    const appName = $('input[name="desktop_app_name"]');
+                    if (!appName.val() || !appName.val().trim()) {
+                        appName.addClass('is-invalid');
+                        appName.closest('.col-md-6').append('<div class="invalid-feedback">App name is required.</div>');
+                        isValid = false;
+                    }
+                }
                 
                 if (!isValid) {
                      notify('error', 'Please fill out all required asset details.');
@@ -1094,9 +1152,20 @@
         // --- Conditional Field & Input Management ---
 
         handleAssetTypeChange: function(selectedType) {
+            // Hide all business field sections
             $('.business-fields').hide();
+            $('#domainInputSection').hide();
+            $('#websiteInputSection').hide();
+            
             if (selectedType) {
-                $(`.business-fields.${selectedType}-fields`).fadeIn(300);
+                // Show the appropriate section based on type
+                if (selectedType === 'domain') {
+                    $('#domainInputSection').fadeIn(300);
+                } else if (selectedType === 'website') {
+                    $('#websiteInputSection').fadeIn(300);
+                } else {
+                    $(`.business-fields.${selectedType}-fields`).fadeIn(300);
+                }
             }
         },
         
@@ -1381,7 +1450,9 @@
                      self.handleAssetChange(assetInfo);
                  } else {
                      // Hide validation UI when not on step 3
-                     $('#ownershipVerificationStep').hide();
+                     $('#ownershipValidationSection').hide();
+                     $('#verificationNotRequiredMessage').hide();
+                     $('#validationPreviewMessage').remove();
                  }
             });
 
@@ -1437,16 +1508,21 @@
                 if (!requiresValidation.includes(businessType)) {
                     $('#ownershipValidationSection').hide();
                     $('#verificationNotRequiredMessage').show();
-                } else if (!primaryAssetUrl) {
+                } else if (!primaryAssetUrl || !primaryAssetUrl.trim()) {
                     $('#ownershipValidationSection').show();
                     $('#validationStatus').hide();
-                    $('#validationMethodsList').html('<div class="alert alert-warning">Please complete asset details in Step 2 first.</div>');
+                    $('#validationMethodsList').html('<div class="alert alert-warning"><i class="las la-exclamation-triangle me-2"></i>Please complete asset details in Step 2 first.</div>');
+                    $('#generateTokenBtn, #validateOwnershipBtn').hide();
                     $('#verificationNotRequiredMessage').hide();
                 } else {
                     $('#ownershipValidationSection').show();
                     $('#verificationNotRequiredMessage').hide();
                     this.checkVerificationStatus();
                 }
+            } else if (ListingFormController.currentStep === 2) {
+                // On Step 2, hide validation UI (preview message is handled separately)
+                $('#ownershipValidationSection').hide();
+                $('#verificationNotRequiredMessage').hide();
             }
         },
 
@@ -1637,8 +1713,20 @@
 
         generateToken: function() {
             const self = this;
-            if (this.isGeneratingToken || !this.businessType || !this.primaryAssetUrl) {
-                notify('error', 'Please ensure all required details are entered and wait for any ongoing process to finish.');
+            
+            // Get fresh asset info from form
+            const assetInfo = ListingFormController.getCurrentAssetInfo();
+            if (!assetInfo.businessType || !assetInfo.primaryAssetUrl) {
+                notify('error', 'Please complete asset details in Step 2 first.');
+                return;
+            }
+            
+            // Update state from form
+            this.businessType = assetInfo.businessType;
+            this.primaryAssetUrl = assetInfo.primaryAssetUrl;
+            
+            if (this.isGeneratingToken) {
+                notify('error', 'Token generation is already in progress. Please wait.');
                 return;
             }
             
@@ -1721,6 +1809,18 @@
 
         validateOwnership: function() {
             const self = this;
+            
+            // Get fresh asset info from form
+            const assetInfo = ListingFormController.getCurrentAssetInfo();
+            if (!assetInfo.businessType || !assetInfo.primaryAssetUrl) {
+                notify('error', 'Please complete asset details in Step 2 first.');
+                return;
+            }
+            
+            // Update state from form
+            this.businessType = assetInfo.businessType;
+            this.primaryAssetUrl = assetInfo.primaryAssetUrl;
+            
             if (this.isValidating || !this.verificationToken || !this.selectedMethod || this.selectedMethod === 'oauth_login') {
                 notify('error', 'Cannot validate. Check token, method selection, and asset URL.');
                 return;
