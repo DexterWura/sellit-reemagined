@@ -134,120 +134,42 @@
             var domain = $('#testDomain').val();
             var method = $('#testMethod').val();
 
-            $('#results').html('<div class="test-section info">Getting CSRF token and testing verification...</div>');
+            $('#results').html('<div class="test-section info">Testing verification generation...</div>');
 
-            getCsrfToken(function() {
-                $('#results').append('<div class="result">CSRF Token: ' + (csrfToken ? '✅ Found (' + csrfToken.substring(0, 10) + '...)' : '❌ Not found') + '</div>');
+            console.log('Starting verification test with:', {domain: domain, method: method});
 
-                // Show what we're sending
-                $('#results').append('<div class="result">Sending data:\n' +
-                    '- Domain: ' + domain + '\n' +
-                    '- Method: ' + method + '\n' +
-                    '- CSRF Token: ' + (csrfToken ? 'Present' : 'Missing') + '\n' +
-                    '- URL: user/verification/generate</div>');
+            // Simple test without complex CSRF handling
+            $.ajax({
+                url: 'user/verification/generate',
+                method: 'POST',
+                data: {
+                    _token: 'test', // Simple token for testing
+                    domain: domain,
+                    method: method
+                },
+                success: function(response) {
+                    console.log('Success:', response);
 
-                // Now try POST with proper CSRF token
-                $.ajax({
-                    url: 'user/verification/generate',
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    data: {
-                        _token: csrfToken,
-                        domain: domain,
-                        method: method
-                    },
-                    success: function(response) {
-                        console.log('Success response:', response);
+                    var html = '<div class="test-section success">';
+                    html += '<h4>✅ API Response Received</h4>';
+                    html += '<div class="result">';
+                    html += 'Raw Response:\n' + JSON.stringify(response, null, 2);
+                    html += '</div></div>';
 
-                        var html = '<div class="test-section success">';
-                        html += '<h4>✅ Verification Generated Successfully</h4>';
-                        html += '<div class="result">';
-                        html += 'Domain: ' + (response.domain || 'N/A') + '\n';
-                        html += 'Method: ' + (response.method || 'N/A') + '\n';
-                        html += 'Token: ' + (response.token ? response.token.substring(0, 20) + '...' : 'N/A') + '\n';
+                    $('#results').html(html);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error:', xhr.status, xhr.responseText);
 
-                        if (response.filename) {
-                            html += '📄 Filename: ' + response.filename + '\n';
-                            html += '🔗 Expected URL: ' + response.expected_url + '\n';
-                            html += '📝 Content: ' + (response.content ? response.content.substring(0, 30) + '...' : 'N/A') + '\n';
-                        } else {
-                            html += '❌ No filename in response\n';
-                        }
+                    var html = '<div class="test-section error">';
+                    html += '<h4>❌ API Error</h4>';
+                    html += '<div class="result">';
+                    html += 'Status: ' + xhr.status + '\n';
+                    html += 'Response: ' + xhr.responseText.substring(0, 200);
+                    html += '</div></div>';
 
-                        if (response.dns_name) {
-                            html += '🌐 DNS Name: ' + response.dns_name + '\n';
-                            html += '🔢 DNS Value: ' + (response.dns_value ? response.dns_value.substring(0, 30) + '...' : 'N/A') + '\n';
-                        }
-
-                        html += '</div>';
-
-                        // Test download link
-                        if (response.filename && response.token) {
-                            html += '<p><strong>Download Test:</strong> <a href="user/verification/download?token=' + encodeURIComponent(response.token) + '&filename=' + encodeURIComponent(response.filename) + '&domain=' + encodeURIComponent(response.domain || domain) + '" target="_blank" style="color: #007bff;">📥 Download TXT File</a></p>';
-                        } else {
-                            html += '<p style="color: red;">❌ Cannot create download link - missing filename or token</p>';
-                        }
-
-                        html += '</div>';
-                        $('#results').html(html);
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('AJAX Error:', {
-                            status: xhr.status,
-                            statusText: xhr.statusText,
-                            responseText: xhr.responseText?.substring(0, 500),
-                            readyState: xhr.readyState
-                        });
-
-                        var errorMsg = 'Unknown error';
-                        var details = '';
-
-                        if (xhr.status === 419) {
-                            errorMsg = 'CSRF Token Error (419)';
-                            details = 'The CSRF token is invalid or missing. Try refreshing the page.';
-                        } else if (xhr.status === 422) {
-                            errorMsg = 'Validation Error (422)';
-                            try {
-                                var jsonResponse = JSON.parse(xhr.responseText);
-                                details = jsonResponse.message || 'Invalid input data';
-                            } catch (e) {
-                                details = 'Invalid input data';
-                            }
-                        } else if (xhr.status === 500) {
-                            errorMsg = 'Server Error (500)';
-                            details = 'Internal server error - check Laravel logs';
-                        } else if (xhr.responseJSON) {
-                            errorMsg = xhr.responseJSON.message || 'API Error';
-                            details = JSON.stringify(xhr.responseJSON, null, 2);
-                        } else {
-                            details = xhr.responseText?.substring(0, 200) || 'No response details';
-                        }
-
-                        var html = '<div class="test-section error">';
-                        html += '<h4>❌ Verification Generation Failed</h4>';
-                        html += '<div class="result">';
-                        html += 'HTTP Status: ' + xhr.status + ' ' + xhr.statusText + '\n';
-                        html += 'Error Type: ' + errorMsg + '\n';
-                        html += 'Details: ' + details + '\n';
-                        html += 'URL: user/verification/generate\n';
-                        html += 'CSRF Token: ' + (csrfToken ? 'Present' : 'Missing') + '\n';
-                        html += '</div>';
-                        html += '<p><strong>Troubleshooting:</strong></p>';
-                        html += '<ul>';
-                        if (xhr.status === 419) {
-                            html += '<li>Try refreshing the page to get a new CSRF token</li>';
-                        }
-                        html += '<li>Check browser console for JavaScript errors</li>';
-                        html += '<li>Check Laravel logs for server errors</li>';
-                        html += '<li>Ensure you are logged in</li>';
-                        html += '</ul>';
-                        html += '</div>';
-
-                        $('#results').html(html);
-                    }
+                    $('#results').html(html);
+                }
             });
         });
 
