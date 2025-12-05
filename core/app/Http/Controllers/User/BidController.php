@@ -103,9 +103,13 @@ class BidController extends Controller
             }
 
             // Prevent bidding in the last few seconds (anti-sniping protection)
-            if ($listing->auction_end && $listing->auction_end->diffInSeconds(now()) <= 30) {
-                $notify[] = ['error', 'Bidding is not allowed in the last 30 seconds of an auction'];
-                return back()->withNotify($notify);
+            // Only block if auction is still active AND time remaining is 30 seconds or less
+            if ($listing->auction_end && $listing->auction_end->isFuture()) {
+                $secondsRemaining = now()->diffInSeconds($listing->auction_end, false);
+                if ($secondsRemaining > 0 && $secondsRemaining <= 30) {
+                    $notify[] = ['error', 'Bidding is not allowed in the last 30 seconds of an auction'];
+                    return back()->withNotify($notify);
+                }
             }
 
             // Check for existing active bid from this user on this listing
@@ -380,9 +384,12 @@ class BidController extends Controller
 
         // Check if auction allows bid cancellation
         $listing = $bid->listing;
-        if ($listing->auction_end && $listing->auction_end->diffInHours(now()) < 24) {
-            $notify[] = ['error', 'Cannot cancel bid within 24 hours of auction end'];
-            return back()->withNotify($notify);
+        if ($listing->auction_end && $listing->auction_end->isFuture()) {
+            $hoursRemaining = now()->diffInHours($listing->auction_end, false);
+            if ($hoursRemaining > 0 && $hoursRemaining < 24) {
+                $notify[] = ['error', 'Cannot cancel bid within 24 hours of auction end'];
+                return back()->withNotify($notify);
+            }
         }
 
         $wasWinning = $bid->status === Status::BID_WINNING;
