@@ -400,6 +400,8 @@ Route::middleware('admin')->group(function () {
         Route::get('server-info', 'systemServerInfo')->name('server.info');
         Route::get('optimize', 'optimize')->name('optimize');
         Route::get('optimize-clear', 'optimizeClear')->name('optimize.clear');
+        Route::get('composer-install', 'installComposer')->name('composer');
+        Route::post('composer-install', 'installComposerProcess')->name('composer.install');
         Route::get('system-update', 'systemUpdate')->name('update');
         // Update process route disabled - functionality removed
         // Route::post('system-update', 'systemUpdateProcess')->name('update.process');

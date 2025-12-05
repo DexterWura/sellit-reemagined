@@ -236,4 +236,42 @@ class SystemController extends Controller
         $fileManager = new FileManager();
         $fileManager->removeDirectory($location);
     }
+
+    public function installComposer()
+    {
+        $pageTitle = 'Install Composer Dependencies';
+        return view('admin.system.composer', compact('pageTitle'));
+    }
+
+    public function installComposerProcess()
+    {
+        try {
+            // Check if composer is available
+            $composerCheck = shell_exec('composer --version 2>&1');
+            if (!$composerCheck) {
+                $notify[] = ['error', 'Composer is not installed or not available in PATH'];
+                return back()->withNotify($notify);
+            }
+
+            // Change to core directory and run composer install
+            $command = 'cd ' . base_path() . ' && composer install --no-dev --optimize-autoloader 2>&1';
+            $output = shell_exec($command);
+
+            if ($output === null) {
+                $notify[] = ['error', 'Failed to execute composer install command'];
+                return back()->withNotify($notify);
+            }
+
+            // Clear cache after installation
+            Artisan::call('optimize:clear');
+
+            $notify[] = ['success', 'Composer dependencies installed successfully'];
+            $notify[] = ['info', 'Output: ' . $output];
+            return back()->withNotify($notify);
+
+        } catch (\Exception $e) {
+            $notify[] = ['error', 'Composer installation failed: ' . $e->getMessage()];
+            return back()->withNotify($notify);
+        }
+    }
 }
