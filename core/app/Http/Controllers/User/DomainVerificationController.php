@@ -32,9 +32,12 @@ class DomainVerificationController extends Controller
             $domain = $this->normalizeDomain($originalDomain);
             $method = $request->method;
 
-            \Log::info('Domain normalization', [
-                'original' => $originalDomain,
-                'normalized' => $domain
+            \Log::info('Domain verification generate request received', [
+                'user_id' => auth()->id(),
+                'original_domain' => $originalDomain,
+                'normalized_domain' => $domain,
+                'method' => $method,
+                'request_all' => $request->all()
             ]);
 
             // Check if verification is enabled
@@ -121,12 +124,16 @@ class DomainVerificationController extends Controller
                 'content' => $verificationData['token'],
                 'dns_name' => $verificationData['dns_name'] ?? null,
                 'dns_value' => $verificationData['token'],
+                'domain' => $domain,
+                'method' => $method
             ];
 
             \Log::info('Verification generation successful', [
                 'domain' => $domain,
                 'method' => $method,
-                'response_keys' => array_keys($response)
+                'response_data' => $response,
+                'verification_data_keys' => array_keys($verificationData),
+                'verification_data' => $verificationData
             ]);
 
             return response()->json($response);
@@ -309,14 +316,14 @@ class DomainVerificationController extends Controller
             'created_at' => now(),
         ];
 
-        if ($method === 'txt_file') {
-            $filename = 'flippa-verify-' . substr($token, 0, 8) . '.txt';
-            $data['filename'] = $filename;
-            $data['expected_url'] = 'https://' . $domain . '/' . $filename;
-        } elseif ($method === 'dns_record') {
-            $dnsName = '_flippa-verify-' . substr($token, 0, 8);
-            $data['dns_name'] = $dnsName;
-        }
+    if ($method === 'txt_file') {
+        $filename = 'flippa-verify-' . substr(bin2hex(random_bytes(4)), 0, 8) . '.txt';
+        $data['filename'] = $filename;
+        $data['expected_url'] = 'https://' . $domain . '/' . $filename;
+    } elseif ($method === 'dns_record') {
+        $recordName = '_flippa-verify-' . substr(bin2hex(random_bytes(4)), 0, 8);
+        $data['dns_name'] = $recordName;
+    }
 
         return $data;
     }

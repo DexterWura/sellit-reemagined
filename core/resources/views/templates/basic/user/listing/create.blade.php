@@ -743,7 +743,11 @@ $(document).ready(function() {
 
             if (requiresVerification && hasUrl) {
                 $('#websiteVerificationSection').show();
-                this.generateVerificationData();
+                // Trigger method change to show correct content, then generate data
+                this.onMethodChange();
+                setTimeout(function() {
+                    this.generateVerificationData();
+                }.bind(this), 100);
             } else {
                 $('#websiteVerificationSection').hide();
                 $('#websiteVerified').val('0');
@@ -754,7 +758,18 @@ $(document).ready(function() {
             var businessType = $('input[name="business_type"]:checked').val();
             var url = businessType === 'website' ? $('#website_url').val() : $('#domain_name').val();
 
-            if (!url) return;
+            console.log('generateVerificationData called', {
+                businessType: businessType,
+                url: url,
+                method: $('#websiteVerificationMethod').val()
+            });
+
+            if (!url) {
+                console.log('No URL provided, returning');
+                return;
+            }
+
+            this.showStatus('Generating verification data...', 'info');
 
             // Generate verification data
             $.ajax({
@@ -766,33 +781,89 @@ $(document).ready(function() {
                     method: $('#websiteVerificationMethod').val() || 'txt_file'
                 },
                 success: function(response) {
+                    console.log('AJAX success response:', response);
+                    console.log('Response type:', typeof response);
+                    console.log('Response keys:', Object.keys(response));
+
                     if (response.success) {
-                        $('#websiteVerificationToken').val(response.token);
+                        console.log('Response successful, updating UI');
+                        console.log('Token:', response.token);
+                        console.log('Filename:', response.filename);
+                        console.log('Method:', response.method);
+
+                        $('#websiteVerificationToken').val(response.token || '');
                         $('#websiteVerificationFilename').val(response.filename || '');
                         $('#websiteVerificationDnsName').val(response.dns_name || '');
+
+                        // Force method selection based on response
+                        if (response.method) {
+                            $('#websiteVerificationMethod').val(response.method);
+                        }
+
                         this.updateVerificationUI(response);
+                        this.showStatus('Verification data generated successfully', 'success');
+                    } else {
+                        console.log('Response not successful:', response);
+                        this.showStatus(response.message || 'Failed to generate verification data', 'danger');
                     }
                 }.bind(this),
-                error: function(xhr) {
-                    var error = xhr.responseJSON;
-                    this.showStatus(error?.message || 'Failed to generate verification data', 'danger');
-                    console.error('Verification generation failed:', xhr.responseText);
+                error: function(xhr, status, error) {
+                    console.error('AJAX error:', {
+                        status: status,
+                        error: error,
+                        responseText: xhr.responseText,
+                        responseJSON: xhr.responseJSON
+                    });
+
+                    var errorMsg = xhr.responseJSON?.message || 'Failed to generate verification data';
+                    this.showStatus(errorMsg, 'danger');
                 }.bind(this)
             });
         },
 
         updateVerificationUI: function(data) {
-            var method = data.method;
+            console.log('updateVerificationUI called with data:', data);
+
+            var method = data.method || $('#websiteVerificationMethod').val() || 'txt_file';
+            console.log('Using method:', method);
+
+            // Update the method dropdown to match the response
+            if (data.method) {
+                $('#websiteVerificationMethod').val(data.method);
+            }
+
+            // Hide all method content first
+            $('.verification-method-content').hide();
 
             if (method === 'txt_file') {
-                $('#websiteTxtFileName').text(data.filename);
-                $('#websiteTxtFileLocation').text('https://' + data.domain + '/');
-                $('#websiteTxtFileContent').text(data.content);
-                $('#websiteTxtFileUrl').text(data.expected_url);
+                console.log('Updating TXT file UI');
+
+                var filename = data.filename || 'verification.txt';
+                var domain = data.domain || 'yourdomain.com';
+                var token = data.content || data.token || '';
+
+                $('#websiteTxtFileName').text(filename);
+                $('#websiteTxtFileLocation').text('https://' + domain + '/');
+                $('#websiteTxtFileContent').text(token);
+                $('#websiteTxtFileUrl').text('https://' + domain + '/' + filename);
+
+                $('#websiteTxtFileMethod').show();
+                console.log('TXT file UI updated - filename:', filename, 'token:', token);
+
             } else if (method === 'dns_record') {
-                $('#websiteDnsRecordName').text(data.dns_name);
-                $('#websiteDnsRecordValue').text(data.dns_value);
+                console.log('Updating DNS record UI');
+
+                var dnsName = data.dns_name || '_verify';
+                var dnsValue = data.dns_value || data.token || '';
+
+                $('#websiteDnsRecordName').text(dnsName);
+                $('#websiteDnsRecordValue').text(dnsValue);
+
+                $('#websiteDnsRecordMethod').show();
+                console.log('DNS record UI updated - name:', dnsName, 'value:', dnsValue);
             }
+
+            console.log('UI update complete');
         },
 
         onMethodChange: function() {
