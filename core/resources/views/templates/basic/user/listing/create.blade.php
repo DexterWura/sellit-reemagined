@@ -856,15 +856,25 @@
         bindEvents: function() {
             const self = this;
 
-            // Navigation buttons
-            $('.btn-next').on('click', function() {
-                const nextStep = $(this).data('step');
-                self.handleNavigation(self.currentStep, nextStep);
+            // Navigation buttons - use event delegation to work with dynamically shown/hidden buttons
+            $(document).on('click', '.btn-next', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const nextStep = parseInt($(this).data('step')) || parseInt($(this).attr('data-step'));
+                if (nextStep && !isNaN(nextStep)) {
+                    self.handleNavigation(self.currentStep, nextStep);
+                }
+                return false;
             });
 
-            $('.btn-prev').on('click', function() {
-                const prevStep = $(this).data('step');
-                self.handleNavigation(self.currentStep, prevStep);
+            $(document).on('click', '.btn-prev', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const prevStep = parseInt($(this).data('step')) || parseInt($(this).attr('data-step'));
+                if (prevStep && !isNaN(prevStep)) {
+                    self.handleNavigation(self.currentStep, prevStep);
+                }
+                return false;
             });
 
             // Business Type Selection (Step 1)
@@ -904,9 +914,12 @@
                 }
             });
 
-            // Clear Draft button
-            $('#clearDraftBtn').on('click', function() {
+            // Clear Draft button - use event delegation
+            $(document).on('click', '#clearDraftBtn', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
                 self.clearDraft();
+                return false;
             });
         },
 
@@ -914,6 +927,13 @@
 
         handleNavigation: function(current, next) {
             const self = this;
+            
+            // Validate inputs
+            if (isNaN(current) || isNaN(next) || current < 1 || next < 1 || next > this.maxStep) {
+                console.error('Invalid navigation:', { current, next, maxStep: this.maxStep });
+                return;
+            }
+            
             if (next > current) {
                 // Moving forward: Validate current step first
                 if (this.validateStep(current)) {
@@ -936,9 +956,12 @@
                             if ($('#isVerifiedInput').val() !== '1') {
                                 notify('error', 'Please verify ownership before continuing.');
                                 // Scroll to validation section if needed
-                                $('html, body').animate({
-                                    scrollTop: $('#ownershipValidationSection').offset().top - 100
-                                }, 300);
+                                const validationSection = $('#ownershipValidationSection');
+                                if (validationSection.length && validationSection.offset()) {
+                                    $('html, body').animate({
+                                        scrollTop: validationSection.offset().top - 100
+                                    }, 300);
+                                }
                                 return;
                             }
                          }
@@ -984,8 +1007,16 @@
             $(document).trigger('stepChange', step);
 
             // Handle conditional field display (business type fields)
-            this.handleAssetTypeChange($('input[name="business_type"]:checked').val());
-            this.handleSaleTypeChange($('input[name="sale_type"]:checked').val());
+            const businessType = $('input[name="business_type"]:checked').val();
+            if (businessType) {
+                this.handleAssetTypeChange(businessType);
+            }
+            
+            // Handle sale type display (only on Step 5)
+            if (step === 5) {
+                const saleType = $('input[name="sale_type"]:checked').val() || 'fixed_price';
+                this.handleSaleTypeChange(saleType);
+            }
             
             // Handle Step 3 (Verification) content based on type
             if (step === 3) {
@@ -1176,6 +1207,31 @@
                 this.handleAssetTypeChange(initialType);
             }
         },
+        
+        handleSaleTypeChange: function(selectedSaleType) {
+            if (!selectedSaleType) {
+                // Default to fixed_price if nothing selected
+                selectedSaleType = 'fixed_price';
+            }
+            
+            // Hide all pricing fields
+            $('.pricing-fields').hide();
+            
+            // Show relevant pricing fields
+            if (selectedSaleType === 'fixed_price') {
+                $('.fixed-price-fields').fadeIn(300);
+            } else if (selectedSaleType === 'auction') {
+                $('.auction-fields').fadeIn(300);
+            }
+            
+            // Update required attributes
+            $('#askingPriceInput, #startingBidInput, #bidIncrementInput, #auctionDurationSelect').prop('required', false);
+            if (selectedSaleType === 'fixed_price') {
+                $('#askingPriceInput').prop('required', true);
+            } else if (selectedSaleType === 'auction') {
+                $('#startingBidInput, #bidIncrementInput, #auctionDurationSelect').prop('required', true);
+            }
+        },
 
         initConfidentialityToggle: function() {
             $('#isConfidential').on('change', function() {
@@ -1191,28 +1247,42 @@
             });
         },
 
+        handleSaleTypeChange: function(selectedSaleType) {
+            if (!selectedSaleType) {
+                // Default to fixed_price if nothing selected
+                selectedSaleType = 'fixed_price';
+            }
+            
+            // Hide all pricing fields
+            $('.pricing-fields').hide();
+            
+            // Show relevant pricing fields
+            if (selectedSaleType === 'fixed_price') {
+                $('.fixed-price-fields').fadeIn(300);
+            } else if (selectedSaleType === 'auction') {
+                $('.auction-fields').fadeIn(300);
+            }
+            
+            // Update required attributes
+            $('#askingPriceInput, #startingBidInput, #bidIncrementInput, #auctionDurationSelect').prop('required', false);
+            if (selectedSaleType === 'fixed_price') {
+                $('#askingPriceInput').prop('required', true);
+            } else if (selectedSaleType === 'auction') {
+                $('#startingBidInput, #bidIncrementInput, #auctionDurationSelect').prop('required', true);
+            }
+        },
+        
         initSaleTypeToggle: function() {
+            const self = this;
             $('input[name="sale_type"]').on('change', function() {
                 const selectedSaleType = $(this).val();
-                $('.pricing-fields').slideUp(300);
-                $(`.${selectedSaleType}-fields`).slideDown(300);
-                // Ensure required fields are set/unset
-                $('#askingPriceInput, #startingBidInput, #bidIncrementInput, #auctionDurationSelect').prop('required', false);
-                if (selectedSaleType === 'fixed_price') {
-                    $('#askingPriceInput').prop('required', true);
-                } else if (selectedSaleType === 'auction') {
-                    $('#startingBidInput, #bidIncrementInput, #auctionDurationSelect').prop('required', true);
-                }
+                self.handleSaleTypeChange(selectedSaleType);
                 ListingFormController.triggerInputEvent();
             });
             
             // Initial state
-             const initialSaleType = $('input[name="sale_type"]:checked').val();
-             if (initialSaleType === 'fixed_price') {
-                 $('#askingPriceInput').prop('required', true);
-             } else if (initialSaleType === 'auction') {
-                 $('#startingBidInput, #bidIncrementInput, #auctionDurationSelect').prop('required', true);
-             }
+            const initialSaleType = $('input[name="sale_type"]:checked').val() || 'fixed_price';
+            this.handleSaleTypeChange(initialSaleType);
         },
         
         getCurrentAssetInfo: function() {
@@ -1897,11 +1967,36 @@
     };
 
     $(document).ready(function() {
+        // Check if jQuery is loaded
+        if (typeof jQuery === 'undefined') {
+            console.error('jQuery is not loaded!');
+            return;
+        }
+        
+        // Check if controllers are defined
+        if (typeof ListingFormController === 'undefined') {
+            console.error('ListingFormController is not defined!');
+            return;
+        }
+        
+        if (typeof ValidationController === 'undefined') {
+            console.error('ValidationController is not defined!');
+            return;
+        }
+        
         // 1. Initialize core form controller
-        ListingFormController.init();
+        try {
+            ListingFormController.init();
+        } catch (error) {
+            console.error('Error initializing ListingFormController:', error);
+        }
         
         // 2. Initialize validation controller
-        ValidationController.init();
+        try {
+            ValidationController.init();
+        } catch (error) {
+            console.error('Error initializing ValidationController:', error);
+        }
         
         // 3. Setup global step change listener for the progress bar
         $(document).on('stepChange', function(e, step) {
