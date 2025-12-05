@@ -15,6 +15,7 @@ use App\Models\Bid;
 use App\Models\Offer;
 use App\Models\Watchlist;
 use App\Models\Milestone;
+use App\Models\NdaDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -57,6 +58,9 @@ class UserController extends Controller
         
         // Watchlist
         $data['watchlist_items'] = Watchlist::where('user_id', $user->id)->count();
+
+        // Signed NDAs
+        $data['signed_ndas'] = NdaDocument::where('user_id', $user->id)->count();
         
         // Escrow (only marketplace-related)
         $userListingEscrowIds = Listing::where(function($q) use ($user) {

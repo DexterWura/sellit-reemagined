@@ -235,6 +235,19 @@
 
                         <div class="dash-card">
                             <div class="dash-card__header">
+                                <h6 class="dash-card__value">{{ $data['signed_ndas'] }}</h6>
+                                <div class="dash-card__icon icon icon--circle icon--md">
+                                    <i class="las la-file-signature"></i>
+                                </div>
+                            </div>
+                            <div class="dash-card__body">
+                                <h5 class="dash-card__title">@lang('Signed NDAs')</h5>
+                                <a href="{{ route('user.nda.index') }}">@lang('View All')</a>
+                            </div>
+                        </div>
+
+                        <div class="dash-card">
+                            <div class="dash-card__header">
                                 <h6 class="dash-card__value">{{ number_format($data['total_listing_views']) }}</h6>
                                 <div class="dash-card__icon icon icon--circle icon--md">
                                     <i class="las la-eye"></i>
