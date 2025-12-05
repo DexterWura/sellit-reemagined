@@ -1605,20 +1605,45 @@
             const { businessType, primaryAssetUrl } = assetInfo;
             const requiresValidation = ['domain', 'website', 'social_media_account'];
             
-            // 1. Check if asset type or URL changed and requires reset (check OLD values before updating)
+            // 1. Check if asset type or URL changed (check OLD values before updating)
             const oldBusinessType = this.businessType;
             const oldPrimaryAssetUrl = this.primaryAssetUrl;
+            const normalizedOldUrl = this.normalizeUrl(oldPrimaryAssetUrl || '');
+            const normalizedNewUrl = this.normalizeUrl(primaryAssetUrl || '');
+            
             const typeChanged = oldBusinessType && oldBusinessType !== businessType;
-            const urlChanged = oldPrimaryAssetUrl && this.normalizeUrl(oldPrimaryAssetUrl) !== this.normalizeUrl(primaryAssetUrl);
-            // Check if the OLD type required validation (to know if we need to clear)
-            const needsReset = (typeChanged || urlChanged) && oldBusinessType && requiresValidation.includes(oldBusinessType);
-
-            // 2. Update current state
+            const urlChanged = normalizedOldUrl !== normalizedNewUrl;
+            
+            // 2. Update current state FIRST
             this.businessType = businessType;
             this.primaryAssetUrl = primaryAssetUrl;
             $('#verificationAssetInput').val(primaryAssetUrl);
             
-            // 3. Render the UI for Step 3 if currently viewing it
+            // 3. If URL changed and we have validation data, clear it immediately
+            if (urlChanged && (this.verificationToken || this.instructions || this.methodsCache)) {
+                // Clear cache and state when URL changes
+                this.methodsCache = null;
+                this.verificationToken = null;
+                this.instructions = null;
+                this.selectedMethod = null;
+                this.isVerified = false;
+                $('#verificationTokenInput').val('');
+                $('#verificationMethodInput').val('');
+                $('#isVerifiedInput').val('0');
+                $('#validationInstructions').hide().empty();
+                $('#validationResult').hide().empty();
+                $('#instructionsContent').empty();
+                
+                // Clear session via AJAX (fire and forget)
+                $.ajax({
+                    url: '{{ route("user.ownership.validation.clear") }}',
+                    method: 'POST',
+                    data: { _token: '{{ csrf_token() }}' },
+                    async: true
+                });
+            }
+            
+            // 4. Render the UI for Step 3 if currently viewing it
             if (ListingFormController.currentStep === 3) {
                 if (!requiresValidation.includes(businessType)) {
                     // Validation not required for this type
@@ -1640,8 +1665,8 @@
                     });
                     $('#verificationNotRequiredMessage').hide();
                     
-                    // If reset is needed, clear state first, then load methods
-                    if (needsReset) {
+                    // If reset is needed (type or URL changed), clear state first, then load methods
+                    if ((typeChanged || urlChanged) && oldBusinessType && requiresValidation.includes(oldBusinessType)) {
                         this.clearValidationState(typeChanged ? 
                             'Business type changed. Please verify ownership again.' : 
                             'Asset URL changed. Please generate a new verification token.'
@@ -1762,21 +1787,22 @@
                             primaryAssetUrl: self.primaryAssetUrl
                         };
                         
-                        // Only restore state from response if URL matches current asset URL
-                        const responseUrlMatches = !response.instructions || 
-                            (response.token && self.normalizeUrl(self.primaryAssetUrl) === self.normalizeUrl($('#verificationAssetInput').val()));
-                        
-                        if (response.token && responseUrlMatches && !self.verificationToken) {
+                        // Only restore token/instructions from response if backend returned them
+                        // Backend only returns instructions if URL matches (we fixed backend to check this)
+                        // So if backend returns instructions, it's safe to use them
+                        if (response.token && response.instructions) {
+                            // Backend verified URL matches, so restore token and instructions
                             self.verificationToken = response.token;
                             $('#verificationTokenInput').val(response.token);
-                        }
-                        if (response.instructions && responseUrlMatches) {
                             self.instructions = response.instructions;
-                        } else if (!responseUrlMatches) {
-                            // URL doesn't match, clear old instructions
-                            self.instructions = null;
-                            self.verificationToken = null;
-                            $('#verificationTokenInput').val('');
+                        } else {
+                            // Backend didn't return instructions (URL doesn't match or no token)
+                            // Ensure we're cleared if we had old data
+                            if (self.verificationToken || self.instructions) {
+                                self.instructions = null;
+                                self.verificationToken = null;
+                                $('#verificationTokenInput').val('');
+                            }
                         }
                         
                         self.renderMethods(response.methods);
