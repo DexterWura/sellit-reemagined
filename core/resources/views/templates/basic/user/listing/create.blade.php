@@ -924,17 +924,30 @@ $(document).ready(function() {
                     }
                 }
                 
-                // Restore validation state immediately
-                if (self.isVerified && self.primaryAssetUrl) {
-                    // Verified and have asset URL - restore state instantly
-                    self.restoreValidationState();
-                } else if (self.verificationToken && self.businessType && self.primaryAssetUrl) {
-                    // Have token but not verified yet - restore UI
-                    self.checkIfValidationRequired();
-                    self.restoreValidationState();
-                } else if (self.businessType) {
-                    // Just have business type - check if validation needed
-                    self.checkIfValidationRequired();
+                // Restore validation state immediately (but only if we have necessary data)
+                // Don't trigger validation checks during initial load - wait for user interaction
+                if (self.businessType) {
+                    // Get current asset URL from form
+                    const currentUrl = self.getCurrentAssetUrl();
+                    if (currentUrl) {
+                        self.primaryAssetUrl = currentUrl;
+                    }
+                    
+                    // Only restore if we're on Step 2 or 3 and have data
+                    const currentStep = ListingFormHandler.currentStep || 1;
+                    if (currentStep === 2 || currentStep === 3) {
+                        if (self.isVerified && self.primaryAssetUrl) {
+                            // Verified and have asset URL - restore state instantly
+                            self.restoreValidationState();
+                        } else if (self.verificationToken && self.businessType && self.primaryAssetUrl) {
+                            // Have token but not verified yet - restore UI
+                            self.checkIfValidationRequired();
+                            self.restoreValidationState();
+                        } else if (self.businessType && self.primaryAssetUrl) {
+                            // Have business type and URL - check if validation needed
+                            self.checkIfValidationRequired();
+                        }
+                    }
                 }
             });
             
@@ -976,10 +989,14 @@ $(document).ready(function() {
                 // Update business type
                 self.businessType = newBusinessType;
                 
-                // Use requestAnimationFrame for instant response
-                requestAnimationFrame(function() {
-                    self.checkIfValidationRequired();
-                });
+                // Only check validation if we're on Step 2 or 3
+                const currentStep = ListingFormHandler.currentStep || 1;
+                if (currentStep === 2 || currentStep === 3) {
+                    // Use requestAnimationFrame for instant response
+                    requestAnimationFrame(function() {
+                        self.checkIfValidationRequired();
+                    });
+                }
             });
             
             // Watch for domain/website URL changes (optimized debounce - shorter delay)
@@ -991,11 +1008,15 @@ $(document).ready(function() {
                     const currentBusinessType = $('input[name="business_type"]:checked').val();
                     
                     // Only check URL changes if business type matches
+                    const currentStep = ListingFormHandler.currentStep || 1;
                     if (currentBusinessType !== self.businessType) {
                         // Business type changed, don't check URL changes
                         self.businessType = currentBusinessType;
                         self.primaryAssetUrl = null; // Clear to prevent false comparisons
-                        self.checkIfValidationRequired();
+                        // Only check if we're on Step 2 or 3
+                        if (currentStep === 2 || currentStep === 3) {
+                            self.checkIfValidationRequired();
+                        }
                         return;
                     }
                     
@@ -1026,9 +1047,11 @@ $(document).ready(function() {
                         self.clearValidationState('Asset URL changed. Please generate a new verification token.');
                     }
                     
-                    // Update primary asset URL and check validation
+                    // Update primary asset URL and check validation (only if on Step 2 or 3)
                     self.primaryAssetUrl = newUrl;
-                    self.checkIfValidationRequired();
+                    if (currentStep === 2 || currentStep === 3) {
+                        self.checkIfValidationRequired();
+                    }
                 }, 200); // Reduced from 500ms to 200ms for faster response
             });
             
@@ -1287,28 +1310,50 @@ $(document).ready(function() {
             // Update primary asset URL
             this.primaryAssetUrl = assetUrl;
             
-            // Show/hide validation section (only in Step 3)
-            // Check if we're currently on Step 3
+            // Show/hide validation section (in Step 2 or Step 3)
+            // Check if we're currently on Step 2 or Step 3
             const currentStep = ListingFormHandler.currentStep || 1;
-            if (currentStep === 3) {
+            if (currentStep === 2 || currentStep === 3) {
                 if (requiresValidation.includes(this.businessType)) {
-                    // Show validation section
-                    $('#ownershipValidationSection').show();
-                    $('#verificationNotRequiredMessage').hide();
-                    
-                    // Load methods if we have asset URL or if already verified
-                    if ((assetUrl && assetUrl.trim()) || this.isVerified) {
-                        // Debounce the load to prevent multiple calls (reduced delay)
-                        clearTimeout(this.loadTimeout);
-                        this.loadTimeout = setTimeout(() => {
-                            this.loadValidationMethods();
-                        }, 150); // Reduced from 300ms to 150ms
+                    // Show validation section (but only if we're in Step 3, or if we have a URL in Step 2)
+                    if (currentStep === 3) {
+                        $('#ownershipValidationSection').show();
+                        $('#verificationNotRequiredMessage').hide();
+                        
+                        // Load methods if we have asset URL or if already verified
+                        if ((assetUrl && assetUrl.trim()) || this.isVerified) {
+                            // Debounce the load to prevent multiple calls (reduced delay)
+                            clearTimeout(this.loadTimeout);
+                            this.loadTimeout = setTimeout(() => {
+                                this.loadValidationMethods();
+                            }, 150); // Reduced from 300ms to 150ms
+                        }
+                    } else if (currentStep === 2 && assetUrl && assetUrl.trim()) {
+                        // In Step 2, only show validation section if URL is entered
+                        // This gives immediate feedback that verification will be needed
+                        // But don't load methods yet - wait until Step 3
+                        $('#ownershipValidationSection').show();
+                        $('#verificationNotRequiredMessage').hide();
+                        // Don't load methods in Step 2 - wait for Step 3
+                    } else if (currentStep === 2) {
+                        // Step 2 but no URL yet - hide validation section
+                        $('#ownershipValidationSection').hide();
+                        $('#verificationNotRequiredMessage').hide();
                     }
                 } else {
-                    // Verification not required - show message
-                    $('#ownershipValidationSection').hide();
-                    $('#verificationNotRequiredMessage').show();
+                    // Verification not required - show message only in Step 3
+                    if (currentStep === 3) {
+                        $('#ownershipValidationSection').hide();
+                        $('#verificationNotRequiredMessage').show();
+                    } else {
+                        $('#ownershipValidationSection').hide();
+                        $('#verificationNotRequiredMessage').hide();
+                    }
                 }
+            } else {
+                // Not on Step 2 or 3 - hide validation section
+                $('#ownershipValidationSection').hide();
+                $('#verificationNotRequiredMessage').hide();
             }
         },
         
@@ -1838,6 +1883,7 @@ $(document).ready(function() {
     ownershipValidation.init();
     
     // Handle Step 2 to Step 3 navigation (conditional skip for apps)
+    // Note: Validation is handled by ListingFormHandler.validateStep(2) before this
     $('#step2ContinueBtn').on('click', function(e) {
         const businessType = $('input[name="business_type"]:checked').val();
         const requiresValidation = ['domain', 'website', 'social_media_account'];
@@ -1850,7 +1896,7 @@ $(document).ready(function() {
             ListingFormHandler.showStep(4);
             return false;
         }
-        // Otherwise, proceed to Step 3 normally
+        // Otherwise, proceed to Step 3 normally (validation already checked by validateStep)
     });
     
     // Handle Step 3 to Step 4 navigation (check verification)

@@ -119,12 +119,19 @@ const ListingFormHandler = {
                 // If moving to Step 3, trigger ownership validation check
                 if (nextStep === 3) {
                     if (typeof ownershipValidation !== 'undefined') {
+                        // Update business type and asset URL before checking
+                        ownershipValidation.businessType = $('input[name="business_type"]:checked').val();
+                        ownershipValidation.primaryAssetUrl = ownershipValidation.getCurrentAssetUrl();
+                        
                         setTimeout(function() {
                             ownershipValidation.checkIfValidationRequired();
                             ownershipValidation.restoreValidationState();
                         }, 200);
                     }
                 }
+            } else {
+                // Validation failed - don't proceed
+                return false;
             }
             
             return false;
