@@ -39,7 +39,8 @@ class Bid extends Model
         }
 
         // Max bid validation - only validate if max_bid is set and greater than 0
-        if ($this->max_bid !== null && $this->max_bid > 0 && $this->max_bid < $this->amount) {
+        // Note: 0 means no max bid was set, so we only validate when max_bid > 0
+        if ($this->max_bid > 0 && $this->max_bid < $this->amount) {
             throw new \InvalidArgumentException("Maximum bid cannot be less than bid amount");
         }
 

@@ -65,8 +65,8 @@ class BidController extends Controller
             ]);
 
             $amount = $request->amount;
-            // Set max_bid to null if not provided or empty, otherwise convert to float
-            $maxBid = !empty($request->max_bid) ? (float)$request->max_bid : null;
+            // Set max_bid to 0 if not provided or empty (0 means no max bid), otherwise convert to float
+            $maxBid = !empty($request->max_bid) ? (float)$request->max_bid : 0;
 
             // Validate bid amount - comprehensive business rules
             if ($amount < $listing->minimum_bid) {
