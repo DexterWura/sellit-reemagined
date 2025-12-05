@@ -756,24 +756,28 @@ $(document).ready(function() {
 
             if (!url) return;
 
-            // Generate verification token and filename
+            // Generate verification data
             $.ajax({
-                url: '{{ route("user.verification.start") }}',
+                url: '{{ route("user.verification.generate") }}',
                 method: 'POST',
                 data: {
                     _token: '{{ csrf_token() }}',
                     domain: url,
-                    method: $('#websiteVerificationMethod').val() || 'file'
+                    method: $('#websiteVerificationMethod').val() || 'txt_file'
                 },
                 success: function(response) {
                     if (response.success) {
-                        $('#websiteVerificationToken').val(response.verification_id);
+                        $('#websiteVerificationToken').val(response.token);
+                        $('#websiteVerificationFilename').val(response.filename || '');
+                        $('#websiteVerificationDnsName').val(response.dns_name || '');
                         this.updateVerificationUI(response);
                     }
                 }.bind(this),
                 error: function(xhr) {
-                    console.error('Verification data generation failed:', xhr.responseText);
-                }
+                    var error = xhr.responseJSON;
+                    this.showStatus(error?.message || 'Failed to generate verification data', 'danger');
+                    console.error('Verification generation failed:', xhr.responseText);
+                }.bind(this)
             });
         },
 
@@ -781,15 +785,13 @@ $(document).ready(function() {
             var method = data.method;
 
             if (method === 'txt_file') {
-                $('#websiteTxtFileName').text(data.instructions.download_filename);
+                $('#websiteTxtFileName').text(data.filename);
                 $('#websiteTxtFileLocation').text('https://' + data.domain + '/');
-                $('#websiteTxtFileContent').text(data.instructions.download_content);
-                $('#websiteTxtFileUrl').text(data.instructions.expected_url);
-                $('#websiteVerificationFilename').val(data.instructions.download_filename);
+                $('#websiteTxtFileContent').text(data.content);
+                $('#websiteTxtFileUrl').text(data.expected_url);
             } else if (method === 'dns_record') {
-                $('#websiteDnsRecordName').text(data.instructions.dns_name);
-                $('#websiteDnsRecordValue').text(data.instructions.dns_value);
-                $('#websiteVerificationDnsName').val(data.instructions.dns_name);
+                $('#websiteDnsRecordName').text(data.dns_name);
+                $('#websiteDnsRecordValue').text(data.dns_value);
             }
         },
 
@@ -821,11 +823,15 @@ $(document).ready(function() {
             this.showStatus('Verifying ownership...', 'info');
 
             $.ajax({
-                url: '{{ route("user.verification.check", ":id") }}'.replace(':id', verificationId),
+                url: '{{ route("user.verification.verify") }}',
                 method: 'POST',
                 data: {
                     _token: '{{ csrf_token() }}',
-                    domain: $('input[name="business_type"]:checked').val() === 'website' ? $('#website_url').val() : $('#domain_name').val()
+                    domain: $('input[name="business_type"]:checked').val() === 'website' ? $('#website_url').val() : $('#domain_name').val(),
+                    method: $('#websiteVerificationMethod').val(),
+                    token: $('#websiteVerificationToken').val(),
+                    filename: $('#websiteVerificationFilename').val(),
+                    dns_name: $('#websiteVerificationDnsName').val()
                 },
                 success: function(response) {
                     if (response.success) {
@@ -849,8 +855,14 @@ $(document).ready(function() {
 
         downloadTxtFile: function() {
             var token = $('#websiteVerificationToken').val();
-            if (token) {
-                window.open('{{ route("user.verification.download", ":id") }}'.replace(':id', token), '_blank');
+            var filename = $('#websiteVerificationFilename').val();
+            var domain = $('input[name="business_type"]:checked').val() === 'website' ? $('#website_url').val() : $('#domain_name').val();
+
+            if (token && filename) {
+                var url = '{{ route("user.verification.download") }}?token=' + encodeURIComponent(token) +
+                         '&filename=' + encodeURIComponent(filename) +
+                         '&domain=' + encodeURIComponent(domain);
+                window.open(url, '_blank');
             }
         },
 

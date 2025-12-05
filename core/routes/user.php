@@ -179,18 +179,15 @@ Route::middleware('auth')->name('user.')->group(function () {
 
             // Domain Verification
             Route::controller('DomainVerificationController')->name('verification.')->prefix('verification')->group(function () {
-                Route::get('/', 'index')->name('index');
-                Route::get('show/{id}', 'show')->name('show');
-                Route::post('initiate/{listingId}', 'initiate')->name('initiate');
-                Route::post('verify/{id}', 'verify')->name('verify');
-                Route::post('verify-ajax', 'verifyAjax')->name('verify-ajax');
-                Route::post('change-method/{id}', 'changeMethod')->name('change.method');
-                Route::get('download/{id}', 'downloadFile')->name('download');
+                Route::post('generate', 'generateVerification')->name('generate');
+                Route::post('verify', 'verifyDomain')->name('verify');
+                Route::get('download', 'downloadFile')->name('download');
+            });
 
-                // New API endpoints from technical plan
-                Route::post('start', 'startVerification')->name('start');
-                Route::get('status/{id}', 'getStatus')->name('status');
-                Route::post('check/{id}', 'checkVerification')->name('check');
+            // Social Media Verification
+            Route::controller('SocialMediaVerificationController')->name('social.verification.')->prefix('social-verification')->group(function () {
+                Route::post('generate', 'generateVerification')->name('generate');
+                Route::post('verify-social', 'verifySocialMedia')->name('verify-social');
             });
 
             // Withdraw

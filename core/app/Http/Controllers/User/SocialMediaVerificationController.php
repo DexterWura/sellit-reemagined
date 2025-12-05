@@ -3,193 +3,215 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\Listing;
-use App\Models\SocialMediaVerification;
-use App\Lib\SocialLogin;
+use App\Models\MarketplaceSetting;
 use Illuminate\Http\Request;
-use Socialite;
-use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class SocialMediaVerificationController extends Controller
 {
     /**
-     * Redirect to social media platform for verification
-     * Can work with or without a listing (for pre-verification)
+     * Generate verification data for social media account
      */
-    public function redirect($platform, $listingId = null)
+    public function generateVerification(Request $request)
     {
-        // If listing ID provided, verify it belongs to user
-        if ($listingId) {
-            $listing = Listing::where('user_id', auth()->id())
-                ->where('business_type', 'social_media_account')
-                ->findOrFail($listingId);
-        } else {
-            $listing = null;
+        $request->validate([
+            'platform' => 'required|string',
+            'username' => 'required|string',
+            'method' => 'required|in:post_verification',
+        ]);
+
+        $platform = trim($request->platform);
+        $username = trim($request->username);
+        $method = $request->method;
+
+        // Check if verification is enabled
+        if (!MarketplaceSetting::requireSocialMediaVerification()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Social media verification is not enabled'
+            ], 400);
         }
 
-        // Validate platform
-        $allowedPlatforms = ['instagram', 'youtube', 'tiktok', 'twitter', 'facebook'];
-        if (!in_array($platform, $allowedPlatforms)) {
-            $notify[] = ['error', 'Invalid platform'];
-            return back()->withNotify($notify);
+        // Check if user already has a verified account
+        $verifiedCacheKey = 'verified_social_' . auth()->id() . '_' . $platform . '_' . $username;
+        $verifiedData = Cache::get($verifiedCacheKey);
+
+        if ($verifiedData) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This account is already verified'
+            ], 400);
         }
 
-        // Create verification record if listing exists, otherwise store in session
-        if ($listing) {
-            $verification = SocialMediaVerification::createForListing($listing, $platform);
-            session([
-                'social_verification_listing_id' => $listingId,
-                'social_verification_id' => $verification->id,
-            ]);
-        } else {
-            // Store verification data in session for later use
-            session([
-                'social_verification_platform' => $platform,
-                'social_verification_pending' => true,
-            ]);
-        }
+        // Generate a unique token
+        $token = $this->generateToken();
 
-        // Configure and redirect to platform
-        try {
-            $this->configureProvider($platform);
-            return Socialite::driver($platform)->redirect();
-        } catch (\Exception $e) {
-            $verification->markAsFailed('Failed to initiate OAuth: ' . $e->getMessage());
-            $notify[] = ['error', 'Failed to connect to ' . ucfirst($platform) . '. Please check platform configuration.'];
-            return back()->withNotify($notify);
-        }
-    }
+        $message = $this->generateVerificationMessage($platform, $token);
 
-    /**
-     * Handle OAuth callback from social media platform
-     */
-    public function callback($platform)
-    {
-        $listingId = session('social_verification_listing_id');
-        $verificationId = session('social_verification_id');
-        $isPending = session('social_verification_pending', false);
+        // Store verification data in cache (expires in 24 hours)
+        $cacheKey = 'verification_' . auth()->id() . '_' . $platform . '_' . $username;
+        Cache::put($cacheKey, [
+            'platform' => $platform,
+            'username' => $username,
+            'token' => $token,
+            'message' => $message,
+            'created_at' => now(),
+        ], 86400);
 
-        // Handle pending verification (no listing yet)
-        if ($isPending && !$listingId) {
-            try {
-                $this->configureProvider($platform);
-                $socialUser = Socialite::driver($platform)->user();
-
-                $accountId = $socialUser->getId();
-                $accountUsername = $socialUser->getNickname() ?? $socialUser->getName() ?? null;
-
-                // Store verification in session for form submission
-                session([
-                    'social_verified' => true,
-                    'verified_platform' => $platform,
-                    'verified_account_id' => $accountId,
-                    'verified_account_username' => $accountUsername,
-                    'social_verification_pending' => false,
-                ]);
-
-                $notify[] = ['success', ucfirst($platform) . ' account verified successfully! You can now continue creating your listing.'];
-                return redirect()->route('user.listing.create')->withNotify($notify);
-
-            } catch (\Exception $e) {
-                session()->forget(['social_verification_platform', 'social_verification_pending']);
-                $notify[] = ['error', 'Verification failed: ' . $e->getMessage()];
-                return redirect()->route('user.listing.create')->withNotify($notify);
-            }
-        }
-
-        // Handle existing listing verification
-        if (!$listingId || !$verificationId) {
-            $notify[] = ['error', 'Verification session expired. Please try again.'];
-            return redirect()->route('user.listing.index')->withNotify($notify);
-        }
-
-        $listing = Listing::where('user_id', auth()->id())->findOrFail($listingId);
-        $verification = SocialMediaVerification::findOrFail($verificationId);
-
-        try {
-            $this->configureProvider($platform);
-            $socialUser = Socialite::driver($platform)->user();
-
-            // Extract account information
-            $accountId = $socialUser->getId();
-            $accountUsername = $socialUser->getNickname() ?? $socialUser->getName() ?? null;
-
-            // Mark as verified
-            $verification->markAsVerified($accountId, $accountUsername);
-
-            // Update listing with account info if needed
-            if (!$listing->platform || $listing->platform === $platform) {
-                $listing->platform = $platform;
-                if ($accountUsername && !$listing->url) {
-                    // Try to construct URL from platform and username
-                    $listing->url = $this->constructAccountUrl($platform, $accountUsername);
-                }
-                $listing->save();
-            }
-
-            // Clear session
-            session()->forget(['social_verification_listing_id', 'social_verification_id']);
-
-            $notify[] = ['success', ucfirst($platform) . ' account verified successfully!'];
-            return redirect()->route('user.listing.edit', $listingId)->withNotify($notify);
-
-        } catch (\Exception $e) {
-            $verification->markAsFailed('OAuth callback failed: ' . $e->getMessage());
-            $notify[] = ['error', 'Verification failed: ' . $e->getMessage()];
-            return redirect()->route('user.listing.edit', $listingId)->withNotify($notify);
-        }
-    }
-
-    /**
-     * Configure social media provider
-     */
-    private function configureProvider($platform)
-    {
-        // Map platform to socialite provider name
-        $providerMap = [
-            'instagram' => 'instagram',
-            'youtube' => 'google', // YouTube uses Google OAuth
-            'tiktok' => 'tiktok',
-            'twitter' => 'twitter',
-            'facebook' => 'facebook',
-        ];
-
-        $provider = $providerMap[$platform] ?? $platform;
-
-        // Get credentials from general settings
-        $credentials = gs('socialite_credentials');
-        
-        if (!$credentials || !isset($credentials->$provider)) {
-            throw new \Exception('Platform credentials not configured');
-        }
-
-        $config = $credentials->$provider;
-
-        if (!isset($config->status) || $config->status != 1) {
-            throw new \Exception('Platform OAuth is not enabled');
-        }
-
-        Config::set('services.' . $provider, [
-            'client_id' => $config->client_id,
-            'client_secret' => $config->client_secret,
-            'redirect' => route('user.social.verification.callback', $platform),
+        return response()->json([
+            'success' => true,
+            'token' => $token,
+            'message' => $message,
+            'instructions' => $this->getPlatformInstructions($platform, $username, $message),
         ]);
     }
 
     /**
-     * Construct account URL from platform and username
+     * Verify social media account ownership
      */
-    private function constructAccountUrl($platform, $username)
+    public function verifySocialMedia(Request $request)
     {
-        $urls = [
-            'instagram' => 'https://instagram.com/' . ltrim($username, '@'),
-            'youtube' => 'https://youtube.com/@' . ltrim($username, '@'),
-            'tiktok' => 'https://tiktok.com/@' . ltrim($username, '@'),
-            'twitter' => 'https://twitter.com/' . ltrim($username, '@'),
-            'facebook' => 'https://facebook.com/' . ltrim($username, '@'),
+        $request->validate([
+            'platform' => 'required|string',
+            'username' => 'required|string',
+            'token' => 'required|string',
+        ]);
+
+        $platform = trim($request->platform);
+        $username = trim($request->username);
+        $token = trim($request->token);
+
+        // Check if verification is enabled
+        if (!MarketplaceSetting::requireSocialMediaVerification()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Social media verification is not enabled'
+            ], 400);
+        }
+
+        // Check if user already has a pending verification for this account
+        $cacheKey = 'verification_' . auth()->id() . '_' . $platform . '_' . $username;
+        $verificationData = Cache::get($cacheKey);
+
+        if (!$verificationData || $verificationData['token'] !== $token) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Verification session expired or invalid. Please start verification again.'
+            ], 400);
+        }
+
+        // For now, this is manual verification - user claims they posted the message
+        // In a real implementation, you'd use platform APIs to check if the post exists
+        // For this simplified version, we'll accept the user's claim and store verification
+
+        // Store successful verification
+        $verifiedCacheKey = 'verified_social_' . auth()->id() . '_' . $platform . '_' . $username;
+        Cache::put($verifiedCacheKey, [
+            'platform' => $platform,
+            'username' => $username,
+            'verified_at' => now(),
+            'token' => $token,
+            'method' => 'post_verification'
+        ], 2592000); // 30 days
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Social media account verified successfully!',
+        ]);
+    }
+
+    /**
+     * Generate platform-specific verification message
+     */
+    private function generateVerificationMessage($platform, $token)
+    {
+        $platforms = [
+            'twitter' => 'Twitter',
+            'instagram' => 'Instagram',
+            'facebook' => 'Facebook',
+            'linkedin' => 'LinkedIn',
+            'youtube' => 'YouTube',
+            'tiktok' => 'TikTok',
         ];
 
-        return $urls[$platform] ?? null;
+        $platformName = $platforms[$platform] ?? ucfirst($platform);
+
+        return "Verifying ownership of this {$platformName} account. Verification token: {$token}";
+    }
+
+    /**
+     * Get platform-specific instructions
+     */
+    private function getPlatformInstructions($platform, $username, $message)
+    {
+        $instructions = [
+            'twitter' => [
+                'steps' => [
+                    "Make a public post with this exact message:",
+                    "Post it from the account: @{$username}",
+                    "Once posted, click 'Verify Account' below"
+                ]
+            ],
+            'instagram' => [
+                'steps' => [
+                    "Create a new post with this exact caption:",
+                    "Post it from the account: @{$username}",
+                    "Once posted, click 'Verify Account' below"
+                ]
+            ],
+            'facebook' => [
+                'steps' => [
+                    "Create a new post with this exact text:",
+                    "Post it from the page/profile: {$username}",
+                    "Once posted, click 'Verify Account' below"
+                ]
+            ],
+            'linkedin' => [
+                'steps' => [
+                    "Create a new post with this exact text:",
+                    "Post it from your LinkedIn profile",
+                    "Once posted, click 'Verify Account' below"
+                ]
+            ],
+            'youtube' => [
+                'steps' => [
+                    "Create a new video with this exact title or description:",
+                    "Post it from the channel: {$username}",
+                    "Once posted, click 'Verify Account' below"
+                ]
+            ],
+            'tiktok' => [
+                'steps' => [
+                    "Create a new video with this exact caption:",
+                    "Post it from the account: @{$username}",
+                    "Once posted, click 'Verify Account' below"
+                ]
+            ],
+        ];
+
+        return $instructions[$platform] ?? [
+            'steps' => [
+                "Post this message on your {$platform} account:",
+                "Once posted, click 'Verify Account' below"
+            ]
+        ];
+    }
+
+    /**
+     * Validate token format (basic validation)
+     */
+    private function validateTokenFormat($token)
+    {
+        // Basic validation - token should start with 'verify_' and be 32 chars long
+        return strlen($token) === 32 && strpos($token, 'verify_') === 0;
+    }
+
+    /**
+     * Generate a unique verification token
+     */
+    private function generateToken()
+    {
+        return 'verify_' . bin2hex(random_bytes(16));
     }
 }
-

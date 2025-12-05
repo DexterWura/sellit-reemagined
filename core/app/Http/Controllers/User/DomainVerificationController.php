@@ -3,309 +3,76 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\DomainVerification;
-use App\Models\Listing;
 use App\Models\MarketplaceSetting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class DomainVerificationController extends Controller
 {
-    public function index()
-    {
-        $pageTitle = 'Domain Verifications';
-        $verifications = DomainVerification::where('user_id', auth()->id())
-            ->with('listing')
-            ->latest()
-            ->paginate(getPaginate());
-
-        return view('templates.basic.user.verification.index', compact('pageTitle', 'verifications'));
-    }
-
     /**
-     * API: Start domain verification process
+     * Generate verification data for a domain
      */
-    public function startVerification(Request $request)
+    public function generateVerification(Request $request)
     {
         $request->validate([
             'domain' => 'required|string|max:255',
             'method' => 'required|in:txt_file,dns_record',
         ]);
 
-        $domain = trim($request->domain);
+        $domain = $this->normalizeDomain($request->domain);
         $method = $request->method;
 
-        // Check if verification is required at all
+        // Check if verification is enabled
         if (!MarketplaceSetting::requireDomainVerification() &&
             !MarketplaceSetting::requireWebsiteVerification()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Domain verification is not required'
+                'message' => 'Domain verification is not enabled'
             ], 400);
         }
 
-        // Check if method is allowed
-        $allowedMethods = MarketplaceSetting::getDomainVerificationMethods();
-        if (!in_array($method, $allowedMethods)) {
+        // Check if user already has a verified domain
+        $verifiedCacheKey = 'verified_domain_' . auth()->id() . '_' . $domain;
+        $verifiedData = Cache::get($verifiedCacheKey);
+
+        if ($verifiedData) {
             return response()->json([
                 'success' => false,
-                'message' => 'This verification method is not allowed'
+                'message' => 'This domain is already verified'
             ], 400);
         }
 
-        // Check if user already has a pending verification for this domain
-        $existing = DomainVerification::where('user_id', auth()->id())
-            ->where('domain', $domain)
-            ->where('status', DomainVerification::STATUS_PENDING)
-            ->first();
-
-        if ($existing) {
-            // Return existing verification data
-            return $this->formatVerificationResponse($existing, $method);
+        // Check if domain is accessible
+        if (!$this->isDomainAccessible($domain)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Domain is not accessible. Please ensure the domain exists and is live.'
+            ], 400);
         }
 
-        // Convert method names for model
-        $modelMethod = ($method === 'txt_file') ? DomainVerification::METHOD_FILE : DomainVerification::METHOD_DNS;
+        // Generate verification data
+        $verificationData = $this->generateVerificationData($domain, $method);
 
-        // Create new verification
-        $verification = DomainVerification::createForDomain($domain, auth()->id(), $modelMethod);
+        // Store in cache with user ID (expires in 24 hours)
+        $cacheKey = 'verification_' . auth()->id() . '_' . $domain;
+        Cache::put($cacheKey, $verificationData, 86400);
 
-        return $this->formatVerificationResponse($verification, $method);
-    }
-
-    private function formatVerificationResponse(DomainVerification $verification, string $uiMethod)
-    {
-        $response = [
+        return response()->json([
             'success' => true,
-            'verification_id' => $verification->id,
-            'domain' => $verification->domain,
-            'method' => $uiMethod,
-        ];
-
-        if ($verification->verification_method === DomainVerification::METHOD_FILE) {
-            $filename = $verification->verification_data['filename'] ?? 'verification.txt';
-            $response['instructions'] = [
-                'download_filename' => $filename,
-                'download_content' => $verification->verification_token,
-                'expected_url' => 'https://' . $verification->domain . '/' . $filename,
-            ];
-        } else {
-            $dnsName = $verification->verification_data['record_name'] ?? '_verify';
-            $response['instructions'] = [
-                'dns_name' => $dnsName,
-                'dns_value' => $verification->verification_token,
-            ];
-        }
-
-        return response()->json($response);
-    }
-
-    public function show($id)
-    {
-        $verification = DomainVerification::where('user_id', auth()->id())
-            ->with('listing')
-            ->findOrFail($id);
-
-        $pageTitle = 'Verify Domain: ' . $verification->domain;
-        $instructions = $verification->getInstructions();
-
-        return view('templates.basic.user.verification.show', compact('pageTitle', 'verification', 'instructions'));
-    }
-
-    public function initiate(Request $request, $listingId)
-    {
-        $listing = Listing::where('user_id', auth()->id())->findOrFail($listingId);
-
-        // Check if verification is required for this business type
-        if ($listing->business_type === 'domain' && !MarketplaceSetting::requireDomainVerification()) {
-            $notify[] = ['info', 'Domain verification is not required for this listing'];
-            return back()->withNotify($notify);
-        }
-
-        if ($listing->business_type === 'website' && !MarketplaceSetting::requireWebsiteVerification()) {
-            $notify[] = ['info', 'Website verification is not required for this listing'];
-            return back()->withNotify($notify);
-        }
-
-        if ($listing->business_type === 'social_media_account' && !MarketplaceSetting::requireSocialMediaVerification()) {
-            $notify[] = ['info', 'Social media verification is not required for this listing'];
-            return back()->withNotify($notify);
-        }
-
-        // Check if already verified
-        if ($listing->is_verified) {
-            $notify[] = ['success', 'This listing is already verified'];
-            return back()->withNotify($notify);
-        }
-
-        // Validate domain/website is accessible before starting verification
-        $domain = DomainVerification::extractDomain($listing);
-        if (!$domain) {
-            $notify[] = ['error', 'Could not extract domain from listing. Please ensure the domain/website URL is valid.'];
-            return back()->withNotify($notify);
-        }
-
-        // Check accessibility
-        $url = $listing->url ?? ($listing->business_type === 'domain' ? 'https://' . $domain : null);
-        if ($url) {
-            $accessibility = checkDomainAccessibility($url, 5);
-            if (!$accessibility['accessible']) {
-                $notify[] = ['error', 'Domain/website is not accessible. Please ensure it is live and accessible before verification. Error: ' . ($accessibility['error'] ?? 'Unknown error')];
-                return back()->withNotify($notify);
-            }
-        }
-
-        $request->validate([
-            'verification_method' => 'required|in:txt_file,dns_record',
-        ]);
-
-        // Check if method is allowed
-        $allowedMethods = MarketplaceSetting::getDomainVerificationMethods();
-        if (!in_array($request->verification_method, $allowedMethods)) {
-            $notify[] = ['error', 'This verification method is not allowed'];
-            return back()->withNotify($notify);
-        }
-
-        // Create or update verification
-        $verification = DomainVerification::createForListing($listing, $request->verification_method);
-
-        if (!$verification) {
-            $notify[] = ['error', 'Could not create verification. Please ensure the domain/website URL is valid.'];
-            return back()->withNotify($notify);
-        }
-
-        $notify[] = ['success', 'Verification process started. Please follow the instructions below.'];
-        return redirect()->route('user.verification.show', $verification->id)->withNotify($notify);
-    }
-
-    public function verify(Request $request, $id)
-    {
-        $verification = DomainVerification::where('user_id', auth()->id())
-            ->pending()
-            ->notExpired()
-            ->findOrFail($id);
-
-        $result = $verification->verify();
-
-        if ($result) {
-            // Update listing status
-            $listing = $verification->listing;
-            if ($listing) {
-                $listing->is_verified = true;
-                $listing->requires_verification = false;
-                if ($listing->status === Status::LISTING_DRAFT) {
-                    $listing->status = Status::LISTING_PENDING;
-                }
-                $listing->save();
-            }
-            
-            $notify[] = ['success', 'Domain verified successfully! Your listing is now pending admin approval.'];
-            return redirect()->route('user.listing.index')->withNotify($notify);
-        }
-
-        $errorMessage = $verification->error_message ?? 'Verification failed. Please check the instructions and try again.';
-        
-        // Provide helpful error messages
-        if (strpos($errorMessage, 'File not accessible') !== false) {
-            $errorMessage .= "\n\nTips:\n- Ensure the file is uploaded to your domain root directory\n- Check that the file is accessible via HTTPS\n- Wait a few minutes for DNS/CDN propagation\n- Verify the file contains ONLY the verification token (no extra spaces or characters)";
-        } elseif (strpos($errorMessage, 'DNS') !== false) {
-            $errorMessage .= "\n\nTips:\n- DNS changes can take 24-48 hours to propagate\n- Ensure the TXT record name and value are exactly as shown\n- Check your DNS provider's documentation for adding TXT records";
-        }
-        
-        $notify[] = ['error', $errorMessage];
-        return back()->withNotify($notify);
-    }
-
-    public function changeMethod(Request $request, $id)
-    {
-        $verification = DomainVerification::where('user_id', auth()->id())
-            ->pending()
-            ->findOrFail($id);
-
-        $request->validate([
-            'verification_method' => 'required|in:txt_file,dns_record',
-        ]);
-
-        // Check if method is allowed
-        $allowedMethods = MarketplaceSetting::getDomainVerificationMethods();
-        if (!in_array($request->verification_method, $allowedMethods)) {
-            return back()->with('error', 'This verification method is not allowed');
-        }
-
-        // Regenerate verification with new method
-        $verification = DomainVerification::createForListing($verification->listing, $request->verification_method);
-
-        $notify[] = ['success', 'Verification method changed successfully'];
-        return redirect()->route('user.verification.show', $verification->id)->withNotify($notify);
-    }
-
-    public function downloadFile($id)
-    {
-        $verification = DomainVerification::where('user_id', auth()->id())
-            ->where('verification_method', DomainVerification::METHOD_FILE)
-            ->findOrFail($id);
-
-        $content = $verification->verification_token;
-        $filename = $verification->verification_data['filename'] ?? 'verification.txt';
-
-        return response($content)
-            ->header('Content-Type', 'text/plain')
-            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
-    }
-
-    /**
-     * API: Get verification status
-     */
-    public function getStatus($id)
-    {
-        $verification = DomainVerification::where('user_id', auth()->id())
-            ->findOrFail($id);
-
-        return response()->json([
-            'status' => $verification->status,
-            'domain' => $verification->domain,
-            'method' => $verification->verification_method,
-            'verified_at' => $verification->verified_at?->toISOString(),
-            'attempts_used' => $verification->attempt_count,
-            'attempts_remaining' => $verification->getRemainingAttempts(),
-            'can_attempt' => $verification->canAttempt(),
-            'expires_at' => $verification->expires_at?->toISOString(),
-            'error_message' => $verification->error_message,
+            'token' => $verificationData['token'],
+            'filename' => $verificationData['filename'] ?? null,
+            'expected_url' => $verificationData['expected_url'] ?? null,
+            'content' => $verificationData['token'],
+            'dns_name' => $verificationData['dns_name'] ?? null,
+            'dns_value' => $verificationData['token'],
         ]);
     }
 
     /**
-     * API: Trigger verification check
+     * Verify domain ownership
      */
-    public function checkVerification($id)
-    {
-        $verification = DomainVerification::where('user_id', auth()->id())
-            ->where('status', DomainVerification::STATUS_PENDING)
-            ->findOrFail($id);
-
-        if (!$verification->canAttempt()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot attempt verification. Check attempts remaining or expiration.',
-            ], 400);
-        }
-
-        $result = $verification->verify();
-
-        return response()->json([
-            'success' => $result,
-            'status' => $verification->status,
-            'message' => $result
-                ? 'Domain ownership verified successfully!'
-                : ($verification->error_message ?? 'Verification failed. Please try again.'),
-            'attempts_remaining' => $verification->getRemainingAttempts(),
-        ]);
-    }
-
-    /**
-     * AJAX verification endpoint for listing creation page
-     * Simplified, more reliable verification
-     */
-    public function verifyAjax(Request $request)
+    public function verifyDomain(Request $request)
     {
         $request->validate([
             'domain' => 'required|string',
@@ -315,53 +82,128 @@ class DomainVerificationController extends Controller
             'dns_name' => 'required_if:method,dns_record|string',
         ]);
 
-        // Check if method is allowed
-        $allowedMethods = MarketplaceSetting::getDomainVerificationMethods();
-        $methodMap = [
-            'txt_file' => 'txt_file',
-            'dns_record' => 'dns_record'
-        ];
-        $legacyMethod = $methodMap[$request->method] ?? $request->method;
-
-        if (!in_array($legacyMethod, $allowedMethods)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This verification method is not allowed'
-            ], 400);
-        }
-
-        $domain = trim($request->domain);
+        $domain = $this->normalizeDomain($request->domain);
         $method = $request->method;
         $token = trim($request->token);
 
-        try {
-            if ($method === DomainVerification::METHOD_TXT_FILE) {
-                return $this->verifyTxtFileAjax($domain, $token, $request->filename);
-            } else {
-                return $this->verifyDnsAjax($domain, $token, $request->dns_name);
-            }
-        } catch (\Exception $e) {
+        $cacheKey = 'verification_' . auth()->id() . '_' . $domain;
+        $verificationData = Cache::get($cacheKey);
+
+        if (!$verificationData || $verificationData['token'] !== $token) {
             return response()->json([
                 'success' => false,
-                'message' => 'Verification failed: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Verification session expired or invalid. Please start verification again.'
+            ], 400);
         }
+
+        $success = false;
+        $message = '';
+
+        if ($method === 'txt_file') {
+            $success = $this->verifyTxtFile($domain, $request->filename, $token);
+            $message = $success ? 'Domain verified successfully!' : 'Verification file not found or content doesn\'t match.';
+        } else {
+            $success = $this->verifyDnsRecord($domain, $request->dns_name, $token);
+            $message = $success ? 'Domain verified successfully!' : 'DNS record not found or doesn\'t match.';
+        }
+
+        if ($success) {
+            // Store successful verification
+            $verifiedCacheKey = 'verified_domain_' . auth()->id() . '_' . $domain;
+            Cache::put($verifiedCacheKey, [
+                'domain' => $domain,
+                'verified_at' => now(),
+                'method' => $method,
+                'token' => $token
+            ], 2592000); // 30 days
+        }
+
+        return response()->json([
+            'success' => $success,
+            'message' => $message,
+        ]);
     }
 
     /**
-     * Verify TXT file via AJAX
+     * Download verification file
      */
-    private function verifyTxtFileAjax($domain, $token, $filename)
+    public function downloadFile(Request $request)
     {
-        // Try these locations in order
-        $urls = [
-            'https://' . $domain . '/' . $filename,
-            'http://' . $domain . '/' . $filename,
-            'https://' . $domain . '/.well-known/' . $filename,
+        $domain = $this->normalizeDomain($request->get('domain'));
+        $cacheKey = 'verification_' . auth()->id() . '_' . $domain;
+        $verificationData = Cache::get($cacheKey);
+
+        if (!$verificationData) {
+            abort(404, 'Verification data not found');
+        }
+
+        $filename = $verificationData['filename'] ?? 'verification.txt';
+        $content = $verificationData['token'];
+
+        return response($content)
+            ->header('Content-Type', 'text/plain')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    }
+
+    // Private helper methods
+
+    private function normalizeDomain($domain)
+    {
+        // Remove protocol and www
+        $domain = preg_replace('#^https?://#', '', $domain);
+        $domain = preg_replace('#^www\.#', '', $domain);
+        return trim($domain);
+    }
+
+    private function isDomainAccessible($domain)
+    {
+        // Simple check - try to connect
+        $url = 'https://' . $domain;
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 5,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_NOBODY => true, // HEAD request
+        ]);
+
+        curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        return $httpCode >= 200 && $httpCode < 400;
+    }
+
+    private function generateVerificationData($domain, $method)
+    {
+        $token = 'verify_' . bin2hex(random_bytes(16));
+
+        $data = [
+            'domain' => $domain,
+            'method' => $method,
+            'token' => $token,
+            'created_at' => now(),
         ];
 
-        $lastError = null;
-        $foundContent = null;
+        if ($method === 'txt_file') {
+            $filename = 'flippa-verify-' . substr($token, 0, 8) . '.txt';
+            $data['filename'] = $filename;
+            $data['expected_url'] = 'https://' . $domain . '/' . $filename;
+        } elseif ($method === 'dns_record') {
+            $dnsName = '_flippa-verify-' . substr($token, 0, 8);
+            $data['dns_name'] = $dnsName;
+        }
+
+        return $data;
+    }
+
+    private function verifyTxtFile($domain, $filename, $expectedToken)
+    {
+        $urls = [
+            "https://{$domain}/{$filename}",
+            "http://{$domain}/{$filename}",
+        ];
 
         foreach ($urls as $url) {
             try {
@@ -369,129 +211,50 @@ class DomainVerificationController extends Controller
                 curl_setopt_array($ch, [
                     CURLOPT_RETURNTRANSFER => true,
                     CURLOPT_FOLLOWLOCATION => true,
-                    CURLOPT_MAXREDIRS => 3,
                     CURLOPT_TIMEOUT => 10,
-                    CURLOPT_CONNECTTIMEOUT => 8,
                     CURLOPT_SSL_VERIFYPEER => false,
-                    CURLOPT_SSL_VERIFYHOST => false,
-                    CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; VerificationBot/1.0)',
+                    CURLOPT_USERAGENT => 'DomainVerification/1.0',
                 ]);
-                
+
                 $content = curl_exec($ch);
                 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                $curlError = curl_error($ch);
                 curl_close($ch);
-                
-                if ($content !== false && $httpCode >= 200 && $httpCode < 300) {
-                    $foundContent = $content;
-                    
-                    // Simple normalization: remove all whitespace
-                    $cleanContent = preg_replace('/\s+/', '', trim($content));
-                    $cleanToken = preg_replace('/\s+/', '', trim($token));
-                    
-                    if ($cleanContent === $cleanToken) {
-                        return response()->json([
-                            'success' => true,
-                            'message' => 'Domain ownership verified successfully!'
-                        ]);
-                    }
-                } else {
-                    if ($curlError) {
-                        $lastError = $curlError;
-                    } else {
-                        $lastError = "HTTP $httpCode";
+
+                if ($httpCode >= 200 && $httpCode < 300 && $content) {
+                    $normalizedContent = preg_replace('/\s+/', '', trim($content));
+                    $normalizedToken = preg_replace('/\s+/', '', trim($expectedToken));
+
+                    if ($normalizedContent === $normalizedToken) {
+                        return true;
                     }
                 }
             } catch (\Exception $e) {
-                $lastError = $e->getMessage();
                 continue;
             }
         }
 
-        // Build helpful error message
-        $errorMessage = "Verification failed. ";
-        
-        if ($foundContent !== null) {
-            $errorMessage = "File found but content doesn't match.\n\n";
-            $errorMessage .= "Expected: " . substr($token, 0, 50) . "...\n";
-            $errorMessage .= "Found: " . substr(trim($foundContent), 0, 50) . "...\n\n";
-            $errorMessage .= "Please ensure the file contains ONLY the verification token with no extra spaces or characters.";
-        } else {
-            $errorMessage .= "File not accessible at: https://{$domain}/{$filename}\n\n";
-            $errorMessage .= "Please ensure:\n";
-            $errorMessage .= "1. The file is uploaded to your domain root directory\n";
-            $errorMessage .= "2. The file is accessible via HTTPS\n";
-            $errorMessage .= "3. The file name is exactly: {$filename}\n";
-            $errorMessage .= "4. The file contains ONLY this text: {$token}";
-            
-            if ($lastError) {
-                $errorMessage .= "\n\nError: {$lastError}";
-            }
-        }
-        
-        return response()->json([
-            'success' => false,
-            'message' => $errorMessage
-        ]);
+        return false;
     }
 
-    /**
-     * Verify DNS TXT record via AJAX
-     */
-    private function verifyDnsAjax($domain, $token, $dnsName)
+    private function verifyDnsRecord($domain, $recordName, $expectedToken)
     {
         try {
-            // Try with subdomain prefix
-            $recordName = $dnsName . '.' . $domain;
-            $records = @dns_get_record($recordName, DNS_TXT);
-            
-            if ($records && is_array($records)) {
+            $records = @dns_get_record($recordName . '.' . $domain, DNS_TXT);
+            if ($records) {
                 foreach ($records as $record) {
                     if (isset($record['txt'])) {
-                        $recordValue = trim($record['txt'], '"');
-                        if ($recordValue === $token) {
-                            return response()->json([
-                                'success' => true,
-                                'message' => 'Domain ownership verified successfully!'
-                            ]);
+                        $value = trim($record['txt'], '"');
+                        if ($value === $expectedToken) {
+                            return true;
                         }
                     }
                 }
             }
-
-            // Try at domain root
-            $records = @dns_get_record($domain, DNS_TXT);
-            if ($records && is_array($records)) {
-                foreach ($records as $record) {
-                    if (isset($record['txt'])) {
-                        $recordValue = trim($record['txt'], '"');
-                        if ($recordValue === $token) {
-                            return response()->json([
-                                'success' => true,
-                                'message' => 'Domain ownership verified successfully!'
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            $errorMessage = "DNS TXT record not found.\n\n";
-            $errorMessage .= "Please add a TXT record with:\n";
-            $errorMessage .= "Name/Host: {$dnsName}\n";
-            $errorMessage .= "Value/Content: {$token}\n\n";
-            $errorMessage .= "Note: DNS changes can take 5 minutes to 48 hours to propagate. Please wait a few minutes and try again.";
-
-            return response()->json([
-                'success' => false,
-                'message' => $errorMessage
-            ]);
-
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'DNS lookup failed: ' . $e->getMessage() . '. Please check your DNS settings.'
-            ]);
+            return false;
         }
+
+        return false;
     }
 }
 

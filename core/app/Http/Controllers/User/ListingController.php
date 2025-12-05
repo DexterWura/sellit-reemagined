@@ -193,6 +193,9 @@ class ListingController extends Controller
 
         // Check if verification is required for this business type
         $requiresVerification = false;
+        $domain = null;
+        $socialAccount = null;
+
         if ($businessType === 'domain' && MarketplaceSetting::requireDomainVerification()) {
             $requiresVerification = true;
         } elseif ($businessType === 'website' && MarketplaceSetting::requireWebsiteVerification()) {
@@ -203,20 +206,55 @@ class ListingController extends Controller
 
         // If verification is required, check if it was completed
         if ($requiresVerification) {
-            $request->validate([
-                'domain_verified' => 'required|in:1',
-                'verification_token' => 'required|string',
-                'verification_method' => 'required|in:txt_file,dns_record',
-                'verification_filename' => 'required_if:verification_method,txt_file',
-                'verification_dns_name' => 'required_if:verification_method,dns_record',
-            ], [
-                'domain_verified.required' => 'You must verify ownership of your ' . str_replace('_', ' ', $businessType) . ' before submitting the listing.',
-                'domain_verified.in' => 'Verification must be completed before submitting.',
-                'verification_token.required' => 'Verification token is missing.',
-                'verification_method.required' => 'Verification method is required.',
-                'verification_filename.required_if' => 'Verification filename is required.',
-                'verification_dns_name.required_if' => 'DNS record name is required.',
-            ]);
+            if ($businessType === 'domain') {
+                $domain = $this->extractDomain($request->domain_name);
+                $cacheKey = 'verified_domain_' . auth()->id() . '_' . $domain;
+                $verifiedData = \Illuminate\Support\Facades\Cache::get($cacheKey);
+
+                if (!$verifiedData) {
+                    $notify[] = ['error', 'You must verify ownership of your domain before submitting the listing.'];
+                    return back()->withInput()->withNotify($notify);
+                }
+
+                // Store verification details in request for processing
+                $request->merge([
+                    'domain_verified' => '1',
+                    'verification_token' => $verifiedData['token'],
+                    'verification_method' => $verifiedData['method'],
+                ]);
+            } elseif ($businessType === 'website') {
+                $domain = $this->extractDomain($request->website_url);
+                $cacheKey = 'verified_domain_' . auth()->id() . '_' . $domain;
+                $verifiedData = \Illuminate\Support\Facades\Cache::get($cacheKey);
+
+                if (!$verifiedData) {
+                    $notify[] = ['error', 'You must verify ownership of your website before submitting the listing.'];
+                    return back()->withInput()->withNotify($notify);
+                }
+
+                // Store verification details in request for processing
+                $request->merge([
+                    'domain_verified' => '1',
+                    'verification_token' => $verifiedData['token'],
+                    'verification_method' => $verifiedData['method'],
+                ]);
+            } elseif ($businessType === 'social_media_account') {
+                $socialAccount = $request->social_media_username;
+                $cacheKey = 'verified_social_' . auth()->id() . '_' . $request->social_media_platform . '_' . $socialAccount;
+                $verifiedData = \Illuminate\Support\Facades\Cache::get($cacheKey);
+
+                if (!$verifiedData) {
+                    $notify[] = ['error', 'You must verify ownership of your social media account before submitting the listing.'];
+                    return back()->withInput()->withNotify($notify);
+                }
+
+                // Store verification details in request for processing
+                $request->merge([
+                    'social_verified' => '1',
+                    'verification_token' => $verifiedData['token'],
+                    'verification_method' => 'post_verification',
+                ]);
+            }
         }
 
         // Extract domain/website info
@@ -943,6 +981,25 @@ class ListingController extends Controller
                 'user' => ['Your account must be active to create listings']
             ]);
         }
+    }
+
+    /**
+     * Extract domain from URL
+     */
+    private function extractDomain($url)
+    {
+        if (!$url) return null;
+
+        // Remove protocol
+        $url = preg_replace('#^https?://#', '', $url);
+
+        // Remove www
+        $url = preg_replace('#^www\.#', '', $url);
+
+        // Remove path and query
+        $domain = parse_url('https://' . $url, PHP_URL_HOST);
+
+        return $domain ?: null;
     }
 }
 

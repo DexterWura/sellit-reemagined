@@ -3,149 +3,90 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\DomainVerification;
-use App\Models\VerificationSetting;
-use App\Models\VerificationAttempt;
+use App\Models\MarketplaceSetting;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class AdminVerificationController extends Controller
 {
 
     public function verifications(Request $request)
     {
-        $pageTitle = 'Domain Verifications';
+        $pageTitle = 'Verification Settings';
 
-        $query = DomainVerification::with(['user', 'listing']);
-
-        // Filter by status
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Filter by method
-        if ($request->filled('method')) {
-            $query->where('verification_method', $request->method);
-        }
-
-        // Search by domain or user
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('domain', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($userQuery) use ($search) {
-                      $userQuery->where('username', 'like', "%{$search}%")
-                               ->orWhere('email', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        $verifications = $query->latest()->paginate(getPaginate());
-
-        return view('admin.verification.index', compact('pageTitle', 'verifications'));
-    }
-
-    public function show($id)
-    {
-        $verification = DomainVerification::with(['user', 'listing', 'attempts'])->findOrFail($id);
-        $pageTitle = 'Verification Details: ' . $verification->domain;
-
-        return view('admin.verification.show', compact('pageTitle', 'verification'));
-    }
-
-    public function expire($id)
-    {
-        $verification = DomainVerification::findOrFail($id);
-        $verification->update([
-            'status' => DomainVerification::STATUS_EXPIRED,
-            'expires_at' => now(),
-        ]);
-
-        $notify[] = ['success', 'Verification expired successfully'];
-        return back()->withNotify($notify);
-    }
-
-    public function delete($id)
-    {
-        $verification = DomainVerification::findOrFail($id);
-        $verification->delete();
-
-        $notify[] = ['success', 'Verification deleted successfully'];
-        return back()->withNotify($notify);
-    }
-
-    public function statistics()
-    {
-        $pageTitle = 'Verification Statistics';
-
-        $stats = [
-            'total_verifications' => DomainVerification::count(),
-            'pending_verifications' => DomainVerification::where('status', DomainVerification::STATUS_PENDING)->count(),
-            'verified_domains' => DomainVerification::where('status', DomainVerification::STATUS_VERIFIED)->count(),
-            'failed_verifications' => DomainVerification::where('status', DomainVerification::STATUS_FAILED)->count(),
-            'expired_verifications' => DomainVerification::where('status', DomainVerification::STATUS_EXPIRED)->count(),
-            'file_method_count' => DomainVerification::where('verification_method', DomainVerification::METHOD_FILE)->count(),
-            'dns_method_count' => DomainVerification::where('verification_method', DomainVerification::METHOD_DNS)->count(),
-            'avg_attempts' => DomainVerification::avg('attempt_count'),
-            'total_attempts' => VerificationAttempt::count(),
-            'successful_attempts' => VerificationAttempt::whereNull('error_message')->count(),
-            'failed_attempts' => VerificationAttempt::whereNotNull('error_message')->count(),
+        // Since verification is now cache-based, show current settings
+        $settings = [
+            'domain_verification_enabled' => MarketplaceSetting::requireDomainVerification(),
+            'website_verification_enabled' => MarketplaceSetting::requireWebsiteVerification(),
+            'social_media_verification_enabled' => MarketplaceSetting::requireSocialMediaVerification(),
+            'allowed_methods' => MarketplaceSetting::getDomainVerificationMethods(),
+            'cache_driver' => config('cache.default'),
         ];
 
-        // Recent activity
-        $recentVerifications = DomainVerification::with(['user', 'listing'])
-            ->latest()
-            ->limit(10)
-            ->get();
+        $note = 'Note: Verification data is now stored in cache only and not in the database. Historical records are not available.';
 
-        $recentAttempts = VerificationAttempt::with(['domainVerification.user'])
-            ->latest()
-            ->limit(20)
-            ->get();
-
-        return view('admin.verification.statistics', compact(
-            'pageTitle',
-            'stats',
-            'recentVerifications',
-            'recentAttempts'
-        ));
+        return view('admin.verification.index', compact('pageTitle', 'settings', 'note'));
     }
 
-    public function cleanup()
+    public function settings(Request $request)
     {
-        $expiredCount = DomainVerification::expired()->update([
-            'status' => DomainVerification::STATUS_EXPIRED,
+        $pageTitle = 'Verification Settings';
+
+        // Get current marketplace settings for verification
+        $settings = [
+            'require_domain_verification' => MarketplaceSetting::getValue('require_domain_verification', true),
+            'require_website_verification' => MarketplaceSetting::getValue('require_website_verification', true),
+            'require_social_media_verification' => MarketplaceSetting::getValue('require_social_media_verification', true),
+            'domain_verification_methods' => MarketplaceSetting::getValue('domain_verification_methods', '["txt_file","dns_record"]'),
+        ];
+
+        return view('admin.verification.settings', compact('pageTitle', 'settings'));
+    }
+
+    public function updateSettings(Request $request)
+    {
+        $request->validate([
+            'require_domain_verification' => 'boolean',
+            'require_website_verification' => 'boolean',
+            'require_social_media_verification' => 'boolean',
+            'domain_verification_methods' => 'string',
         ]);
 
-        // Delete old verification attempts (older than 30 days)
-        $oldAttemptsCount = VerificationAttempt::where('attempted_at', '<', now()->subDays(30))->delete();
+        // Update marketplace settings
+        MarketplaceSetting::setValue('require_domain_verification', $request->boolean('require_domain_verification'));
+        MarketplaceSetting::setValue('require_website_verification', $request->boolean('require_website_verification'));
+        MarketplaceSetting::setValue('require_social_media_verification', $request->boolean('require_social_media_verification'));
+        MarketplaceSetting::setValue('domain_verification_methods', $request->domain_verification_methods);
 
-        $notify[] = ['success', "Cleanup completed. {$expiredCount} verifications expired, {$oldAttemptsCount} old attempts deleted."];
+        $notify[] = ['success', 'Verification settings updated successfully'];
         return back()->withNotify($notify);
     }
 
     public function debug()
     {
+        $pageTitle = 'Verification Debug Info';
+
         $debug = [
             'marketplace_settings' => [
-                'require_domain_verification' => \App\Models\MarketplaceSetting::requireDomainVerification(),
-                'require_website_verification' => \App\Models\MarketplaceSetting::requireWebsiteVerification(),
-                'require_social_media_verification' => \App\Models\MarketplaceSetting::requireSocialMediaVerification(),
-                'domain_verification_methods' => \App\Models\MarketplaceSetting::getDomainVerificationMethods(),
+                'require_domain_verification' => MarketplaceSetting::requireDomainVerification(),
+                'require_website_verification' => MarketplaceSetting::requireWebsiteVerification(),
+                'require_social_media_verification' => MarketplaceSetting::requireSocialMediaVerification(),
+                'domain_verification_methods' => MarketplaceSetting::getDomainVerificationMethods(),
             ],
-            'marketplace_setting_methods' => [
-                'requireDomainVerification' => \App\Models\MarketplaceSetting::requireDomainVerification(),
-                'requireWebsiteVerification' => \App\Models\MarketplaceSetting::requireWebsiteVerification(),
-                'requireSocialMediaVerification' => \App\Models\MarketplaceSetting::requireSocialMediaVerification(),
-                'getDomainVerificationMethods' => \App\Models\MarketplaceSetting::getDomainVerificationMethods(),
+            'cache_info' => [
+                'driver' => config('cache.default'),
+                'ttl_verification_sessions' => 86400, // 24 hours
+                'ttl_verified_status' => 2592000, // 30 days
             ],
-            'total_verifications' => DomainVerification::count(),
-            'pending_verifications' => DomainVerification::where('status', DomainVerification::STATUS_PENDING)->count(),
-            'verified_domains' => DomainVerification::where('status', DomainVerification::STATUS_VERIFIED)->count(),
-            'failed_verifications' => DomainVerification::where('status', DomainVerification::STATUS_FAILED)->count(),
-            'expired_verifications' => DomainVerification::where('status', DomainVerification::STATUS_EXPIRED)->count(),
+            'note' => 'Verification data is now stored in cache only. No database records are created for individual verifications.',
+            'total_verifications_db' => 0, // No longer stored in DB
+            'cache_keys_pattern' => [
+                'verification_sessions' => 'verification_{user_id}_{domain/platform}_{account}',
+                'verified_domains' => 'verified_domain_{user_id}_{domain}',
+                'verified_social' => 'verified_social_{user_id}_{platform}_{username}',
+            ],
         ];
 
-        return view('admin.verification.debug', compact('debug'));
+        return view('admin.verification.debug', compact('pageTitle', 'debug'));
     }
 }

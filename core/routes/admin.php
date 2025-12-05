@@ -175,11 +175,8 @@ Route::middleware('admin')->group(function () {
     // Domain Verification Management (View Only - Settings Controlled by Marketplace Config)
     Route::controller('AdminVerificationController')->prefix('verification')->name('verification.')->group(function () {
         Route::get('/', 'verifications')->name('index');
-        Route::get('statistics', 'statistics')->name('statistics');
-        Route::get('show/{id}', 'show')->name('show');
-        Route::post('expire/{id}', 'expire')->name('expire');
-        Route::post('delete/{id}', 'delete')->name('delete');
-        Route::post('cleanup', 'cleanup')->name('cleanup');
+        Route::get('settings', 'settings')->name('settings');
+        Route::post('settings', 'updateSettings')->name('update.settings');
         Route::get('debug', 'debug')->name('debug');
     });
 
