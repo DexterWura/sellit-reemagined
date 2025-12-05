@@ -626,4 +626,31 @@ class SystemController extends Controller
 
         file_put_contents($autoloadPsr4Path, $content);
     }
+
+    public function runMigrations()
+    {
+        $pageTitle = 'Run Database Migrations';
+        return view('admin.system.migrations', compact('pageTitle'));
+    }
+
+    public function runMigrationsProcess()
+    {
+        try {
+            // Run migrations
+            Artisan::call('migrate', ['--force' => true]);
+
+            $output = Artisan::output();
+
+            $notify[] = ['success', 'Migrations completed successfully'];
+            if (!empty($output)) {
+                $notify[] = ['info', 'Migration output: ' . $output];
+            }
+
+            return back()->withNotify($notify);
+
+        } catch (\Exception $e) {
+            $notify[] = ['error', 'Migration failed: ' . $e->getMessage()];
+            return back()->withNotify($notify);
+        }
+    }
 }

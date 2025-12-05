@@ -407,6 +407,8 @@ Route::middleware('admin')->group(function () {
         Route::post('composer-manual', 'manualInstall')->name('composer.manual');
         Route::get('direct-download', 'directDownload')->name('composer.direct');
         Route::post('download-package/{package}', 'downloadPackage')->name('composer.package');
+        Route::get('run-migrations', 'runMigrations')->name('migrations');
+        Route::post('run-migrations', 'runMigrationsProcess')->name('migrations.run');
         Route::get('system-update', 'systemUpdate')->name('update');
         // Update process route disabled - functionality removed
         // Route::post('system-update', 'systemUpdateProcess')->name('update.process');
