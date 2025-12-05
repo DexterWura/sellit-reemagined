@@ -38,9 +38,6 @@ class MarketplaceConfigController extends Controller
             'allow_social_media_listings',
             'allow_mobile_app_listings',
             'allow_desktop_app_listings',
-            'require_domain_verification',
-            'require_website_verification',
-            'require_social_media_verification',
             'listing_approval_required',
         ];
 
@@ -67,18 +64,6 @@ class MarketplaceConfigController extends Controller
             }
         }
 
-        // Verification methods (array)
-        $verificationMethods = [];
-        if ($request->has('verification_txt_file')) {
-            $verificationMethods[] = 'txt_file';
-        }
-        if ($request->has('verification_dns_record')) {
-            $verificationMethods[] = 'dns_record';
-        }
-        if (empty($verificationMethods)) {
-            $verificationMethods = ['txt_file', 'dns_record'];
-        }
-        MarketplaceSetting::setValue('domain_verification_methods', json_encode($verificationMethods));
 
         MarketplaceSetting::clearCache();
 

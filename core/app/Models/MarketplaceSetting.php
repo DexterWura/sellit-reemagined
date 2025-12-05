@@ -19,15 +19,7 @@ class MarketplaceSetting extends Model
                 $setting = self::where('key', $key)->first();
                 return $setting ? $setting->value : $default;
             } catch (\Exception $e) {
-                // Database not available, return default values for verification
-                $verificationDefaults = [
-                    'require_domain_verification' => true,
-                    'require_website_verification' => true,
-                    'require_social_media_verification' => true,
-                    'domain_verification_methods' => '["txt_file","dns_record"]'
-                ];
-
-                return $verificationDefaults[$key] ?? $default;
+                return $default;
             }
         });
     }
@@ -108,46 +100,6 @@ class MarketplaceSetting extends Model
         return (int) self::getValue('min_auction_days', 1);
     }
 
-    public static function requireDomainVerification()
-    {
-        try {
-            return (bool) self::getValue('require_domain_verification', true);
-        } catch (\Exception $e) {
-            // Database not available, default to enabled for verification
-            return true;
-        }
-    }
-
-    public static function requireWebsiteVerification()
-    {
-        try {
-            return (bool) self::getValue('require_website_verification', true);
-        } catch (\Exception $e) {
-            // Database not available, default to enabled for verification
-            return true;
-        }
-    }
-
-    public static function requireSocialMediaVerification()
-    {
-        try {
-            return (bool) self::getValue('require_social_media_verification', true);
-        } catch (\Exception $e) {
-            // Database not available, default to enabled for verification
-            return true;
-        }
-    }
-
-    public static function getDomainVerificationMethods()
-    {
-        try {
-            $methods = self::getValue('domain_verification_methods', '["txt_file","dns_record"]');
-            return json_decode($methods, true) ?? ['txt_file', 'dns_record'];
-        } catch (\Exception $e) {
-            // Database not available, default methods
-            return ['txt_file', 'dns_record'];
-        }
-    }
 
     public static function requireListingApproval()
     {

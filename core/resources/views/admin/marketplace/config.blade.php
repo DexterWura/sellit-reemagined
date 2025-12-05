@@ -123,66 +123,6 @@
                 </div>
             </div>
 
-            <!-- Verification Settings -->
-            <div class="card mb-4">
-                <div class="card-header bg--warning">
-                    <h5 class="card-title text-white mb-0">
-                        <i class="las la-shield-alt me-2"></i>Domain/Website Verification
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-lg-6">
-                            <div class="form-group">
-                                <label class="form-check-label d-flex align-items-center gap-2">
-                                    <input type="checkbox" name="require_domain_verification" class="form-check-input"
-                                           {{ ($settings['require_domain_verification'] ?? '1') == '1' ? 'checked' : '' }}>
-                                    <span>Require Domain Verification</span>
-                                </label>
-                                <small class="text-muted">Users must verify ownership of domain listings</small>
-                            </div>
-                            <div class="form-group mt-3">
-                                <label class="form-check-label d-flex align-items-center gap-2">
-                                    <input type="checkbox" name="require_website_verification" class="form-check-input"
-                                           {{ ($settings['require_website_verification'] ?? '1') == '1' ? 'checked' : '' }}>
-                                    <span>Require Website Verification</span>
-                                </label>
-                                <small class="text-muted">Users must verify ownership of website listings</small>
-                            </div>
-                            <div class="form-group mt-3">
-                                <label class="form-check-label d-flex align-items-center gap-2">
-                                    <input type="checkbox" name="require_social_media_verification" class="form-check-input"
-                                           {{ ($settings['require_social_media_verification'] ?? '1') == '1' ? 'checked' : '' }}>
-                                    <span>Require Social Media Verification</span>
-                                </label>
-                                <small class="text-muted">Users must verify ownership of social media accounts via OAuth</small>
-                            </div>
-                        </div>
-                        <div class="col-lg-6">
-                            <label class="form-label">Allowed Verification Methods</label>
-                            @php
-                                $methods = json_decode($settings['domain_verification_methods'] ?? '["txt_file","dns_record"]', true) ?? ['txt_file', 'dns_record'];
-                            @endphp
-                            <div class="form-group">
-                                <label class="form-check-label d-flex align-items-center gap-2">
-                                    <input type="checkbox" name="verification_txt_file" class="form-check-input"
-                                           {{ in_array('txt_file', $methods) ? 'checked' : '' }}>
-                                    <span>TXT File Upload</span>
-                                </label>
-                                <small class="text-muted">Upload a verification file to domain root</small>
-                            </div>
-                            <div class="form-group mt-2">
-                                <label class="form-check-label d-flex align-items-center gap-2">
-                                    <input type="checkbox" name="verification_dns_record" class="form-check-input"
-                                           {{ in_array('dns_record', $methods) ? 'checked' : '' }}>
-                                    <span>DNS TXT Record</span>
-                                </label>
-                                <small class="text-muted">Add a TXT record to DNS settings</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <!-- Listing Settings -->
             <div class="card mb-4">

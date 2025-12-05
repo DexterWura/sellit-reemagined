@@ -109,41 +109,12 @@
                                         <br>
                                         <small class="text-danger">{{ Str::limit($listing->rejection_reason, 30) }}</small>
                                     @endif
-                                    @if($listing->requires_verification && !$listing->is_verified)
-                                        <br>
-                                        @if($listing->domainVerification)
-                                            @if($listing->domainVerification->status == 0)
-                                                <span class="badge badge--warning">
-                                                    <i class="las la-shield-alt"></i> @lang('Pending Verification')
-                                                </span>
-                                            @elseif($listing->domainVerification->status == 2)
-                                                <span class="badge badge--danger">
-                                                    <i class="las la-times-circle"></i> @lang('Verification Failed')
-                                                </span>
-                                            @endif
-                                        @else
-                                            <span class="badge badge--info">
-                                                <i class="las la-info-circle"></i> @lang('Needs Verification')
-                                            </span>
-                                        @endif
-                                    @elseif($listing->is_verified)
-                                        <br>
-                                        <span class="badge badge--success">
-                                            <i class="las la-check-circle"></i> @lang('Verified')
-                                        </span>
-                                    @endif
                                 </td>
                                 <td>
                                     <div class="btn-group">
                                         <a href="{{ route('user.listing.show', $listing->id) }}" class="btn btn-sm btn-outline-primary" title="@lang('View')">
                                             <i class="las la-eye"></i>
                                         </a>
-                                        @if($listing->requires_verification && !$listing->is_verified && $listing->domainVerification)
-                                            <a href="{{ route('user.verification.show', $listing->domainVerification->id) }}" 
-                                               class="btn btn-sm btn-outline-success" title="@lang('Verify Domain')">
-                                                <i class="las la-shield-alt"></i>
-                                            </a>
-                                        @endif
                                         @if(in_array($listing->status, [\App\Constants\Status::LISTING_DRAFT, \App\Constants\Status::LISTING_PENDING, \App\Constants\Status::LISTING_REJECTED]))
                                             <a href="{{ route('user.listing.edit', $listing->id) }}" class="btn btn-sm btn-outline-secondary" title="@lang('Edit')">
                                                 <i class="las la-edit"></i>

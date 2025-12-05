@@ -12,7 +12,6 @@ class Listing extends Model
 
     protected $casts = [
         'is_verified' => 'boolean',
-        'requires_verification' => 'boolean',
         'revenue_verified' => 'boolean',
         'traffic_verified' => 'boolean',
         'is_featured' => 'boolean',

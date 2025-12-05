@@ -192,32 +192,6 @@ class ListingController extends Controller
         $this->validateListingBusinessLogic($request, $user);
 
         // Check if verification is required for this business type
-        $requiresVerification = false;
-        $domain = null;
-        $socialAccount = null;
-
-        if ($businessType === 'domain' && MarketplaceSetting::requireDomainVerification()) {
-            $requiresVerification = true;
-        } elseif ($businessType === 'website' && MarketplaceSetting::requireWebsiteVerification()) {
-            $requiresVerification = true;
-        } elseif ($businessType === 'social_media_account' && MarketplaceSetting::requireSocialMediaVerification()) {
-            $requiresVerification = true;
-        }
-
-        // If verification is required, check if client-side verification was completed
-        if ($requiresVerification) {
-            if ($request->website_verified !== '1') {
-                $notify[] = ['error', 'You must verify ownership before submitting the listing.'];
-                return back()->withInput()->withNotify($notify);
-            }
-
-            // Store verification details for all business types
-            $request->merge([
-                'domain_verified' => '1',
-                'verification_method' => $request->verification_method ?: 'txt_file',
-                'verification_token' => $request->verification_token ?: 'client_verified_' . time(),
-            ]);
-        }
 
         // Extract domain/website info
         $domain = null;
@@ -306,35 +280,7 @@ class ListingController extends Controller
         $listing->meta_title = $request->meta_title ?? $title;
         $listing->meta_description = $request->meta_description ?? Str::limit(strip_tags($request->description), 160);
 
-        // Set status based on verification requirements and completion
-        if ($requiresVerification && $request->domain_verified == '1') {
-            // Verification was completed during creation - set to pending
-            $listing->status = Status::LISTING_PENDING;
-            $listing->requires_verification = false;
-            $listing->is_verified = true;
-
-            // Store verification details
-            $listing->verification_token = $request->verification_token;
-            $listing->verification_method = $request->verification_method ?? 'file';
-            $listing->verification_filename = $request->verification_filename;
-            $listing->verification_dns_name = $request->verification_dns_name;
-            $listing->verified_at = now();
-
-            \Log::info('Listing created with verification completed', [
-                'listing_id' => $listing->id,
-                'domain' => $domain,
-                'verification_method' => $listing->verification_method
-            ]);
-        } elseif ($requiresVerification) {
-            // This shouldn't happen since we check verification above, but just in case
-            $notify[] = ['error', 'Verification is required but was not completed.'];
-            return back()->withInput()->withNotify($notify);
-        } else {
-            // No verification required - can go directly to pending
-            $listing->status = Status::LISTING_PENDING;
-            $listing->requires_verification = false;
-            $listing->is_verified = false;
-        }
+        $listing->status = Status::LISTING_PENDING;
 
         $listing->save();
 
@@ -349,8 +295,6 @@ class ListingController extends Controller
             'sale_type' => $listing->sale_type,
             'asking_price' => $listing->asking_price,
             'status' => $listing->status,
-            'requires_verification' => $listing->requires_verification,
-            'verification_required' => $requiresVerification,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent()
         ]);

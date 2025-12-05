@@ -11,7 +11,7 @@
                     <div class="progress-steps">
                         <div class="step active" data-step="1">
                             <span class="step-number">1</span>
-                            <span class="step-text">@lang('Domain & Verification')</span>
+                            <span class="step-text">@lang('Domain')</span>
                         </div>
                         <div class="step" data-step="2">
                             <span class="step-number">2</span>
@@ -53,7 +53,7 @@
                             @csrf
                             
                             {{-- ============================================
-                                 STEP 1: Business Type, Domain/Website Entry & Verification
+                                 STEP 1: Business Type, Domain/Website Entry
                                  ============================================ --}}
                             <div class="form-step" data-step="1">
                                 <div class="step-header mb-4">
@@ -184,7 +184,6 @@
                                 </div>
                                 
                                 {{-- Website/Domain Verification --}}
-                                @include($activeTemplate . 'user.listing.partials.website-verification')
                                 
                                 <div class="step-actions mt-4 d-flex justify-content-between">
                                     <div></div>
@@ -666,7 +665,6 @@
                                 </div>
                             </div>
                             
-                            {{-- Step 5 removed - verification is now in Step 1 --}}
                             {{-- All Step 5 content has been moved to Step 1 to prevent duplicate IDs --}}
                             
                         </form>
@@ -698,200 +696,6 @@ $(document).ready(function() {
         currentStage: {{ $currentStage ?? 1 }}
     });
 
-    // Website/Domain Verification Handler
-    @if(\App\Models\MarketplaceSetting::requireWebsiteVerification() || \App\Models\MarketplaceSetting::requireDomainVerification())
-    window.WebsiteVerificationHandler = {
-        currentToken: '',
-        currentDomain: '',
-
-        init: function() {
-            this.bindEvents();
-            this.checkVerificationRequirement();
-        },
-
-        bindEvents: function() {
-            $('#websiteVerificationMethod').on('change', this.onMethodChange.bind(this));
-            $('#verifyWebsiteBtn').on('click', this.verifyDomain.bind(this));
-            $('#downloadWebsiteTxtFile').on('click', this.downloadFile.bind(this));
-            $('input[name="business_type"]').on('change', this.checkVerificationRequirement.bind(this));
-            $('#website_url, #domain_name').on('input', this.generateVerificationToken.bind(this));
-        },
-
-        checkVerificationRequirement: function() {
-            var businessType = $('input[name="business_type"]:checked').val();
-            var hasUrl = false;
-
-            if (businessType === 'website') {
-                hasUrl = $('#website_url').val().trim() !== '';
-            } else if (businessType === 'domain') {
-                hasUrl = $('#domain_name').val().trim() !== '';
-            }
-
-            var requiresVerification = false;
-            @if(\App\Models\MarketplaceSetting::requireDomainVerification())
-                if (businessType === 'domain') requiresVerification = true;
-            @endif
-            @if(\App\Models\MarketplaceSetting::requireWebsiteVerification())
-                if (businessType === 'website') requiresVerification = true;
-            @endif
-
-            if (requiresVerification && hasUrl) {
-                $('#websiteVerificationSection').show();
-                this.generateVerificationToken();
-            } else {
-                $('#websiteVerificationSection').hide();
-                $('#websiteVerified').val('0');
-            }
-        },
-
-        generateVerificationToken: function() {
-            var businessType = $('input[name="business_type"]:checked').val();
-            var domain = businessType === 'website' ? $('#website_url').val() : $('#domain_name').val();
-
-            if (!domain || !domain.includes('.')) {
-                $('#websiteVerificationSection').hide();
-                return;
-            }
-
-            domain = domain.replace(/^https?:\/\//, '').split('/')[0];
-            this.currentDomain = domain;
-
-            // Generate persistent token for this domain
-            var sessionKey = 'zimadsense_verification_' + domain;
-            var uniquePart = sessionStorage.getItem(sessionKey);
-            if (!uniquePart) {
-                uniquePart = crypto.randomUUID().replace(/-/g, '');
-                sessionStorage.setItem(sessionKey, uniquePart);
-            }
-
-            this.currentToken = 'zimadsense-verification=' + uniquePart;
-
-            // Update UI
-            this.updateVerificationUI();
-        },
-
-        updateVerificationUI: function() {
-            var method = $('#websiteVerificationMethod').val();
-
-            $('.verification-method-content').hide();
-
-            if (method === 'txt_file') {
-                $('#websiteTxtFileMethod').show();
-                $('#websiteTxtFileUrl').text('http://' + this.currentDomain + '/zimadsense.txt');
-                $('#verificationToken').text(this.currentToken);
-            } else if (method === 'dns_record') {
-                $('#websiteDnsRecordMethod').show();
-                $('#websiteDnsRecordName').text('_zimadsense_verification.' + this.currentDomain + '.');
-                $('#dnsVerificationToken').text(this.currentToken);
-            }
-        },
-
-        onMethodChange: function() {
-            $('#websiteVerified').val('0');
-            this.updateVerificationUI();
-        },
-
-        verifyDomain: function() {
-            var method = $('#websiteVerificationMethod').val();
-
-            if (!this.currentDomain || !this.currentToken) {
-                this.showStatus('Please enter domain and generate verification data first.', 'danger');
-                return;
-            }
-
-            $('#verifyWebsiteBtn').prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i>Verifying...');
-            this.showStatus('Attempting verification...', 'info');
-
-            if (method === 'dns_record') {
-                this.showStatus('DNS verification requires a backend server to query DNS records.', 'warning');
-                $('#verifyWebsiteBtn').prop('disabled', false).html('<i class="las la-check-circle me-1"></i>Verify Domain Now');
-                return;
-            }
-
-            // TXT File verification with CORS handling
-            var fileUrl = 'http://' + this.currentDomain + '/zimadsense.txt';
-
-            fetch(fileUrl, {
-                method: 'GET',
-                mode: 'cors',
-                cache: 'no-store'
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.text();
-                } else {
-                    throw new Error('File not found (HTTP ' + response.status + ')');
-                }
-            })
-            .then(content => {
-                if (content.trim() === this.currentToken) {
-                    $('#websiteVerified').val('1');
-                    this.showStatus('SUCCESS! Domain verified via TXT file.', 'success');
-                    $('#verifyWebsiteBtn').html('<i class="las la-check-circle me-1"></i>Verified');
-                } else {
-                    $('#websiteVerified').val('0');
-                    this.showStatus('FAILURE: TXT file found, but content does not match the token.', 'danger');
-                    $('#verifyWebsiteBtn').prop('disabled', false).html('<i class="las la-check-circle me-1"></i>Verify Domain Now');
-                }
-            })
-            .catch(error => {
-                console.error('Verification error:', error);
-                $('#websiteVerified').val('0');
-                this.showStatus('VERIFICATION BLOCKED (CORS Error). File must be uploaded to your domain first.', 'warning');
-                $('#verifyWebsiteBtn').prop('disabled', false).html('<i class="las la-check-circle me-1"></i>Verify Domain Now');
-            });
-        },
-
-        downloadFile: function() {
-            if (!this.currentToken) {
-                alert('No verification token available');
-                return;
-            }
-
-            var blob = new Blob([this.currentToken], { type: 'text/plain;charset=utf-8' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'zimadsense.txt';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        },
-
-        showStatus: function(message, type) {
-            var statusEl = $('#websiteVerificationStatus');
-            statusEl.removeClass('text-success text-danger text-info text-warning');
-            statusEl.addClass('text-' + type);
-            statusEl.html('<i class="las la-info-circle me-1"></i>' + message);
-        },
-
-        copyVerificationToken: function() {
-            if (!this.currentToken) {
-                alert('No token to copy');
-                return;
-            }
-
-            // Create temporary textarea
-            var tempInput = document.createElement('textarea');
-            tempInput.value = this.currentToken;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-
-            try {
-                document.execCommand('copy');
-                this.showStatus('Token copied to clipboard!', 'success');
-            } catch (err) {
-                this.showStatus('Failed to copy token', 'danger');
-            }
-
-            document.body.removeChild(tempInput);
-        }
-    };
-
-    // Initialize verification handler
-    window.WebsiteVerificationHandler.init();
-    @endif
 });
 </script>
 @endpush

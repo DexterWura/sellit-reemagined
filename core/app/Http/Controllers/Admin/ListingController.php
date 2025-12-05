@@ -80,11 +80,6 @@ class ListingController extends Controller
     {
         $listing = Listing::where('status', Status::LISTING_PENDING)->findOrFail($id);
 
-        // Check if domain/website verification is required
-        if ($listing->requires_verification && !$listing->is_verified) {
-            $notify[] = ['error', 'This listing requires domain verification before approval'];
-            return back()->withNotify($notify);
-        }
 
         $listing->status = Status::LISTING_ACTIVE;
         $listing->approved_at = now();
