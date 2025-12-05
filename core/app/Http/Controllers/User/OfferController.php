@@ -128,6 +128,21 @@ class OfferController extends Controller
         $offer->expires_at = now()->addDays(7);
         $offer->save();
 
+        // Log offer creation
+        \Log::info('Offer created', [
+            'offer_id' => $offer->id,
+            'offer_number' => $offer->offer_number,
+            'listing_id' => $listing->id,
+            'buyer_id' => $user->id,
+            'seller_id' => $listing->user_id,
+            'amount' => $request->amount,
+            'asking_price' => $listing->asking_price,
+            'expires_at' => $offer->expires_at,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'timestamp' => now()->toIso8601String()
+        ]);
+
         // Notify seller
         notify($listing->seller, 'NEW_OFFER_RECEIVED', [
             'listing_title' => $listing->title,

@@ -509,7 +509,24 @@ class EscrowController extends Controller
         $escrow->status       = Status::ESCROW_DISPUTED;
         $escrow->disputer_id  = auth()->id();
         $escrow->dispute_note = trim($request->dispute_reason);
+        $escrow->disputed_at  = now();
         $escrow->save();
+
+        // Log dispute creation
+        \Log::warning('Escrow dispute created', [
+            'escrow_id' => $escrow->id,
+            'escrow_number' => $escrow->escrow_number,
+            'disputer_id' => $user->id,
+            'disputer_username' => $user->username,
+            'buyer_id' => $escrow->buyer_id,
+            'seller_id' => $escrow->seller_id,
+            'amount' => $escrow->amount,
+            'paid_amount' => $escrow->paid_amount,
+            'dispute_reason_length' => strlen($request->dispute_reason),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'timestamp' => now()->toIso8601String()
+        ]);
 
         $conversation           = $escrow->conversation;
         $conversation->is_group = 1;
@@ -607,6 +624,19 @@ class EscrowController extends Controller
                     $transaction->trx          = $trx;
                     $transaction->save();
                 }
+
+                // Log escrow dispatch
+                \Log::info('Escrow payment dispatched', [
+                    'escrow_id' => $escrow->id,
+                    'escrow_number' => $escrow->escrow_number,
+                    'buyer_id' => auth()->id(),
+                    'seller_id' => $seller->id,
+                    'amount' => $amount,
+                    'seller_charge' => $escrow->seller_charge,
+                    'transaction_id' => $trx,
+                    'listing_id' => $listing ? $listing->id : null,
+                    'timestamp' => now()->toIso8601String()
+                ]);
 
                 DB::commit();
 

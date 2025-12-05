@@ -105,18 +105,31 @@ class RegisterController extends Controller
 
 
 
-        event(new Registered($user = $this->create($request->all())));
-
-        $this->guard()->login($user);
+        try {
+            event(new Registered($user = $this->create($request->all())));
+            $this->guard()->login($user);
+        } catch (\Exception $e) {
+            \Log::error('User registration failed', [
+                'email' => $request->email,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'ip_address' => $request->ip()
+            ]);
+            throw $e;
+        }
 
         // Log successful registration
         \Log::info('User registration successful', [
             'user_id' => $user->id,
             'username' => $user->username,
             'email' => $user->email,
+            'mobile' => $user->mobile,
+            'country' => $user->country_name,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
-            'referrer' => $referBy ?? null
+            'referrer' => $referUser ? $referUser->username : null,
+            'ref_by' => $user->ref_by,
+            'timestamp' => now()->toIso8601String()
         ]);
 
         return $this->registered($request, $user)

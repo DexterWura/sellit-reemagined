@@ -193,9 +193,12 @@ class BidController extends Controller
                     'max_bid' => $maxBid,
                     'is_auto_bid' => $maxBid > 0,
                     'previous_highest' => $listing->current_bid - $listing->bid_increment,
-                    'current_highest' => $listing->current_bid,
+                    'current_highest' => $amount,
+                    'auction_end' => $listing->auction_end ? $listing->auction_end->toIso8601String() : null,
+                    'time_remaining_seconds' => $listing->auction_end ? $listing->auction_end->diffInSeconds(now()) : null,
                     'ip_address' => $request->ip(),
-                    'user_agent' => $request->userAgent()
+                    'user_agent' => $request->userAgent(),
+                    'timestamp' => now()->toIso8601String()
                 ]);
 
 
