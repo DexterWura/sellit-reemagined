@@ -4,7 +4,7 @@
  */
 const ListingFormHandler = {
     currentStep: 1,
-    totalSteps: 4,
+    totalSteps: 6, // Updated from 4 to 6 steps
     autoSaveTimer: null,
     autoSaveDelay: 2000, // 2 seconds after user stops typing
     selectedFiles: [],
@@ -100,8 +100,31 @@ const ListingFormHandler = {
             
             // Validate current step before proceeding
             if (self.validateStep(self.currentStep)) {
+                // Special handling for Step 2 to Step 3: Skip Step 3 if verification not required
+                if (self.currentStep === 2 && nextStep === 3) {
+                    const businessType = $('input[name="business_type"]:checked').val();
+                    const requiresValidation = ['domain', 'website', 'social_media_account'];
+                    
+                    if (!requiresValidation.includes(businessType)) {
+                        // Skip Step 3, go directly to Step 4
+                        self.showStep(4);
+                        self.saveDraft();
+                        return false;
+                    }
+                }
+                
                 self.showStep(nextStep);
                 self.saveDraft();
+                
+                // If moving to Step 3, trigger ownership validation check
+                if (nextStep === 3) {
+                    if (typeof ownershipValidation !== 'undefined') {
+                        setTimeout(function() {
+                            ownershipValidation.checkIfValidationRequired();
+                            ownershipValidation.restoreValidationState();
+                        }, 200);
+                    }
+                }
             }
             
             return false;
@@ -190,12 +213,17 @@ const ListingFormHandler = {
             return this.validateStep2();
         } else if (step === 3) {
             return this.validateStep3();
+        } else if (step === 4) {
+            return this.validateStep4();
+        } else if (step === 5) {
+            return this.validateStep5();
         }
+        // Step 6 (Media) has no required validation
         return true;
     },
 
     /**
-     * Validate Step 1: Business Type Selection
+     * Validate Step 1: Business Type Selection Only
      */
     validateStep1: function() {
         const businessType = $('input[name="business_type"]:checked').val();
@@ -205,45 +233,71 @@ const ListingFormHandler = {
             }
             return false;
         }
+        return true;
+    },
+
+    /**
+     * Validate Step 2: Asset Entry
+     */
+    validateStep2: function() {
+        const businessType = $('input[name="business_type"]:checked').val();
         
-        // Make sure the relevant input section is visible
         if (businessType === 'domain') {
-            $('#domainInputSection').show();
             const domainInput = document.getElementById('domainNameInput');
-            if (domainInput && domainInput.hasAttribute('required')) {
-                if (!domainInput.value || !domainInput.value.trim()) {
-                    if (typeof notify === 'function') {
-                        notify('error', this.translate('Please enter a domain name'));
-                    }
-                    domainInput.focus();
-                    return false;
+            if (!domainInput || !domainInput.value || !domainInput.value.trim()) {
+                if (typeof notify === 'function') {
+                    notify('error', this.translate('Please enter a domain name'));
                 }
-                if (!domainInput.value.trim().match(/^https?:\/\//i)) {
-                    if (typeof notify === 'function') {
-                        notify('error', this.translate('Domain must start with http:// or https://'));
-                    }
-                    domainInput.focus();
-                    return false;
+                if (domainInput) domainInput.focus();
+                return false;
+            }
+            if (!domainInput.value.trim().match(/^https?:\/\//i)) {
+                if (typeof notify === 'function') {
+                    notify('error', this.translate('Domain must start with http:// or https://'));
                 }
+                domainInput.focus();
+                return false;
             }
         } else if (businessType === 'website') {
-            $('#websiteInputSection').show();
             const websiteInput = document.getElementById('websiteUrlInput');
-            if (websiteInput && websiteInput.hasAttribute('required')) {
-                if (!websiteInput.value || !websiteInput.value.trim()) {
-                    if (typeof notify === 'function') {
-                        notify('error', this.translate('Please enter a website URL'));
-                    }
-                    websiteInput.focus();
-                    return false;
+            if (!websiteInput || !websiteInput.value || !websiteInput.value.trim()) {
+                if (typeof notify === 'function') {
+                    notify('error', this.translate('Please enter a website URL'));
                 }
-                if (!websiteInput.value.trim().match(/^https?:\/\//i)) {
-                    if (typeof notify === 'function') {
-                        notify('error', this.translate('Website URL must start with http:// or https://'));
-                    }
-                    websiteInput.focus();
-                    return false;
+                if (websiteInput) websiteInput.focus();
+                return false;
+            }
+            if (!websiteInput.value.trim().match(/^https?:\/\//i)) {
+                if (typeof notify === 'function') {
+                    notify('error', this.translate('Website URL must start with http:// or https://'));
                 }
+                websiteInput.focus();
+                return false;
+            }
+        } else if (businessType === 'social_media_account') {
+            const platform = $('select[name="platform"]').val();
+            const username = $('input[name="social_username"]').val();
+            if (!platform || !platform.trim()) {
+                if (typeof notify === 'function') {
+                    notify('error', this.translate('Please select a platform'));
+                }
+                return false;
+            }
+            if (!username || !username.trim()) {
+                if (typeof notify === 'function') {
+                    notify('error', this.translate('Please enter a username/handle'));
+                }
+                $('input[name="social_username"]').focus();
+                return false;
+            }
+        } else if (businessType === 'mobile_app' || businessType === 'desktop_app') {
+            const appName = $('input[name="app_name"]').val();
+            if (!appName || !appName.trim()) {
+                if (typeof notify === 'function') {
+                    notify('error', this.translate('Please enter an app name'));
+                }
+                $('input[name="app_name"]').focus();
+                return false;
             }
         }
         
@@ -251,35 +305,96 @@ const ListingFormHandler = {
     },
 
     /**
-     * Validate Step 2: Business Details
+     * Validate Step 3: Ownership Verification (Conditional)
      */
-    validateStep2: function() {
-        if (!$('textarea[name="description"]').val()) {
+    validateStep3: function() {
+        const businessType = $('input[name="business_type"]:checked').val();
+        const requiresVerification = ['domain', 'website', 'social_media_account'];
+        
+        // Skip validation for types that don't require verification
+        if (!requiresVerification.includes(businessType)) {
+            return true;
+        }
+        
+        // Check if ownership is verified (check global ownershipValidation object if available)
+        if (typeof ownershipValidation !== 'undefined' && ownershipValidation.isVerified) {
+            return true;
+        }
+        
+        // Check session verification status
+        // This will be handled by the ownership validation handler
+        if (typeof notify === 'function') {
+            notify('error', this.translate('Please verify ownership before continuing'));
+        }
+        return false;
+    },
+
+    /**
+     * Validate Step 4: Business Details
+     */
+    validateStep4: function() {
+        const description = $('textarea[name="description"]').val();
+        if (!description || !description.trim()) {
             if (typeof notify === 'function') {
                 notify('error', this.translate('Please enter a description'));
             }
+            $('textarea[name="description"]').focus();
             return false;
         }
+        
+        // Check minimum length (usually 100 characters)
+        const minLength = 100;
+        if (description.trim().length < minLength) {
+            if (typeof notify === 'function') {
+                notify('error', this.translate('Description must be at least ' + minLength + ' characters'));
+            }
+            $('textarea[name="description"]').focus();
+            return false;
+        }
+        
         return true;
     },
 
     /**
-     * Validate Step 3: Pricing
+     * Validate Step 5: Pricing
      */
-    validateStep3: function() {
+    validateStep5: function() {
         const saleType = $('input[name="sale_type"]:checked').val();
-        if (saleType === 'fixed_price' && !$('input[name="asking_price"]').val()) {
+        if (!saleType) {
             if (typeof notify === 'function') {
-                notify('error', this.translate('Please enter an asking price'));
+                notify('error', this.translate('Please select a sale type'));
             }
             return false;
         }
-        if (saleType === 'auction' && !$('input[name="starting_bid"]').val()) {
-            if (typeof notify === 'function') {
-                notify('error', this.translate('Please enter a starting bid'));
+        
+        if (saleType === 'fixed_price') {
+            const askingPrice = $('input[name="asking_price"]').val();
+            if (!askingPrice || parseFloat(askingPrice) <= 0) {
+                if (typeof notify === 'function') {
+                    notify('error', this.translate('Please enter a valid asking price'));
+                }
+                $('input[name="asking_price"]').focus();
+                return false;
             }
-            return false;
+        } else if (saleType === 'auction') {
+            const startingBid = $('input[name="starting_bid"]').val();
+            if (!startingBid || parseFloat(startingBid) <= 0) {
+                if (typeof notify === 'function') {
+                    notify('error', this.translate('Please enter a valid starting bid'));
+                }
+                $('input[name="starting_bid"]').focus();
+                return false;
+            }
+            
+            const auctionDuration = $('select[name="auction_duration"]').val();
+            if (!auctionDuration) {
+                if (typeof notify === 'function') {
+                    notify('error', this.translate('Please select an auction duration'));
+                }
+                return false;
+            }
         }
+        
         return true;
     },
 
@@ -508,11 +623,12 @@ const ListingFormHandler = {
      * Handle business type change
      */
     handleBusinessTypeChange: function(type, isInitial = false) {
-        // Hide all input sections
+        // Hide all business-specific field sections
+        $('.business-fields').addClass('d-none');
         $('#domainInputSection').hide();
         $('#websiteInputSection').hide();
         
-        // Show relevant input section
+        // Show relevant input section based on business type
         if (type === 'domain') {
             $('#domainInputSection').show();
             $('#domainNameInput').attr('required', 'required');
@@ -548,6 +664,12 @@ const ListingFormHandler = {
                     }, 300);
                 }
             }
+        } else if (type === 'social_media_account') {
+            $('.social_media_account-fields').removeClass('d-none');
+        } else if (type === 'mobile_app') {
+            $('.mobile_app-fields').removeClass('d-none');
+        } else if (type === 'desktop_app') {
+            $('.desktop_app-fields').removeClass('d-none');
         }
         
         // Filter categories

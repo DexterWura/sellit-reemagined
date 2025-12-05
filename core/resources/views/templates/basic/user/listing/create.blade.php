@@ -11,18 +11,26 @@
                     <div class="progress-steps">
                         <div class="step active" data-step="1">
                             <span class="step-number">1</span>
-                            <span class="step-text">@lang('Domain')</span>
+                            <span class="step-text">@lang('Type')</span>
                         </div>
                         <div class="step" data-step="2">
                             <span class="step-number">2</span>
-                            <span class="step-text">@lang('Details')</span>
+                            <span class="step-text">@lang('Asset')</span>
                         </div>
                         <div class="step" data-step="3">
                             <span class="step-number">3</span>
-                            <span class="step-text">@lang('Pricing')</span>
+                            <span class="step-text">@lang('Verify')</span>
                         </div>
                         <div class="step" data-step="4">
                             <span class="step-number">4</span>
+                            <span class="step-text">@lang('Details')</span>
+                        </div>
+                        <div class="step" data-step="5">
+                            <span class="step-number">5</span>
+                            <span class="step-text">@lang('Pricing')</span>
+                        </div>
+                        <div class="step" data-step="6">
+                            <span class="step-number">6</span>
                             <span class="step-text">@lang('Media')</span>
                         </div>
                     </div>
@@ -53,12 +61,12 @@
                             @csrf
                             
                             {{-- ============================================
-                                 STEP 1: Business Type, Domain/Website Entry
+                                 STEP 1: Business Type Selection Only
                                  ============================================ --}}
                             <div class="form-step" data-step="1">
                                 <div class="step-header mb-4">
                                     <h5 class="fw-bold mb-1">@lang('What are you selling?')</h5>
-                                    <p class="text-muted mb-0">@lang('Select the type of online business and verify ownership')</p>
+                                    <p class="text-muted mb-0">@lang('Select the type of online business you want to list')</p>
                                 </div>
                                 
                                 <div class="business-type-grid mb-4">
@@ -89,6 +97,29 @@
                                     @endforeach
                                 </div>
                                 
+                                <div class="alert alert-info mt-4">
+                                    <i class="las la-info-circle me-2"></i>
+                                    <strong>@lang('Next Step:')</strong> 
+                                    @lang('After selecting a business type, you will be asked to enter the specific asset details.')
+                                </div>
+                                
+                                <div class="step-actions mt-4 d-flex justify-content-between">
+                                    <div></div>
+                                    <button type="button" class="btn btn--base btn-next" data-next="2" id="step1ContinueBtn">
+                                        @lang('Continue') <i class="las la-arrow-right ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {{-- ============================================
+                                 STEP 2: Asset Entry (Domain/Website/Social Media/App)
+                                 ============================================ --}}
+                            <div class="form-step d-none" data-step="2">
+                                <div class="step-header mb-4">
+                                    <h5 class="fw-bold mb-1">@lang('Enter Asset Details')</h5>
+                                    <p class="text-muted mb-0">@lang('Provide information about the specific asset you are selling')</p>
+                                </div>
+                                
                                 {{-- Domain Input Section --}}
                                 <div id="domainInputSection" class="mb-4" style="display: none;">
                                     <div class="card border-primary">
@@ -103,7 +134,7 @@
                                                 <div class="input-group input-group-lg">
                                                     <span class="input-group-text bg-light"><i class="las la-globe"></i></span>
                                                     <input type="text" name="domain_name" id="domainNameInput" class="form-control" 
-                                                           value="{{ old('domain_name', $draftData['domain_name'] ?? '') }}" placeholder="https://example.com">
+                                                           value="{{ old('domain_name', $draftData['domain_name'] ?? '') }}" placeholder="https://example.com" required>
                                                 </div>
                                                 <small class="text-muted d-block mt-1">
                                                     <i class="las la-info-circle"></i> 
@@ -145,7 +176,7 @@
                                                 <div class="input-group input-group-lg">
                                                     <span class="input-group-text bg-light"><i class="las la-link"></i></span>
                                                     <input type="url" name="website_url" id="websiteUrlInput" class="form-control" 
-                                                           value="{{ old('website_url', $draftData['website_url'] ?? '') }}" placeholder="https://example.com">
+                                                           value="{{ old('website_url', $draftData['website_url'] ?? '') }}" placeholder="https://example.com" required>
                                                 </div>
                                                 <small class="text-muted d-block mt-1">
                                                     <i class="las la-info-circle"></i> 
@@ -183,8 +214,186 @@
                                     </div>
                                 </div>
                                 
+                                {{-- Social Media Fields --}}
+                                <div class="business-fields social_media_account-fields d-none">
+                                    <div class="card border-purple">
+                                        <div class="card-header bg-purple bg-opacity-10">
+                                            <h6 class="mb-0">
+                                                <i class="las la-users me-2"></i>@lang('Social Media Account Information')
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">@lang('Platform') <span class="text-danger">*</span></label>
+                                                    <select name="platform" class="form-select form-select-lg" required>
+                                                        <option value="">@lang('Select Platform')</option>
+                                                        @foreach($platforms as $key => $name)
+                                                            <option value="{{ $key }}" {{ old('platform', $draftData['platform'] ?? '') == $key ? 'selected' : '' }}>{{ $name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">@lang('Username / Handle') <span class="text-danger">*</span></label>
+                                                    <div class="input-group input-group-lg">
+                                                        <span class="input-group-text bg-light">@</span>
+                                                        <input type="text" name="social_username" class="form-control" 
+                                                               value="{{ old('social_username', $draftData['social_username'] ?? '') }}" placeholder="username" required>
+                                                    </div>
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label">@lang('Account URL')</label>
+                                                    <div class="input-group">
+                                                        <span class="input-group-text bg-light"><i class="las la-link"></i></span>
+                                                        <input type="url" name="social_url" class="form-control" 
+                                                               value="{{ old('social_url', $draftData['social_url'] ?? '') }}" placeholder="https://instagram.com/username">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">@lang('Followers')</label>
+                                                    <input type="number" name="followers_count" class="form-control" 
+                                                           value="{{ old('followers_count', $draftData['followers_count'] ?? '') }}" placeholder="0" min="0">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">@lang('Engagement Rate') (%)</label>
+                                                    <input type="number" name="engagement_rate" class="form-control" 
+                                                           value="{{ old('engagement_rate', $draftData['engagement_rate'] ?? '') }}" step="0.01" min="0" max="100" placeholder="0.00">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">@lang('Account Niche')</label>
+                                                    <input type="text" name="social_niche" class="form-control" 
+                                                           value="{{ old('social_niche', $draftData['social_niche'] ?? '') }}" placeholder="@lang('e.g., Fashion, Gaming')">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {{-- Mobile App Fields --}}
+                                <div class="business-fields mobile_app-fields d-none">
+                                    <div class="card border-warning">
+                                        <div class="card-header bg-warning bg-opacity-10">
+                                            <h6 class="mb-0">
+                                                <i class="las la-mobile-alt me-2"></i>@lang('Mobile App Information')
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">@lang('App Name') <span class="text-danger">*</span></label>
+                                                    <input type="text" name="app_name" class="form-control form-control-lg" 
+                                                           value="{{ old('app_name', $draftData['app_name'] ?? '') }}" placeholder="@lang('Your App Name')" required>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">@lang('Tech Stack')</label>
+                                                    <input type="text" name="mobile_tech_stack" class="form-control form-control-lg" 
+                                                           value="{{ old('mobile_tech_stack', $draftData['mobile_tech_stack'] ?? '') }}" placeholder="@lang('e.g., React Native, Flutter')">
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label">@lang('App Store URL (iOS)')</label>
+                                                    <div class="input-group">
+                                                        <span class="input-group-text bg-light"><i class="lab la-apple"></i></span>
+                                                        <input type="url" name="app_store_url" class="form-control" 
+                                                               value="{{ old('app_store_url', $draftData['app_store_url'] ?? '') }}" placeholder="https://apps.apple.com/...">
+                                                    </div>
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label">@lang('Play Store URL (Android)')</label>
+                                                    <div class="input-group">
+                                                        <span class="input-group-text bg-light"><i class="lab la-google-play"></i></span>
+                                                        <input type="url" name="play_store_url" class="form-control" 
+                                                               value="{{ old('play_store_url', $draftData['play_store_url'] ?? '') }}" placeholder="https://play.google.com/...">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">@lang('Total Downloads')</label>
+                                                    <input type="number" name="downloads_count" class="form-control" 
+                                                           value="{{ old('downloads_count', $draftData['downloads_count'] ?? '') }}" placeholder="0" min="0">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">@lang('Rating') (0-5)</label>
+                                                    <input type="number" name="app_rating" class="form-control" 
+                                                           value="{{ old('app_rating', $draftData['app_rating'] ?? '') }}" step="0.1" min="0" max="5" placeholder="4.5">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">@lang('Active Users')</label>
+                                                    <input type="number" name="active_users" class="form-control" 
+                                                           value="{{ old('active_users', $draftData['active_users'] ?? '') }}" placeholder="0" min="0">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {{-- Desktop App Fields --}}
+                                <div class="business-fields desktop_app-fields d-none">
+                                    <div class="card border-danger">
+                                        <div class="card-header bg-danger bg-opacity-10">
+                                            <h6 class="mb-0">
+                                                <i class="las la-desktop me-2"></i>@lang('Desktop App Information')
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">@lang('App Name') <span class="text-danger">*</span></label>
+                                                    <input type="text" name="app_name" class="form-control form-control-lg" 
+                                                           value="{{ old('app_name', $draftData['app_name'] ?? '') }}" placeholder="@lang('Your App Name')" required>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">@lang('Tech Stack')</label>
+                                                    <input type="text" name="desktop_tech_stack" class="form-control form-control-lg" 
+                                                           value="{{ old('desktop_tech_stack', $draftData['desktop_tech_stack'] ?? '') }}" placeholder="@lang('e.g., Electron, .NET, Java')">
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label">@lang('Download / Website URL')</label>
+                                                    <div class="input-group">
+                                                        <span class="input-group-text bg-light"><i class="las la-download"></i></span>
+                                                        <input type="url" name="desktop_url" class="form-control" 
+                                                               value="{{ old('desktop_url', $draftData['desktop_url'] ?? '') }}" placeholder="https://yourapp.com/download">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">@lang('Total Downloads')</label>
+                                                    <input type="number" name="downloads_count" class="form-control" 
+                                                           value="{{ old('downloads_count', $draftData['downloads_count'] ?? '') }}" placeholder="0" min="0">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">@lang('Active Users')</label>
+                                                    <input type="number" name="active_users" class="form-control" 
+                                                           value="{{ old('active_users', $draftData['active_users'] ?? '') }}" placeholder="0" min="0">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">@lang('Supported Platforms')</label>
+                                                    <input type="text" name="supported_platforms" class="form-control" 
+                                                           value="{{ old('supported_platforms', $draftData['supported_platforms'] ?? '') }}" placeholder="@lang('Windows, Mac, Linux')">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="step-actions mt-4 d-flex justify-content-between">
+                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="1">
+                                        <i class="las la-arrow-left me-1"></i> @lang('Back')
+                                    </button>
+                                    <button type="button" class="btn btn--base btn-next" data-next="3" id="step2ContinueBtn">
+                                        @lang('Continue') <i class="las la-arrow-right ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {{-- ============================================
+                                 STEP 3: Ownership Verification (Conditional)
+                                 ============================================ --}}
+                            <div class="form-step d-none" data-step="3" id="ownershipVerificationStep">
+                                <div class="step-header mb-4">
+                                    <h5 class="fw-bold mb-1">@lang('Verify Ownership')</h5>
+                                    <p class="text-muted mb-0">@lang('Verify that you own this asset before continuing')</p>
+                                </div>
+                                
                                 {{-- Ownership Validation Section --}}
-                                <div id="ownershipValidationSection" class="mb-4" style="display: none;">
+                                <div id="ownershipValidationSection" class="mb-4">
                                     <div class="card border-warning">
                                         <div class="card-header bg-warning bg-opacity-10">
                                             <h6 class="mb-0">
@@ -228,158 +437,33 @@
                                     </div>
                                 </div>
                                 
+                                {{-- Skip message for types that don't require verification --}}
+                                <div id="verificationNotRequiredMessage" class="alert alert-info" style="display: none;">
+                                    <i class="las la-info-circle me-2"></i>
+                                    <strong>@lang('Ownership verification not required')</strong>
+                                    <p class="mb-0 mt-2">@lang('Ownership verification is not required for this business type. You can proceed to the next step.')</p>
+                                </div>
+                                
                                 <div class="step-actions mt-4 d-flex justify-content-between">
-                                    <div></div>
-                                    <button type="button" class="btn btn--base btn-next" data-next="2" id="step1ContinueBtn">
+                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="2">
+                                        <i class="las la-arrow-left me-1"></i> @lang('Back')
+                                    </button>
+                                    <button type="button" class="btn btn--base btn-next" data-next="4" id="step3ContinueBtn">
                                         @lang('Continue') <i class="las la-arrow-right ms-1"></i>
                                     </button>
                                 </div>
                             </div>
                             
                             {{-- ============================================
-                                 STEP 2: Business Details
+                                 STEP 4: Business Details (Renumbered from old Step 2)
                                  ============================================ --}}
-                            <div class="form-step d-none" data-step="2">
+                            <div class="form-step d-none" data-step="4">
                                 <div class="step-header mb-4">
                                     <h5 class="fw-bold mb-1">@lang('Business Details')</h5>
                                     <p class="text-muted mb-0">@lang('Provide information about your business')</p>
                                 </div>
                                 
-                                {{-- Social Media Fields --}}
-                                <div class="business-fields social_media_account-fields d-none">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-semibold">@lang('Platform') <span class="text-danger">*</span></label>
-                                            <select name="platform" class="form-select form-select-lg">
-                                                <option value="">@lang('Select Platform')</option>
-                                                @foreach($platforms as $key => $name)
-                                                    <option value="{{ $key }}" {{ old('platform', $draftData['platform'] ?? '') == $key ? 'selected' : '' }}>{{ $name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-semibold">@lang('Username / Handle') <span class="text-danger">*</span></label>
-                                            <div class="input-group input-group-lg">
-                                                <span class="input-group-text bg-light">@</span>
-                                                <input type="text" name="social_username" class="form-control" 
-                                                       value="{{ old('social_username') }}" placeholder="username">
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label">@lang('Account URL')</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text bg-light"><i class="las la-link"></i></span>
-                                                <input type="url" name="social_url" class="form-control" 
-                                                       value="{{ old('social_url') }}" placeholder="https://instagram.com/username">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">@lang('Followers')</label>
-                                            <input type="number" name="followers_count" class="form-control" 
-                                                   value="{{ old('followers_count') }}" placeholder="0" min="0">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">@lang('Engagement Rate') (%)</label>
-                                            <input type="number" name="engagement_rate" class="form-control" 
-                                                   value="{{ old('engagement_rate') }}" step="0.01" min="0" max="100" placeholder="0.00">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">@lang('Account Niche')</label>
-                                            <input type="text" name="social_niche" class="form-control" 
-                                                   value="{{ old('social_niche', $draftData['social_niche'] ?? '') }}" placeholder="@lang('e.g., Fashion, Gaming')">
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {{-- Mobile App Fields --}}
-                                <div class="business-fields mobile_app-fields d-none">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-semibold">@lang('App Name') <span class="text-danger">*</span></label>
-                                            <input type="text" name="app_name" class="form-control form-control-lg" 
-                                                   value="{{ old('app_name') }}" placeholder="@lang('Your App Name')">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">@lang('Tech Stack')</label>
-                                            <input type="text" name="mobile_tech_stack" class="form-control form-control-lg" 
-                                                   value="{{ old('mobile_tech_stack', $draftData['mobile_tech_stack'] ?? '') }}" placeholder="@lang('e.g., React Native, Flutter')">
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label">@lang('App Store URL (iOS)')</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text bg-light"><i class="lab la-apple"></i></span>
-                                                <input type="url" name="app_store_url" class="form-control" 
-                                                       value="{{ old('app_store_url') }}" placeholder="https://apps.apple.com/...">
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label">@lang('Play Store URL (Android)')</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text bg-light"><i class="lab la-google-play"></i></span>
-                                                <input type="url" name="play_store_url" class="form-control" 
-                                                       value="{{ old('play_store_url') }}" placeholder="https://play.google.com/...">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">@lang('Total Downloads')</label>
-                                            <input type="number" name="downloads_count" class="form-control" 
-                                                   value="{{ old('downloads_count') }}" placeholder="0" min="0">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">@lang('Rating') (0-5)</label>
-                                            <input type="number" name="app_rating" class="form-control" 
-                                                   value="{{ old('app_rating') }}" step="0.1" min="0" max="5" placeholder="4.5">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">@lang('Active Users')</label>
-                                            <input type="number" name="active_users" class="form-control" 
-                                                   value="{{ old('active_users') }}" placeholder="0" min="0">
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {{-- Desktop App Fields --}}
-                                <div class="business-fields desktop_app-fields d-none">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-semibold">@lang('App Name') <span class="text-danger">*</span></label>
-                                            <input type="text" name="app_name" class="form-control form-control-lg" 
-                                                   value="{{ old('app_name') }}" placeholder="@lang('Your App Name')">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">@lang('Tech Stack')</label>
-                                            <input type="text" name="desktop_tech_stack" class="form-control form-control-lg" 
-                                                   value="{{ old('desktop_tech_stack', $draftData['desktop_tech_stack'] ?? '') }}" placeholder="@lang('e.g., Electron, .NET, Java')">
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label">@lang('Download / Website URL')</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text bg-light"><i class="las la-download"></i></span>
-                                                <input type="url" name="desktop_url" class="form-control" 
-                                                       value="{{ old('desktop_url') }}" placeholder="https://yourapp.com/download">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">@lang('Total Downloads')</label>
-                                            <input type="number" name="downloads_count" class="form-control" 
-                                                   value="{{ old('downloads_count') }}" placeholder="0" min="0">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">@lang('Active Users')</label>
-                                            <input type="number" name="active_users" class="form-control" 
-                                                   value="{{ old('active_users') }}" placeholder="0" min="0">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">@lang('Supported Platforms')</label>
-                                            <input type="text" name="supported_platforms" class="form-control" 
-                                                   value="{{ old('supported_platforms') }}" placeholder="@lang('Windows, Mac, Linux')">
-                                        </div>
-                                    </div>
-                                </div>
-                                
                                 {{-- Common Fields for All Types --}}
-                                <hr class="my-4">
-                                
                                 <div class="row g-3">
                                     <div class="col-md-12">
                                         <label class="form-label fw-semibold">@lang('Category')</label>
@@ -395,7 +479,7 @@
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label fw-semibold">@lang('Description') <span class="text-danger">*</span></label>
-                                        <textarea name="description" class="form-control" rows="6" data-step-required="2"
+                                        <textarea name="description" class="form-control" rows="6" required
                                                   placeholder="@lang('Describe your business in detail. Include information about traffic sources, monetization methods, growth potential, and what is included in the sale...')">{{ old('description', $draftData['description'] ?? '') }}</textarea>
                                         <small class="text-muted">@lang('Minimum 100 characters. Be detailed to attract serious buyers.')</small>
                                     </div>
@@ -410,7 +494,7 @@
                                             <div class="input-group">
                                                 <span class="input-group-text">{{ gs()->cur_sym }}</span>
                                                 <input type="number" name="monthly_revenue" class="form-control" 
-                                                       value="{{ old('monthly_revenue') }}" step="0.01" min="0" placeholder="0.00">
+                                                       value="{{ old('monthly_revenue', $draftData['monthly_revenue'] ?? '') }}" step="0.01" min="0" placeholder="0.00">
                                             </div>
                                         </div>
                                         <div class="col-md-3">
@@ -418,18 +502,18 @@
                                             <div class="input-group">
                                                 <span class="input-group-text">{{ gs()->cur_sym }}</span>
                                                 <input type="number" name="monthly_profit" class="form-control" 
-                                                       value="{{ old('monthly_profit') }}" step="0.01" min="0" placeholder="0.00">
+                                                       value="{{ old('monthly_profit', $draftData['monthly_profit'] ?? '') }}" step="0.01" min="0" placeholder="0.00">
                                             </div>
                                         </div>
                                         <div class="col-md-3">
                                             <label class="form-label">@lang('Monthly Visitors')</label>
                                             <input type="number" name="monthly_visitors" class="form-control" 
-                                                   value="{{ old('monthly_visitors') }}" min="0" placeholder="0">
+                                                   value="{{ old('monthly_visitors', $draftData['monthly_visitors'] ?? '') }}" min="0" placeholder="0">
                                         </div>
                                         <div class="col-md-3">
                                             <label class="form-label">@lang('Page Views/Month')</label>
                                             <input type="number" name="monthly_page_views" class="form-control" 
-                                                   value="{{ old('monthly_page_views') }}" min="0" placeholder="0">
+                                                   value="{{ old('monthly_page_views', $draftData['monthly_page_views'] ?? '') }}" min="0" placeholder="0">
                                         </div>
                                     </div>
                                 </div>
@@ -476,19 +560,19 @@
                                 </div>
                                 
                                 <div class="step-actions mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="1">
+                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="3">
                                         <i class="las la-arrow-left me-1"></i> @lang('Back')
                                     </button>
-                                    <button type="button" class="btn btn--base btn-next" data-next="3">
+                                    <button type="button" class="btn btn--base btn-next" data-next="5">
                                         @lang('Continue') <i class="las la-arrow-right ms-1"></i>
                                     </button>
                                 </div>
                             </div>
                             
                             {{-- ============================================
-                                 STEP 3: Sale Type & Pricing
+                                 STEP 5: Sale Type & Pricing (Renumbered from old Step 3)
                                  ============================================ --}}
-                            <div class="form-step d-none" data-step="3">
+                            <div class="form-step d-none" data-step="5">
                                 <div class="step-header mb-4">
                                     <h5 class="fw-bold mb-1">@lang('How do you want to sell?')</h5>
                                     <p class="text-muted mb-0">@lang('Choose your sale method and set your price')</p>
@@ -613,19 +697,19 @@
                                 </div>
                                 
                                 <div class="step-actions mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="2">
+                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="4">
                                         <i class="las la-arrow-left me-1"></i> @lang('Back')
                                     </button>
-                                    <button type="button" class="btn btn--base btn-next" data-next="4">
+                                    <button type="button" class="btn btn--base btn-next" data-next="6">
                                         @lang('Continue') <i class="las la-arrow-right ms-1"></i>
                                     </button>
                                 </div>
                             </div>
                             
                             {{-- ============================================
-                                 STEP 4: Media Upload
+                                 STEP 6: Media & Review (Renumbered from old Step 4)
                                  ============================================ --}}
-                            <div class="form-step d-none" data-step="4">
+                            <div class="form-step d-none" data-step="6">
                                 <div class="step-header mb-4">
                                     <h5 class="fw-bold mb-1">@lang('Review & Submit')</h5>
                                     <p class="text-muted mb-0">@lang('Review your listing and submit for approval')</p>
@@ -693,13 +777,13 @@
                                         <li>@lang('Include screenshots of traffic stats and analytics')</li>
                                         <li>@lang('Show revenue/earnings proof if applicable')</li>
                                         <li>@lang('Capture the homepage and key pages')</li>
-                                        <li>@lang('First image will be used as the thumbnail')</li>
+                                        <li>@lang('NB : First image will be used as the thumbnail')</li>
                                     </ul>
                                     </div>
                                 </div>
                                 
                                 <div class="step-actions mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="3">
+                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="5">
                                         <i class="las la-arrow-left me-1"></i> @lang('Back')
                                     </button>
                                     <button type="submit" class="btn btn--base" id="submitListingBtn">
@@ -797,40 +881,46 @@ $(document).ready(function() {
                 };
                 
                 // Check if asset URL matches session (if verified)
+                // IMPORTANT: Only compare if business type matches (prevent false positives when switching types)
                 if (self.isVerified || self.verificationToken) {
                     const sessionAsset = '{{ $ownershipValidationData['verification_asset'] ?? '' }}';
                     const sessionBusinessType = '{{ $ownershipValidationData['verification_business_type'] ?? '' }}';
                     
-                    const normalizedSession = normalizeUrl(sessionAsset);
-                    const normalizedCurrent = normalizeUrl(self.primaryAssetUrl || '');
-                    
-                    // If asset URL or business type changed, clear verification
-                    if (sessionAsset && normalizedCurrent !== '' && normalizedSession !== normalizedCurrent) {
-                        // Asset URL changed - clear verification (async, don't block)
+                    // Priority check: If business type changed, clear everything silently
+                    if (sessionBusinessType && self.businessType && sessionBusinessType !== self.businessType) {
+                        // Business type changed - clear verification silently (no warnings)
                         self.isVerified = false;
                         self.verificationToken = null;
                         self.selectedMethod = null;
                         self.instructions = null;
-                        // Clear session (fire and forget)
+                        self.primaryAssetUrl = null; // Clear to prevent false comparisons
+                        // Clear session (fire and forget, no user notification)
                         $.ajax({
                             url: '{{ route("user.ownership.validation.clear") }}',
                             method: 'POST',
                             data: { _token: '{{ csrf_token() }}' },
                             async: true
                         });
-                    } else if (sessionBusinessType && self.businessType && sessionBusinessType !== self.businessType) {
-                        // Business type changed - clear verification (async, don't block)
-                        self.isVerified = false;
-                        self.verificationToken = null;
-                        self.selectedMethod = null;
-                        self.instructions = null;
-                        // Clear session (fire and forget)
-                        $.ajax({
-                            url: '{{ route("user.ownership.validation.clear") }}',
-                            method: 'POST',
-                            data: { _token: '{{ csrf_token() }}' },
-                            async: true
-                        });
+                    } else if (sessionBusinessType === self.businessType && sessionAsset) {
+                        // Same business type - check if URL changed
+                        const normalizedSession = normalizeUrl(sessionAsset);
+                        const normalizedCurrent = normalizeUrl(self.primaryAssetUrl || '');
+                        
+                        // Only clear if URL changed for the SAME business type
+                        if (normalizedCurrent !== '' && normalizedSession !== normalizedCurrent) {
+                            // Asset URL changed for same business type - clear verification
+                            self.isVerified = false;
+                            self.verificationToken = null;
+                            self.selectedMethod = null;
+                            self.instructions = null;
+                            // Clear session (fire and forget)
+                            $.ajax({
+                                url: '{{ route("user.ownership.validation.clear") }}',
+                                method: 'POST',
+                                data: { _token: '{{ csrf_token() }}' },
+                                async: true
+                            });
+                        }
                     }
                 }
                 
@@ -852,34 +942,39 @@ $(document).ready(function() {
             $('input[name="business_type"]').on('change', function() {
                 const newBusinessType = $(this).val();
                 const oldBusinessType = self.businessType;
-                self.businessType = newBusinessType;
                 
-                // Clear previous state when business type changes (unless already verified for same type)
-                if (oldBusinessType !== newBusinessType) {
+                // If business type actually changed, completely reset validation state
+                if (oldBusinessType && oldBusinessType !== newBusinessType) {
                     // Clear methods cache when business type changes
                     self.methodsCache = null;
                     self.lastMethodsRequest = null;
                     
-                    // If business type changed, clear verification state
-                    if (self.isVerified) {
-                        // Clear verification if business type changed
-                        self.isVerified = false;
-                        self.verificationToken = null;
-                        self.selectedMethod = null;
-                        self.instructions = null;
-                        // Clear session via AJAX (async, don't block)
-                        $.ajax({
-                            url: '{{ route("user.ownership.validation.clear") }}',
-                            method: 'POST',
-                            data: { _token: '{{ csrf_token() }}' },
-                            async: true
-                        });
-                    } else {
-                        self.verificationToken = null;
-                        self.selectedMethod = null;
-                        self.instructions = null;
-                    }
+                    // Completely reset validation state (don't trigger URL change warnings)
+                    self.isVerified = false;
+                    self.verificationToken = null;
+                    self.selectedMethod = null;
+                    self.instructions = null;
+                    self.primaryAssetUrl = null; // Clear old URL to prevent false comparisons
+                    
+                    // Clear UI state silently (no warnings)
+                    $('#validationStatus').hide();
+                    $('#validationMethodsList').empty();
+                    $('#validationInstructions').hide();
+                    $('#validationResult').hide();
+                    $('#generateTokenBtn').hide();
+                    $('#validateOwnershipBtn').hide();
+                    
+                    // Clear session via AJAX (async, don't block, no user notification)
+                    $.ajax({
+                        url: '{{ route("user.ownership.validation.clear") }}',
+                        method: 'POST',
+                        data: { _token: '{{ csrf_token() }}' },
+                        async: true
+                    });
                 }
+                
+                // Update business type
+                self.businessType = newBusinessType;
                 
                 // Use requestAnimationFrame for instant response
                 requestAnimationFrame(function() {
@@ -892,6 +987,18 @@ $(document).ready(function() {
                 clearTimeout(self.urlChangeTimeout);
                 const inputElement = this;
                 self.urlChangeTimeout = setTimeout(function() {
+                    // Get current business type to ensure we're comparing same type
+                    const currentBusinessType = $('input[name="business_type"]:checked').val();
+                    
+                    // Only check URL changes if business type matches
+                    if (currentBusinessType !== self.businessType) {
+                        // Business type changed, don't check URL changes
+                        self.businessType = currentBusinessType;
+                        self.primaryAssetUrl = null; // Clear to prevent false comparisons
+                        self.checkIfValidationRequired();
+                        return;
+                    }
+                    
                     const newUrl = $(inputElement).val() || '';
                     const oldUrl = self.primaryAssetUrl || '';
                     
@@ -904,15 +1011,19 @@ $(document).ready(function() {
                     const normalizedNew = normalizeUrl(newUrl);
                     const normalizedOld = normalizeUrl(oldUrl);
                     
-                    // If URL changed (and it's a meaningful change)
-                    if (normalizedNew !== normalizedOld && normalizedNew !== '') {
-                        // If we had a token or were verified for the old URL, clear it
-                        if (self.verificationToken || self.isVerified) {
-                            // Only clear if the URL actually changed (not just empty to filled)
-                            if (normalizedOld !== '' && normalizedNew !== normalizedOld) {
-                                self.clearValidationState('Asset URL changed. Please generate a new verification token.');
-                            }
-                        }
+                    // Only check for URL changes if:
+                    // 1. We have a token/verification
+                    // 2. Old URL exists (not empty)
+                    // 3. New URL is different from old URL
+                    // 4. New URL is not empty
+                    // 5. Business type hasn't changed
+                    if ((self.verificationToken || self.isVerified) && 
+                        normalizedOld !== '' && 
+                        normalizedNew !== normalizedOld && 
+                        normalizedNew !== '' &&
+                        currentBusinessType === self.businessType) {
+                        // URL actually changed for the same business type
+                        self.clearValidationState('Asset URL changed. Please generate a new verification token.');
                     }
                     
                     // Update primary asset URL and check validation
@@ -988,19 +1099,25 @@ $(document).ready(function() {
             $(document).on('change', 'input[name="validation_method"]', function() {
                 self.selectedMethod = $(this).val();
                 
-                // Check if asset URL changed since token was generated
-                const currentAssetUrl = self.getCurrentAssetUrl();
-                const normalizeUrl = function(url) {
-                    if (!url) return '';
-                    return url.trim().toLowerCase().replace(/\/+$/, '');
-                };
-                
+                // Check if asset URL changed since token was generated (only for same business type)
+                const currentBusinessType = $('input[name="business_type"]:checked').val();
+                const sessionBusinessType = '{{ $ownershipValidationData['verification_business_type'] ?? '' }}';
                 const sessionAsset = '{{ $ownershipValidationData['verification_asset'] ?? '' }}';
-                if (self.verificationToken && sessionAsset) {
+                
+                // Only check URL change if business type matches (same type)
+                if (self.verificationToken && sessionAsset && currentBusinessType === sessionBusinessType && sessionBusinessType) {
+                    const currentAssetUrl = self.getCurrentAssetUrl();
+                    const normalizeUrl = function(url) {
+                        if (!url) return '';
+                        return url.trim().toLowerCase().replace(/\/+$/, '');
+                    };
+                    
                     const normalizedSession = normalizeUrl(sessionAsset);
                     const normalizedCurrent = normalizeUrl(currentAssetUrl);
-                    if (normalizedSession !== normalizedCurrent && normalizedCurrent !== '') {
-                        // Asset URL changed - need new token
+                    
+                    // Only warn if URL changed for the SAME business type
+                    if (normalizedSession !== '' && normalizedCurrent !== '' && normalizedSession !== normalizedCurrent) {
+                        // Asset URL changed for same business type - need new token
                         notify('warning', 'Asset URL has changed. Please generate a new verification token.');
                         self.verificationToken = null;
                         self.selectedMethod = null;
@@ -1010,6 +1127,15 @@ $(document).ready(function() {
                         $('#validationInstructions').hide();
                         return;
                     }
+                } else if (currentBusinessType !== sessionBusinessType && sessionBusinessType) {
+                    // Business type changed - silently reset (no warning)
+                    self.verificationToken = null;
+                    self.selectedMethod = null;
+                    $(this).prop('checked', false);
+                    $('#generateTokenBtn').show();
+                    $('#validateOwnershipBtn').hide();
+                    $('#validationInstructions').hide();
+                    return;
                 }
                 
                 if (self.selectedMethod === 'oauth_login') {
@@ -1111,27 +1237,16 @@ $(document).ready(function() {
             
             const requiresValidation = ['domain', 'website', 'social_media_account'];
             
-            if (!requiresValidation.includes(this.businessType)) {
-                $('#ownershipValidationSection').hide();
-                return;
-            }
-            
             // Get primary asset URL based on business type
             let assetUrl = '';
             let shouldShow = false;
             
             if (this.businessType === 'domain') {
-                // Check if domain input section is visible
-                if ($('#domainInputSection').is(':visible')) {
-                    assetUrl = $('#domainNameInput').val() || '';
-                    shouldShow = true;
-                }
+                assetUrl = $('#domainNameInput').val() || '';
+                shouldShow = !!assetUrl;
             } else if (this.businessType === 'website') {
-                // Check if website input section is visible
-                if ($('#websiteInputSection').is(':visible')) {
-                    assetUrl = $('#websiteUrlInput').val() || '';
-                    shouldShow = true;
-                }
+                assetUrl = $('#websiteUrlInput').val() || '';
+                shouldShow = !!assetUrl;
             } else if (this.businessType === 'social_media_account') {
                 const platform = $('select[name="platform"]').val();
                 const username = $('input[name="social_username"]').val();
@@ -1140,38 +1255,60 @@ $(document).ready(function() {
                 shouldShow = !!assetUrl;
             }
             
-            // Normalize URLs for comparison
-            const normalizeUrl = function(url) {
-                if (!url) return '';
-                return url.trim().toLowerCase().replace(/\/+$/, '');
-            };
+            // Only check for URL changes if we have validation state AND business type matches session
+            const sessionBusinessType = '{{ $ownershipValidationData['verification_business_type'] ?? '' }}';
+            const sessionAsset = '{{ $ownershipValidationData['verification_asset'] ?? '' }}';
             
-            const normalizedNew = normalizeUrl(assetUrl);
-            const normalizedOld = normalizeUrl(this.primaryAssetUrl || '');
-            
-            // Check if asset URL changed and we have a token/verification
-            if ((this.verificationToken || this.isVerified) && normalizedOld !== '' && normalizedNew !== normalizedOld && normalizedNew !== '') {
-                // Asset URL changed - clear validation state
-                this.clearValidationState('Asset URL changed. Please verify ownership for the new asset.');
+            // Only compare URLs if:
+            // 1. We have a token/verification
+            // 2. Current business type matches the session business type (same type)
+            // 3. We have both old and new URLs
+            if ((this.verificationToken || this.isVerified) && 
+                this.businessType === sessionBusinessType && 
+                sessionBusinessType && 
+                sessionAsset) {
+                
+                // Normalize URLs for comparison
+                const normalizeUrl = function(url) {
+                    if (!url) return '';
+                    return url.trim().toLowerCase().replace(/\/+$/, '');
+                };
+                
+                const normalizedNew = normalizeUrl(assetUrl);
+                const normalizedOld = normalizeUrl(sessionAsset);
+                
+                // Only clear if URL actually changed for the SAME business type
+                if (normalizedOld !== '' && normalizedNew !== '' && normalizedNew !== normalizedOld) {
+                    // Asset URL changed for the same business type - clear validation state
+                    this.clearValidationState('Asset URL changed. Please verify ownership for the new asset.');
+                }
             }
             
             // Update primary asset URL
             this.primaryAssetUrl = assetUrl;
             
-            // Show/hide validation section
-            if (shouldShow) {
-                $('#ownershipValidationSection').show();
-                
-                // Load methods if we have asset URL or if already verified
-                if ((assetUrl && assetUrl.trim()) || this.isVerified) {
-                    // Debounce the load to prevent multiple calls (reduced delay)
-                    clearTimeout(this.loadTimeout);
-                    this.loadTimeout = setTimeout(() => {
-                        this.loadValidationMethods();
-                    }, 150); // Reduced from 300ms to 150ms
+            // Show/hide validation section (only in Step 3)
+            // Check if we're currently on Step 3
+            const currentStep = ListingFormHandler.currentStep || 1;
+            if (currentStep === 3) {
+                if (requiresValidation.includes(this.businessType)) {
+                    // Show validation section
+                    $('#ownershipValidationSection').show();
+                    $('#verificationNotRequiredMessage').hide();
+                    
+                    // Load methods if we have asset URL or if already verified
+                    if ((assetUrl && assetUrl.trim()) || this.isVerified) {
+                        // Debounce the load to prevent multiple calls (reduced delay)
+                        clearTimeout(this.loadTimeout);
+                        this.loadTimeout = setTimeout(() => {
+                            this.loadValidationMethods();
+                        }, 150); // Reduced from 300ms to 150ms
+                    }
+                } else {
+                    // Verification not required - show message
+                    $('#ownershipValidationSection').hide();
+                    $('#verificationNotRequiredMessage').show();
                 }
-            } else {
-                $('#ownershipValidationSection').hide();
             }
         },
         
@@ -1404,6 +1541,16 @@ $(document).ready(function() {
                 return;
             }
             
+            // Ensure business type is set from form
+            if (!this.businessType) {
+                this.businessType = $('input[name="business_type"]:checked').val();
+            }
+            
+            if (!this.businessType) {
+                notify('error', 'Please select a business type first');
+                return;
+            }
+            
             // Get current asset URL from form (in case it changed)
             const currentAssetUrl = this.getCurrentAssetUrl();
             
@@ -1411,12 +1558,16 @@ $(document).ready(function() {
             this.primaryAssetUrl = currentAssetUrl;
             
             if (!this.primaryAssetUrl || !this.primaryAssetUrl.trim()) {
-                notify('error', 'Please enter the primary asset URL first');
-                return;
-            }
-            
-            if (!this.businessType) {
-                notify('error', 'Please select a business type first');
+                // Provide more specific error message
+                let fieldName = 'primary asset URL';
+                if (this.businessType === 'domain') {
+                    fieldName = 'domain name';
+                } else if (this.businessType === 'website') {
+                    fieldName = 'website URL';
+                } else if (this.businessType === 'social_media_account') {
+                    fieldName = 'social media account details';
+                }
+                notify('error', `Please enter the ${fieldName} first`);
                 return;
             }
             
@@ -1530,23 +1681,31 @@ $(document).ready(function() {
                 return;
             }
             
-            // Get current asset URL from form (in case it changed)
+            // Get current business type and asset URL from form
+            const currentBusinessType = $('input[name="business_type"]:checked').val();
             const currentAssetUrl = this.getCurrentAssetUrl();
-            
-            // Check if asset URL changed
-            const normalizeUrl = function(url) {
-                if (!url) return '';
-                return url.trim().toLowerCase().replace(/\/+$/, '');
-            };
-            
+            const sessionBusinessType = '{{ $ownershipValidationData['verification_business_type'] ?? '' }}';
             const sessionAsset = '{{ $ownershipValidationData['verification_asset'] ?? '' }}';
-            if (this.verificationToken && sessionAsset) {
+            
+            // Only check URL change if business type matches (same type)
+            if (this.verificationToken && sessionAsset && currentBusinessType === sessionBusinessType && sessionBusinessType) {
+                const normalizeUrl = function(url) {
+                    if (!url) return '';
+                    return url.trim().toLowerCase().replace(/\/+$/, '');
+                };
+                
                 const normalizedSession = normalizeUrl(sessionAsset);
                 const normalizedCurrent = normalizeUrl(currentAssetUrl);
-                if (normalizedSession !== normalizedCurrent && normalizedCurrent !== '') {
+                
+                // Only error if URL changed for the SAME business type
+                if (normalizedSession !== '' && normalizedCurrent !== '' && normalizedSession !== normalizedCurrent) {
                     notify('error', 'Asset URL has changed. Please generate a new verification token for the current asset.');
                     return;
                 }
+            } else if (currentBusinessType !== sessionBusinessType && sessionBusinessType) {
+                // Business type changed - need to verify for new type
+                notify('error', 'Business type has changed. Please generate a new verification token for the selected business type.');
+                return;
             }
             
             // Update primary asset URL
@@ -1627,16 +1786,42 @@ $(document).ready(function() {
         },
         
         getCurrentAssetUrl: function() {
+            // First, try to get business type from form if not set
+            if (!this.businessType) {
+                this.businessType = $('input[name="business_type"]:checked').val() || null;
+            }
+            
+            // Priority: Check visible input sections first (most reliable)
+            if ($('#domainInputSection').is(':visible')) {
+                const domainValue = $('#domainNameInput').val() || '';
+                if (domainValue.trim()) {
+                    if (!this.businessType) this.businessType = 'domain';
+                    return domainValue.trim();
+                }
+            }
+            
+            if ($('#websiteInputSection').is(':visible')) {
+                const websiteValue = $('#websiteUrlInput').val() || '';
+                if (websiteValue.trim()) {
+                    if (!this.businessType) this.businessType = 'website';
+                    return websiteValue.trim();
+                }
+            }
+            
+            // Fallback: Get URL based on business type if set
             if (this.businessType === 'domain') {
-                return $('#domainNameInput').val() || '';
+                const domainValue = $('#domainNameInput').val() || '';
+                return domainValue.trim();
             } else if (this.businessType === 'website') {
-                return $('#websiteUrlInput').val() || '';
+                const websiteValue = $('#websiteUrlInput').val() || '';
+                return websiteValue.trim();
             } else if (this.businessType === 'social_media_account') {
                 const platform = $('select[name="platform"]').val();
                 const username = $('input[name="social_username"]').val();
                 const url = $('input[name="social_url"]').val();
-                return url || (platform && username ? platform + '/' + username : '');
+                return (url || (platform && username ? platform + '/' + username : '')).trim();
             }
+            
             return '';
         },
         
@@ -1652,8 +1837,24 @@ $(document).ready(function() {
     // Initialize ownership validation
     ownershipValidation.init();
     
-    // Prevent continuing if validation required but not verified (instant check, no delay)
-    $('#step1ContinueBtn').on('click', function(e) {
+    // Handle Step 2 to Step 3 navigation (conditional skip for apps)
+    $('#step2ContinueBtn').on('click', function(e) {
+        const businessType = $('input[name="business_type"]:checked').val();
+        const requiresValidation = ['domain', 'website', 'social_media_account'];
+        
+        // If verification not required, skip Step 3 and go to Step 4
+        if (!requiresValidation.includes(businessType)) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Skip Step 3, go directly to Step 4
+            ListingFormHandler.showStep(4);
+            return false;
+        }
+        // Otherwise, proceed to Step 3 normally
+    });
+    
+    // Handle Step 3 to Step 4 navigation (check verification)
+    $('#step3ContinueBtn').on('click', function(e) {
         const businessType = $('input[name="business_type"]:checked').val();
         const requiresValidation = ['domain', 'website', 'social_media_account'];
         
