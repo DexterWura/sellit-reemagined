@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Barryvdh\DomPDF\Facade\Pdf;
+// use Barryvdh\DomPDF\Facade\Pdf;
 
 class NdaController extends Controller
 {
@@ -142,26 +142,43 @@ class NdaController extends Controller
     {
         $nda = NdaDocument::where('user_id', auth()->id())->findOrFail($id);
 
-        if (!$nda->document_path || !Storage::exists($nda->document_path)) {
-            // If PDF doesn't exist, generate it on-demand
-            try {
-                $documentPath = $this->generateNdaPdf($nda);
-                if ($documentPath && Storage::exists($documentPath)) {
-                    $nda->document_path = $documentPath;
-                    $nda->save();
-                } else {
-                    abort(404, 'NDA document could not be generated');
-                }
-            } catch (\Exception $e) {
-                Log::error('On-demand NDA PDF generation failed: ' . $e->getMessage(), [
-                    'nda_id' => $id,
-                    'user_id' => auth()->id()
-                ]);
-                abort(500, 'Unable to generate NDA document');
-            }
-        }
+        // Since PDF generation is disabled, return a simple text confirmation instead
+        $content = $this->generateNdaText($nda);
+        $filename = 'nda-' . $nda->listing->listing_number . '-' . $nda->id . '.txt';
 
-        return Storage::download($nda->document_path, 'nda-' . $nda->listing->listing_number . '.pdf');
+        return response($content)
+            ->header('Content-Type', 'text/plain')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    }
+
+    /**
+     * Generate a text version of the NDA for download
+     */
+    private function generateNdaText(NdaDocument $nda)
+    {
+        $listing = $nda->listing;
+        $signer = $nda->user;
+        $seller = $listing->seller;
+
+        $text = "NON-DISCLOSURE AGREEMENT\n";
+        $text .= "========================\n\n";
+
+        $text .= "Listing: {$listing->title}\n";
+        $text .= "Listing Number: {$listing->listing_number}\n\n";
+
+        $text .= "Seller: {$seller->username} ({$seller->email})\n";
+        $text .= "Signer: {$signer->username} ({$signer->email})\n\n";
+
+        $text .= "Signed At: {$nda->signed_at->format('F d, Y H:i:s')}\n";
+        $text .= "Signature: {$nda->signature}\n";
+        $text .= "IP Address: {$nda->ip_address}\n";
+        $text .= "Expires: " . ($nda->expires_at ? $nda->expires_at->format('F d, Y') : 'Never') . "\n\n";
+
+        $text .= "This agreement confirms that the signer has reviewed and agreed to the non-disclosure terms for this listing.\n\n";
+
+        $text .= "Generated on: " . now()->format('F d, Y H:i:s') . "\n";
+
+        return $text;
     }
 
     public function myNdas()
@@ -178,46 +195,20 @@ class NdaController extends Controller
     }
 
     /**
-     * Generate PDF document for NDA
+     * Generate PDF document for NDA (currently disabled)
      */
     private function generateNdaPdf(NdaDocument $nda)
     {
-        try {
-            $listing = $nda->listing;
-            $signer = $nda->user;
-            $seller = $listing->seller;
+        // PDF generation is currently disabled due to DomPDF dependency issues
+        // NDA signing will work without PDF generation
+        Log::info('NDA PDF generation skipped - PDF functionality disabled', [
+            'nda_id' => $nda->id,
+            'listing_id' => $nda->listing_id,
+            'user_id' => $nda->user_id
+        ]);
 
-            $data = [
-                'nda' => $nda,
-                'listing' => $listing,
-                'signer' => $signer,
-                'seller' => $seller,
-                'signed_date' => $nda->signed_at->format('F d, Y'),
-                'signed_time' => $nda->signed_at->format('H:i:s'),
-                'expires_date' => $nda->expires_at ? $nda->expires_at->format('F d, Y') : 'Never',
-            ];
-
-            $pdf = Pdf::loadView('pdf.nda-document', $data);
-
-            // Generate filename
-            $filename = 'nda-' . $listing->listing_number . '-' . $signer->id . '-' . $nda->signed_at->format('Y-m-d-H-i-s') . '.pdf';
-
-            // Store PDF in storage
-            $path = 'nda-documents/' . $filename;
-            Storage::put($path, $pdf->output());
-
-            return $path;
-        } catch (\Exception $e) {
-            Log::error('NDA PDF generation failed: ' . $e->getMessage(), [
-                'nda_id' => $nda->id,
-                'listing_id' => $nda->listing_id,
-                'user_id' => $nda->user_id,
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            // Return null if PDF generation fails - NDA is still valid
-            return null;
-        }
+        // Return null - NDA signing will continue without PDF
+        return null;
     }
 }
 

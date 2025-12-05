@@ -95,19 +95,11 @@
                                                        title="@lang('View Listing')">
                                                         <i class="las la-eye"></i>
                                                     </a>
-                                                    @if($nda->document_path && \Storage::exists($nda->document_path))
                                                     <a href="{{ route('marketplace.nda.download', $nda->id) }}"
                                                        class="btn btn-outline-secondary btn-sm"
-                                                       title="@lang('Download NDA PDF')">
-                                                        <i class="las la-download"></i>
+                                                       title="@lang('Download NDA Document')">
+                                                        <i class="las la-file-alt"></i>
                                                     </a>
-                                                    @else
-                                                    <button class="btn btn-outline-warning btn-sm"
-                                                            title="@lang('PDF not available')"
-                                                            disabled>
-                                                        <i class="las la-file-pdf"></i>
-                                                    </button>
-                                                    @endif
                                                 </div>
                                             </td>
                                         </tr>
