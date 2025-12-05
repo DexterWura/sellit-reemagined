@@ -233,6 +233,25 @@ class ListingController extends Controller
             }
         }
 
+        // Check ownership verification (mandatory for domain, website, social_media_account)
+        $requiresVerification = in_array($businessType, ['domain', 'website', 'social_media_account']);
+        $ownerVerified = session()->get('ownership_verified', false);
+        
+        if ($requiresVerification && !$ownerVerified) {
+            $notify[] = ['error', 'Ownership could not be verified. Please verify ownership before creating a listing.'];
+            return back()->withInput()->withNotify($notify);
+        }
+        
+        // Get primary asset URL
+        $primaryAssetUrl = null;
+        if ($businessType === 'domain') {
+            $primaryAssetUrl = $request->domain_name;
+        } elseif ($businessType === 'website') {
+            $primaryAssetUrl = $request->website_url;
+        } elseif ($businessType === 'social_media_account') {
+            $primaryAssetUrl = $request->social_url ?? ($request->platform . '/' . $request->social_username);
+        }
+        
         // Generate title
         $title = $this->generateTitle($request, $domain);
 
@@ -250,6 +269,14 @@ class ListingController extends Controller
         $listing->is_confidential = $request->has('is_confidential') ? (bool)$request->is_confidential : false;
         $listing->requires_nda = $request->has('requires_nda') ? (bool)$request->requires_nda : false;
         $listing->confidential_reason = $request->confidential_reason ?? null;
+        
+        // Ownership validation fields
+        $listing->primary_asset_url = $primaryAssetUrl;
+        $listing->owner_verified = $ownerVerified;
+        if ($ownerVerified) {
+            $listing->ownership_verification_method = session()->get('ownership_verification_method');
+            $listing->ownership_verified_at = now();
+        }
 
         // Pricing
         if ($saleType === 'fixed_price') {
@@ -310,15 +337,21 @@ class ListingController extends Controller
         session()->forget([
             'listing_draft',
             'listing_draft_stage',
-            'listing_draft_updated_at'
+            'listing_draft_updated_at',
+            'ownership_verified',
+            'ownership_verification_token',
+            'ownership_verification_asset',
+            'ownership_verification_business_type',
+            'ownership_verification_method',
+            'ownership_verification_platform'
         ]);
         
         // Set flag to indicate successful submission (so create page knows to clear draft on next visit)
         session()->put('listing_submitted_successfully', true);
 
         $notify[] = ['success', 'Listing created successfully and submitted for review!'];
-        if ($requiresVerification) {
-            $notify[] = ['info', 'Domain verification was completed successfully.'];
+        if ($ownerVerified) {
+            $notify[] = ['info', 'Ownership verification was completed successfully.'];
         }
         return redirect()->route('user.listing.index')->withNotify($notify);
         } catch (\Exception $e) {

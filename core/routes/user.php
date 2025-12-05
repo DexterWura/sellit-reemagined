@@ -126,6 +126,15 @@ Route::middleware('auth')->name('user.')->group(function () {
                 Route::post('question/answer/{id}', 'answerQuestion')->middleware('marketplace.rate.limit:question_actions,20,1')->name('question.answer');
             });
 
+            // Ownership Validation
+            Route::controller('OwnershipValidationController')->name('ownership.validation.')->prefix('ownership-validation')->group(function () {
+                Route::get('methods', 'getMethods')->name('methods');
+                Route::post('generate-token', 'generateToken')->name('generate.token');
+                Route::post('validate', 'validate')->name('validate');
+                Route::get('oauth/{platform}', 'redirectToOAuth')->name('oauth.redirect');
+                // Note: OAuth callback is handled by SocialiteController which checks session flag
+            });
+
             // Social Media Verification
             Route::controller('SocialMediaVerificationController')->name('social.verification.')->prefix('social-verification')->group(function () {
                 Route::get('redirect/{platform}', 'redirect')->name('redirect');

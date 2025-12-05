@@ -17,6 +17,13 @@ class SocialiteController extends Controller
 
     public function callback($provider)
     {
+        // Check if this OAuth is for ownership validation
+        if (session()->has('oauth_for_ownership_validation')) {
+            // Redirect to ownership validation callback
+            return app(\App\Http\Controllers\User\OwnershipValidationController::class)->oauthCallback($provider);
+        }
+        
+        // Normal social login
         $socialLogin = new SocialLogin($provider);
         try {
             return $socialLogin->login();

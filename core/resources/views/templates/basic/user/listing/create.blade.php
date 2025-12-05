@@ -183,7 +183,50 @@
                                     </div>
                                 </div>
                                 
-                                {{-- Website/Domain Verification --}}
+                                {{-- Ownership Validation Section --}}
+                                <div id="ownershipValidationSection" class="mb-4" style="display: none;">
+                                    <div class="card border-warning">
+                                        <div class="card-header bg-warning bg-opacity-10">
+                                            <h6 class="mb-0">
+                                                <i class="las la-shield-alt me-2"></i>@lang('Ownership Validation') <span class="text-danger">*</span>
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="text-muted mb-3">
+                                                @lang('To ensure you own this asset, please verify ownership using one of the methods below.')
+                                            </p>
+                                            
+                                            <div id="validationMethodsContainer" class="mb-3">
+                                                <label class="form-label fw-semibold">@lang('Select Verification Method')</label>
+                                                <div id="validationMethodsList"></div>
+                                            </div>
+                                            
+                                            <div id="validationInstructions" class="alert alert-info" style="display: none;">
+                                                <h6 class="alert-heading">@lang('Instructions')</h6>
+                                                <div id="instructionsContent"></div>
+                                            </div>
+                                            
+                                            <div id="validationResult" class="mt-3" style="display: none;"></div>
+                                            
+                                            <div class="d-flex gap-2 mt-3">
+                                                <button type="button" class="btn btn--base" id="generateTokenBtn" style="display: none;">
+                                                    <i class="las la-key me-1"></i>@lang('Generate Verification Token')
+                                                </button>
+                                                <button type="button" class="btn btn-success" id="validateOwnershipBtn" style="display: none;">
+                                                    <i class="las la-check-circle me-1"></i>@lang('Validate Ownership')
+                                                </button>
+                                            </div>
+                                            
+                                            <div id="validationStatus" class="mt-3" style="display: none;">
+                                                <div class="alert alert-success">
+                                                    <i class="las la-check-circle me-2"></i>
+                                                    <strong>@lang('Ownership Verified!')</strong>
+                                                    <p class="mb-0 mt-1">@lang('You can now continue with your listing.')</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 
                                 <div class="step-actions mt-4 d-flex justify-content-between">
                                     <div></div>
@@ -694,6 +737,316 @@ $(document).ready(function() {
         maxImages: {{ $marketplaceSettings['max_images_per_listing'] ?? 10 }},
         hasDraft: {{ !empty($draftData) ? 'true' : 'false' }},
         currentStage: {{ $currentStage ?? 1 }}
+    });
+
+    // Ownership Validation Handler
+    let ownershipValidation = {
+        businessType: null,
+        primaryAssetUrl: null,
+        verificationToken: null,
+        selectedMethod: null,
+        isVerified: {{ session('ownership_verified', false) ? 'true' : 'false' }},
+        
+        init: function() {
+            const self = this;
+            
+            // Watch for business type changes
+            $('input[name="business_type"]').on('change', function() {
+                self.businessType = $(this).val();
+                self.checkIfValidationRequired();
+            });
+            
+            // Watch for domain/website URL changes
+            $('#domainNameInput, #websiteUrlInput').on('blur', function() {
+                self.checkIfValidationRequired();
+            });
+            
+            // Watch for social media fields
+            $('input[name="social_url"], input[name="social_username"]').on('blur', function() {
+                self.checkIfValidationRequired();
+            });
+            
+            // Generate token button
+            $('#generateTokenBtn').on('click', function() {
+                self.generateToken();
+            });
+            
+            // Validate ownership button
+            $('#validateOwnershipBtn').on('click', function() {
+                self.validateOwnership();
+            });
+            
+            // Method selection
+            $(document).on('change', 'input[name="validation_method"]', function() {
+                self.selectedMethod = $(this).val();
+                if (self.selectedMethod === 'oauth_login') {
+                    // For OAuth, show buttons immediately (no token needed)
+                    $('#generateTokenBtn').hide();
+                    $('#validateOwnershipBtn').hide();
+                    self.showInstructions();
+                } else if (self.verificationToken) {
+                    self.showInstructions();
+                } else {
+                    notify('info', 'Please generate a verification token first');
+                }
+            });
+            
+            // Watch for platform changes to update OAuth buttons
+            $('select[name="platform"]').on('change', function() {
+                if (self.businessType === 'social_media_account' && self.selectedMethod === 'oauth_login') {
+                    self.loadValidationMethods();
+                }
+            });
+            
+            // Check if already verified
+            if (this.isVerified) {
+                this.showVerifiedStatus();
+            }
+        },
+        
+        checkIfValidationRequired: function() {
+            const requiresValidation = ['domain', 'website', 'social_media_account'];
+            
+            if (!requiresValidation.includes(this.businessType)) {
+                $('#ownershipValidationSection').hide();
+                return;
+            }
+            
+            // Get primary asset URL
+            if (this.businessType === 'domain') {
+                this.primaryAssetUrl = $('#domainNameInput').val();
+            } else if (this.businessType === 'website') {
+                this.primaryAssetUrl = $('#websiteUrlInput').val();
+            } else if (this.businessType === 'social_media_account') {
+                const platform = $('select[name="platform"]').val();
+                const username = $('input[name="social_username"]').val();
+                const url = $('input[name="social_url"]').val();
+                this.primaryAssetUrl = url || (platform && username ? platform + '/' + username : null);
+            }
+            
+            if (this.primaryAssetUrl && this.primaryAssetUrl.trim()) {
+                $('#ownershipValidationSection').show();
+                this.loadValidationMethods();
+            } else {
+                $('#ownershipValidationSection').hide();
+            }
+        },
+        
+        loadValidationMethods: function() {
+            const self = this;
+            
+            $.ajax({
+                url: '{{ route("user.ownership.validation.methods") }}',
+                method: 'GET',
+                data: { business_type: this.businessType },
+                success: function(response) {
+                    if (response.success) {
+                        self.renderMethods(response.methods);
+                    }
+                },
+                error: function() {
+                    notify('error', 'Failed to load validation methods');
+                }
+            });
+        },
+        
+        renderMethods: function(methods) {
+            const self = this;
+            const container = $('#validationMethodsList');
+            container.empty();
+            
+            $.each(methods, function(key, method) {
+                if (key === 'oauth_login') {
+                    // For OAuth, show login buttons instead of radio
+                    const platform = $('select[name="platform"]').val();
+                    const oauthButtonsHtml = self.renderOAuthButtons(platform);
+                    container.append(oauthButtonsHtml);
+                } else {
+                    const methodHtml = `
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="validation_method" 
+                                   id="method_${key}" value="${key}">
+                            <label class="form-check-label" for="method_${key}">
+                                <strong>${method.name}</strong>
+                                <small class="d-block text-muted">${method.description}</small>
+                            </label>
+                        </div>
+                    `;
+                    container.append(methodHtml);
+                }
+            });
+        },
+        
+        renderOAuthButtons: function(platform) {
+            const self = this;
+            
+            if (!platform) {
+                return '<div class="alert alert-warning">Please select a platform first</div>';
+            }
+            
+            let buttonsHtml = '<div class="oauth-buttons-container mb-3">';
+            buttonsHtml += '<p class="mb-2"><strong>Login with your ' + (platform || 'Social Media') + ' account to verify ownership:</strong></p>';
+            buttonsHtml += '<div class="d-flex gap-2 flex-wrap">';
+            
+            // Use the original platform name in the URL (backend will map it to provider)
+            const oauthUrl = '{{ route("user.ownership.validation.oauth.redirect", ":platform") }}'.replace(':platform', platform.toLowerCase());
+            buttonsHtml += `
+                <a href="${oauthUrl}?business_type=${self.businessType}&handle=${encodeURIComponent($('input[name="social_username"]').val() || '')}&token=${self.verificationToken || ''}&asset_url=${encodeURIComponent(self.primaryAssetUrl || '')}" 
+                   class="btn btn-primary">
+                    <i class="las la-sign-in-alt me-1"></i>Login with ${platform}
+                </a>
+            `;
+            
+            buttonsHtml += '</div></div>';
+            return buttonsHtml;
+        },
+        
+        generateToken: function() {
+            const self = this;
+            
+            if (!this.primaryAssetUrl || !this.primaryAssetUrl.trim()) {
+                notify('error', 'Please enter the primary asset URL first');
+                return;
+            }
+            
+            $.ajax({
+                url: '{{ route("user.ownership.validation.generate.token") }}',
+                method: 'POST',
+                data: {
+                    business_type: this.businessType,
+                    primary_asset_url: this.primaryAssetUrl,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        self.verificationToken = response.token;
+                        if (response.instructions) {
+                            self.instructions = response.instructions;
+                            self.showInstructions(response.instructions);
+                        }
+                        
+                        // For social media OAuth, don't show validate button
+                        if (self.businessType === 'social_media_account') {
+                            // OAuth buttons are rendered in renderMethods
+                            self.loadValidationMethods();
+                        } else {
+                            $('#validateOwnershipBtn').show();
+                        }
+                        notify('success', 'Verification token generated');
+                    }
+                },
+                error: function(xhr) {
+                    const message = xhr.responseJSON?.message || 'Failed to generate token';
+                    notify('error', message);
+                }
+            });
+        },
+        
+        showInstructions: function(instructions) {
+            if (!this.selectedMethod) {
+                $('#validationInstructions').hide();
+                return;
+            }
+            
+            // Use passed instructions or stored instructions
+            const inst = instructions || this.instructions;
+            
+            if (inst && inst[this.selectedMethod]) {
+                const methodInstructions = inst[this.selectedMethod];
+                let stepsHtml = '<ol class="mb-0">';
+                methodInstructions.steps.forEach(function(step) {
+                    stepsHtml += '<li>' + step + '</li>';
+                });
+                stepsHtml += '</ol>';
+                
+                $('#instructionsContent').html('<h6>' + methodInstructions.title + '</h6>' + stepsHtml);
+                $('#validationInstructions').show();
+            } else {
+                $('#validationInstructions').hide();
+            }
+        },
+        
+        validateOwnership: function() {
+            const self = this;
+            
+            if (!this.verificationToken) {
+                notify('error', 'Please generate a verification token first');
+                return;
+            }
+            
+            if (!this.selectedMethod) {
+                notify('error', 'Please select a validation method');
+                return;
+            }
+            
+            // For OAuth login, redirect happens via button click, not AJAX
+            if (this.selectedMethod === 'oauth_login') {
+                notify('info', 'Please click the OAuth login button above');
+                return;
+            }
+            
+            const additionalData = {};
+            if (this.businessType === 'social_media_account') {
+                additionalData.platform = $('select[name="platform"]').val();
+                additionalData.handle = $('input[name="social_username"]').val();
+            } else if (this.selectedMethod === 'file_upload') {
+                additionalData.filename = prompt('Enter the filename (default: marketplace-verification.txt):', 'marketplace-verification.txt') || 'marketplace-verification.txt';
+            }
+            
+            $('#validateOwnershipBtn').prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i>Validating...');
+            
+            $.ajax({
+                url: '{{ route("user.ownership.validation.validate") }}',
+                method: 'POST',
+                data: {
+                    business_type: this.businessType,
+                    primary_asset_url: this.primaryAssetUrl,
+                    method: this.selectedMethod,
+                    token: this.verificationToken,
+                    additional_data: additionalData,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        self.isVerified = true;
+                        self.showVerifiedStatus();
+                        notify('success', response.message || 'Ownership verified successfully!');
+                    } else {
+                        notify('error', response.message || 'Ownership verification failed');
+                        $('#validationResult').html('<div class="alert alert-danger">' + response.message + '</div>').show();
+                    }
+                    $('#validateOwnershipBtn').prop('disabled', false).html('<i class="las la-check-circle me-1"></i>Validate Ownership');
+                },
+                error: function(xhr) {
+                    const message = xhr.responseJSON?.message || 'Validation failed';
+                    notify('error', message);
+                    $('#validationResult').html('<div class="alert alert-danger">' + message + '</div>').show();
+                    $('#validateOwnershipBtn').prop('disabled', false).html('<i class="las la-check-circle me-1"></i>Validate Ownership');
+                }
+            });
+        },
+        
+        showVerifiedStatus: function() {
+            $('#validationStatus').show();
+            $('#generateTokenBtn, #validateOwnershipBtn').hide();
+            $('#validationInstructions, #validationResult').hide();
+            $('#step1ContinueBtn').prop('disabled', false);
+        }
+    };
+    
+    // Initialize ownership validation
+    ownershipValidation.init();
+    
+    // Prevent continuing if validation required but not verified
+    $('#step1ContinueBtn').on('click', function(e) {
+        const businessType = $('input[name="business_type"]:checked').val();
+        const requiresValidation = ['domain', 'website', 'social_media_account'];
+        
+        if (requiresValidation.includes(businessType) && !ownershipValidation.isVerified) {
+            e.preventDefault();
+            notify('error', 'Please verify ownership before continuing');
+            return false;
+        }
     });
 
 });
