@@ -2035,12 +2035,68 @@
                 
                 // Update the existing heading with the method title, then add steps
                 const title = methodInstructions.title || 'Verification Instructions';
-                $('#validationInstructions .alert-heading').text(title);
-                $('#instructionsContent').html(stepsHtml);
-                $('#validationInstructions').show();
-                console.log('Instructions displayed');
+                const $instructionsEl = $('#validationInstructions');
+                const $headingEl = $instructionsEl.find('.alert-heading');
+                const $contentEl = $('#instructionsContent');
+                
+                console.log('DOM elements found:', {
+                    instructionsEl: $instructionsEl.length,
+                    headingEl: $headingEl.length,
+                    contentEl: $contentEl.length
+                });
+                
+                if ($headingEl.length) {
+                    $headingEl.text(title);
+                }
+                
+                if ($contentEl.length) {
+                    $contentEl.html(stepsHtml);
+                    console.log('Content set:', $contentEl.html(), 'Length:', $contentEl.html().length);
+                } else {
+                    console.error('instructionsContent element not found! Creating it...');
+                    // If content div doesn't exist, create it
+                    if ($headingEl.length) {
+                        $headingEl.after('<div id="instructionsContent"></div>');
+                        $('#instructionsContent').html(stepsHtml);
+                    } else {
+                        $instructionsEl.append('<div id="instructionsContent">' + stepsHtml + '</div>');
+                    }
+                }
+                
+                // Check if parent is visible
+                const $parent = $instructionsEl.parent();
+                console.log('Parent visibility check:', {
+                    parentVisible: $parent.is(':visible'),
+                    parentDisplay: $parent.css('display'),
+                    ownershipSectionVisible: $('#ownershipValidationSection').is(':visible')
+                });
+                
+                // Force show with multiple methods to ensure it's visible
+                // Remove inline style first, then set display
+                $instructionsEl.removeAttr('style');
+                $instructionsEl.css({
+                    'display': 'block',
+                    'visibility': 'visible',
+                    'opacity': '1'
+                });
+                $instructionsEl.show();
+                
+                // Also add a class to ensure visibility
+                $instructionsEl.addClass('d-block').removeClass('d-none');
+                
+                // Double-check after a brief delay
+                setTimeout(() => {
+                    const finalCheck = $('#validationInstructions');
+                    console.log('Final visibility check:', {
+                        isVisible: finalCheck.is(':visible'),
+                        display: finalCheck.css('display'),
+                        computedDisplay: window.getComputedStyle(finalCheck[0]).display,
+                        html: finalCheck.html(),
+                        contentHtml: $('#instructionsContent').html()
+                    });
+                }, 100);
             } else {
-                console.log('Invalid method instructions structure');
+                console.log('Invalid method instructions structure', methodInstructions);
                 $('#validationInstructions').hide();
             }
         },
