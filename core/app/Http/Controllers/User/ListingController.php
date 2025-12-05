@@ -191,7 +191,15 @@ class ListingController extends Controller
         // Business logic validation
         $this->validateListingBusinessLogic($request, $user);
 
-        // Verification logic removed - no verification required
+        // Check if verification is required for this business type
+        $requiresVerification = false;
+        if ($businessType === 'domain' && MarketplaceSetting::requireDomainVerification()) {
+            $requiresVerification = true;
+        } elseif ($businessType === 'website' && MarketplaceSetting::requireWebsiteVerification()) {
+            $requiresVerification = true;
+        } elseif ($businessType === 'social_media_account' && MarketplaceSetting::requireSocialMediaVerification()) {
+            $requiresVerification = true;
+        }
 
         // Extract domain/website info
         $domain = null;
@@ -280,10 +288,36 @@ class ListingController extends Controller
         $listing->meta_title = $request->meta_title ?? $title;
         $listing->meta_description = $request->meta_description ?? Str::limit(strip_tags($request->description), 160);
 
-        // Status - no verification required
-        $listing->status = Status::LISTING_PENDING;
-        $listing->requires_verification = false;
-        $listing->is_verified = false;
+        // Set status based on verification requirements
+        if ($requiresVerification) {
+            // Verification required - set to draft until verified
+            $listing->status = Status::LISTING_DRAFT;
+            $listing->requires_verification = true;
+            $listing->is_verified = false;
+
+            // Create verification record
+            try {
+                $verification = \App\Models\DomainVerification::createForListing($listing);
+                if ($verification) {
+                    \Log::info('Verification created for listing', [
+                        'listing_id' => $listing->id,
+                        'verification_id' => $verification->id,
+                        'domain' => $verification->domain,
+                        'method' => $verification->verification_method
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to create verification for listing', [
+                    'listing_id' => $listing->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        } else {
+            // No verification required - can go directly to pending
+            $listing->status = Status::LISTING_PENDING;
+            $listing->requires_verification = false;
+            $listing->is_verified = false;
+        }
 
         $listing->save();
 
@@ -297,7 +331,9 @@ class ListingController extends Controller
             'business_type' => $listing->business_type,
             'sale_type' => $listing->sale_type,
             'asking_price' => $listing->asking_price,
-            'status' => 'pending',
+            'status' => $listing->status,
+            'requires_verification' => $listing->requires_verification,
+            'verification_required' => $requiresVerification,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent()
         ]);
@@ -319,8 +355,14 @@ class ListingController extends Controller
         // Set flag to indicate successful submission (so create page knows to clear draft on next visit)
         session()->put('listing_submitted_successfully', true);
 
-            $notify[] = ['success', 'Listing created successfully'];
+        if ($requiresVerification) {
+            $notify[] = ['success', 'Listing created successfully! However, you need to verify ownership of your ' . str_replace('_', ' ', $businessType) . ' before it can be published.'];
+            $notify[] = ['info', 'Please check your verification section to complete the verification process.'];
+            return redirect()->route('user.verification.index')->withNotify($notify);
+        } else {
+            $notify[] = ['success', 'Listing created successfully and submitted for review!'];
             return redirect()->route('user.listing.index')->withNotify($notify);
+        }
         } catch (\Exception $e) {
             \Log::error('Listing creation failed: ' . $e->getMessage(), [
                 'user_id' => auth()->id(),
