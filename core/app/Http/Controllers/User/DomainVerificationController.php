@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DomainVerification;
 use App\Models\Listing;
 use App\Models\MarketplaceSetting;
+use App\Models\VerificationSetting;
 use Illuminate\Http\Request;
 
 class DomainVerificationController extends Controller
@@ -37,8 +38,16 @@ class DomainVerificationController extends Controller
         $method = $request->method;
         $listingId = $request->listing_id;
 
+        // Check if verification is required at all
+        if (!VerificationSetting::isRequired()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Domain verification is not required'
+            ], 400);
+        }
+
         // Check if method is allowed
-        if (!\App\Models\VerificationSetting::isMethodAllowed($method)) {
+        if (!VerificationSetting::isMethodAllowed($method)) {
             return response()->json([
                 'success' => false,
                 'message' => 'This verification method is not allowed'
@@ -88,14 +97,9 @@ class DomainVerificationController extends Controller
     {
         $listing = Listing::where('user_id', auth()->id())->findOrFail($listingId);
 
-        // Check if verification is required
-        if ($listing->business_type === 'domain' && !MarketplaceSetting::requireDomainVerification()) {
-            $notify[] = ['info', 'Domain verification is not required for this listing'];
-            return back()->withNotify($notify);
-        }
-
-        if ($listing->business_type === 'website' && !MarketplaceSetting::requireWebsiteVerification()) {
-            $notify[] = ['info', 'Website verification is not required for this listing'];
+        // Check if verification is required at all
+        if (!VerificationSetting::isRequired()) {
+            $notify[] = ['info', 'Domain verification is not required'];
             return back()->withNotify($notify);
         }
 
@@ -123,12 +127,11 @@ class DomainVerificationController extends Controller
         }
 
         $request->validate([
-            'verification_method' => 'required|in:txt_file,dns_record',
+            'verification_method' => 'required|in:file,dns',
         ]);
 
         // Check if method is allowed
-        $allowedMethods = MarketplaceSetting::getDomainVerificationMethods();
-        if (!in_array($request->verification_method, $allowedMethods)) {
+        if (!VerificationSetting::isMethodAllowed($request->verification_method)) {
             $notify[] = ['error', 'This verification method is not allowed'];
             return back()->withNotify($notify);
         }
@@ -190,12 +193,11 @@ class DomainVerificationController extends Controller
             ->findOrFail($id);
 
         $request->validate([
-            'verification_method' => 'required|in:txt_file,dns_record',
+            'verification_method' => 'required|in:file,dns',
         ]);
 
         // Check if method is allowed
-        $allowedMethods = MarketplaceSetting::getDomainVerificationMethods();
-        if (!in_array($request->verification_method, $allowedMethods)) {
+        if (!VerificationSetting::isMethodAllowed($request->verification_method)) {
             return back()->with('error', 'This verification method is not allowed');
         }
 
@@ -284,8 +286,7 @@ class DomainVerificationController extends Controller
         ]);
 
         // Check if method is allowed
-        $allowedMethods = MarketplaceSetting::getDomainVerificationMethods();
-        if (!in_array($request->method, $allowedMethods)) {
+        if (!VerificationSetting::isMethodAllowed($request->method)) {
             return response()->json([
                 'success' => false,
                 'message' => 'This verification method is not allowed'

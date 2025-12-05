@@ -182,6 +182,7 @@ Route::middleware('admin')->group(function () {
         Route::post('expire/{id}', 'expire')->name('expire');
         Route::post('delete/{id}', 'delete')->name('delete');
         Route::post('cleanup', 'cleanup')->name('cleanup');
+        Route::get('debug', 'debug')->name('debug');
     });
 
     // Reviews Management

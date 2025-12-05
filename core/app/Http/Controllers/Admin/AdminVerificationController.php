@@ -152,4 +152,33 @@ class AdminVerificationController extends Controller
         $notify[] = ['success', "Cleanup completed. {$expiredCount} verifications expired, {$oldAttemptsCount} old attempts deleted."];
         return back()->withNotify($notify);
     }
+
+    public function debug()
+    {
+        $settings = VerificationSetting::current();
+
+        $debug = [
+            'admin_settings' => [
+                'require_verification' => $settings->require_verification,
+                'allowed_methods' => $settings->allowed_methods,
+                'max_attempts' => $settings->max_verification_attempts,
+                'timeout' => $settings->verification_timeout_seconds,
+            ],
+            'verification_setting_methods' => [
+                'isRequired' => VerificationSetting::isRequired(),
+                'getAllowedMethods' => VerificationSetting::getAllowedMethods(),
+                'isMethodAllowed_file' => VerificationSetting::isMethodAllowed('file'),
+                'isMethodAllowed_dns' => VerificationSetting::isMethodAllowed('dns'),
+            ],
+            'marketplace_settings' => [
+                'require_domain_verification' => \App\Models\MarketplaceSetting::requireDomainVerification(),
+                'require_website_verification' => \App\Models\MarketplaceSetting::requireWebsiteVerification(),
+                'domain_verification_methods' => \App\Models\MarketplaceSetting::getDomainVerificationMethods(),
+            ],
+            'total_verifications' => DomainVerification::count(),
+            'pending_verifications' => DomainVerification::where('status', DomainVerification::STATUS_PENDING)->count(),
+        ];
+
+        return view('admin.verification.debug', compact('debug'));
+    }
 }
