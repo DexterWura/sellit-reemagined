@@ -330,4 +330,300 @@ class SystemController extends Controller
             return back()->withNotify($notify);
         }
     }
+
+    public function manualInstall()
+    {
+        try {
+            $vendorPath = base_path('vendor');
+
+            // Create vendor directory if it doesn't exist
+            if (!is_dir($vendorPath)) {
+                mkdir($vendorPath, 0755, true);
+            }
+
+            // Test if we can write to vendor directory
+            $testFile = $vendorPath . '/test_write.tmp';
+            if (file_put_contents($testFile, 'test') === false) {
+                throw new \Exception('Cannot write to vendor directory. Please check permissions.');
+            }
+            unlink($testFile);
+
+            // Required packages for DomPDF
+            $packages = [
+                'barryvdh/laravel-dompdf' => [
+                    'url' => 'https://github.com/barryvdh/laravel-dompdf/archive/v3.0.0.zip',
+                    'extract_path' => 'barryvdh/laravel-dompdf'
+                ],
+                'dompdf/dompdf' => [
+                    'url' => 'https://github.com/dompdf/dompdf/archive/v2.0.4.zip',
+                    'extract_path' => 'dompdf/dompdf'
+                ],
+                'phenx/php-svg-lib' => [
+                    'url' => 'https://github.com/PhenX/php-svg-lib/archive/v0.5.2.zip',
+                    'extract_path' => 'phenx/php-svg-lib'
+                ],
+                'phenx/php-font-lib' => [
+                    'url' => 'https://github.com/PhenX/php-font-lib/archive/0.5.6.zip',
+                    'extract_path' => 'phenx/php-font-lib'
+                ],
+                'sabberworm/php-css-parser' => [
+                    'url' => 'https://github.com/sabberworm/PHP-CSS-Parser/archive/v8.5.0.zip',
+                    'extract_path' => 'sabberworm/php-css-parser'
+                ]
+            ];
+
+            $installed = [];
+            $errors = [];
+
+            foreach ($packages as $package => $info) {
+                try {
+                    $this->downloadAndExtractPackage($package, $info['url'], $info['extract_path']);
+                    $installed[] = $package;
+                } catch (\Exception $e) {
+                    $errors[] = $package . ': ' . $e->getMessage();
+                }
+            }
+
+            // Update composer autoloader
+            $this->updateAutoloader();
+
+            // Clear cache
+            Artisan::call('optimize:clear');
+
+            $notify[] = ['success', 'Manual installation completed'];
+            if (!empty($installed)) {
+                $notify[] = ['info', 'Installed packages: ' . implode(', ', $installed)];
+            }
+            if (!empty($errors)) {
+                $notify[] = ['warning', 'Failed packages: ' . implode(', ', $errors)];
+            }
+
+            return back()->withNotify($notify);
+
+        } catch (\Exception $e) {
+            $notify[] = ['error', 'Manual installation failed: ' . $e->getMessage()];
+            return back()->withNotify($notify);
+        }
+    }
+
+    public function directDownload()
+    {
+        $pageTitle = 'Direct Package Download';
+        return view('admin.system.direct-download', compact('pageTitle'));
+    }
+
+    public function downloadPackage($package)
+    {
+        try {
+            $packages = [
+                'dompdf' => [
+                    'url' => 'https://github.com/dompdf/dompdf/archive/v2.0.4.zip',
+                    'folder' => 'dompdf-dompdf-2.0.4',
+                    'target' => 'dompdf/dompdf'
+                ],
+                'laravel-dompdf' => [
+                    'url' => 'https://github.com/barryvdh/laravel-dompdf/archive/v3.0.0.zip',
+                    'folder' => 'laravel-dompdf-3.0.0',
+                    'target' => 'barryvdh/laravel-dompdf'
+                ],
+                'php-svg-lib' => [
+                    'url' => 'https://github.com/PhenX/php-svg-lib/archive/v0.5.2.zip',
+                    'folder' => 'php-svg-lib-0.5.2',
+                    'target' => 'phenx/php-svg-lib'
+                ],
+                'php-font-lib' => [
+                    'url' => 'https://github.com/PhenX/php-font-lib/archive/0.5.6.zip',
+                    'folder' => 'php-font-lib-0.5.6',
+                    'target' => 'phenx/php-font-lib'
+                ],
+                'php-css-parser' => [
+                    'url' => 'https://github.com/sabberworm/PHP-CSS-Parser/archive/v8.5.0.zip',
+                    'folder' => 'PHP-CSS-Parser-8.5.0',
+                    'target' => 'sabberworm/php-css-parser'
+                ]
+            ];
+
+            if (!isset($packages[$package])) {
+                $notify[] = ['error', 'Package not found'];
+                return back()->withNotify($notify);
+            }
+
+            $info = $packages[$package];
+            $vendorPath = base_path('vendor');
+            $tempFile = $vendorPath . '/temp_' . $package . '.zip';
+
+            // Download the package
+            $zipContent = file_get_contents($info['url']);
+            if ($zipContent === false) {
+                throw new \Exception('Failed to download package');
+            }
+
+            // Save to temp file
+            if (file_put_contents($tempFile, $zipContent) === false) {
+                throw new \Exception('Failed to save package');
+            }
+
+            // Extract the zip
+            $zip = new \ZipArchive;
+            if ($zip->open($tempFile) !== true) {
+                throw new \Exception('Failed to open zip file');
+            }
+
+            $extractTo = $vendorPath . '/' . $info['target'];
+            if (!is_dir($extractTo)) {
+                mkdir($extractTo, 0755, true);
+            }
+
+            // Extract all files
+            $zip->extractTo($extractTo);
+            $zip->close();
+
+            // Move files from extracted folder to target
+            $extractedFolder = $extractTo . '/' . $info['folder'];
+            if (is_dir($extractedFolder)) {
+                $this->moveFiles($extractedFolder, $extractTo);
+                $this->removeDirectory($extractedFolder);
+            }
+
+            // Clean up temp file
+            unlink($tempFile);
+
+            // Update autoloader
+            $this->updateAutoloader();
+
+            $notify[] = ['success', ucfirst($package) . ' downloaded and installed successfully'];
+            return back()->withNotify($notify);
+
+        } catch (\Exception $e) {
+            $notify[] = ['error', 'Failed to download ' . $package . ': ' . $e->getMessage()];
+            return back()->withNotify($notify);
+        }
+    }
+
+    private function moveFiles($source, $destination)
+    {
+        $dir = opendir($source);
+        while (($file = readdir($dir)) !== false) {
+            if ($file != '.' && $file != '..') {
+                $srcPath = $source . '/' . $file;
+                $destPath = $destination . '/' . $file;
+
+                if (is_dir($srcPath)) {
+                    if (!is_dir($destPath)) {
+                        mkdir($destPath, 0755, true);
+                    }
+                    $this->moveFiles($srcPath, $destPath);
+                } else {
+                    rename($srcPath, $destPath);
+                }
+            }
+        }
+        closedir($dir);
+    }
+
+    private function removeDirectory($dir)
+    {
+        if (!is_dir($dir)) {
+            return;
+        }
+
+        $files = array_diff(scandir($dir), ['.', '..']);
+        foreach ($files as $file) {
+            $path = $dir . '/' . $file;
+            if (is_dir($path)) {
+                $this->removeDirectory($path);
+            } else {
+                unlink($path);
+            }
+        }
+        rmdir($dir);
+    }
+
+    private function downloadAndExtractPackage($packageName, $url, $extractPath)
+    {
+        $vendorPath = base_path('vendor');
+        $tempFile = $vendorPath . '/temp_' . md5($packageName) . '.zip';
+        $extractTo = $vendorPath . '/' . $extractPath;
+
+        try {
+            // Download the package
+            $zipContent = file_get_contents($url);
+            if ($zipContent === false) {
+                throw new \Exception('Failed to download package');
+            }
+
+            // Save to temp file
+            if (file_put_contents($tempFile, $zipContent) === false) {
+                throw new \Exception('Failed to save package');
+            }
+
+            // Extract the zip
+            $zip = new \ZipArchive;
+            if ($zip->open($tempFile) !== true) {
+                throw new \Exception('Failed to open zip file');
+            }
+
+            // Create extract directory
+            if (!is_dir($extractTo)) {
+                mkdir($extractTo, 0755, true);
+            }
+
+            // Extract all files
+            $zip->extractTo($extractTo);
+            $zip->close();
+
+            // Clean up temp file
+            unlink($tempFile);
+
+            return true;
+
+        } catch (\Exception $e) {
+            // Clean up on error
+            if (file_exists($tempFile)) {
+                unlink($tempFile);
+            }
+            throw $e;
+        }
+    }
+
+    private function updateAutoloader()
+    {
+        $vendorPath = base_path('vendor');
+
+        // Create basic autoloader files
+        $autoloadFiles = [
+            'barryvdh/laravel-dompdf/src/' => 'Barryvdh\\DomPDF\\',
+            'dompdf/dompdf/src/' => 'Dompdf\\',
+            'phenx/php-svg-lib/src/' => 'Svg\\',
+            'phenx/php-font-lib/src/' => 'FontLib\\',
+            'sabberworm/php-css-parser/src/' => 'Sabberworm\\CSS\\'
+        ];
+
+        $psr4 = [];
+        foreach ($autoloadFiles as $path => $namespace) {
+            $fullPath = $vendorPath . '/' . $path;
+            if (is_dir($fullPath)) {
+                $psr4[$namespace] = [$fullPath];
+            }
+        }
+
+        // Create a basic composer autoload_psr4.php file
+        $autoloadPsr4Path = $vendorPath . '/composer/autoload_psr4.php';
+        if (!is_dir(dirname($autoloadPsr4Path))) {
+            mkdir(dirname($autoloadPsr4Path), 0755, true);
+        }
+
+        $content = "<?php\n\n\$vendorDir = dirname(__DIR__);\n\$baseDir = dirname(\$vendorDir);\n\nreturn array(\n";
+        foreach ($psr4 as $namespace => $paths) {
+            $content .= "    '{$namespace}' => array(";
+            foreach ($paths as $path) {
+                $content .= "\$vendorDir . '/" . str_replace($vendorPath . '/', '', $path) . "',";
+            }
+            $content = rtrim($content, ',');
+            $content .= "),\n";
+        }
+        $content = rtrim($content, ",\n") . "\n);\n";
+
+        file_put_contents($autoloadPsr4Path, $content);
+    }
 }

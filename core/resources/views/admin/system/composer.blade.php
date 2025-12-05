@@ -23,8 +23,8 @@
                     </ul>
                 </div>
                 <div class="card-footer">
-                    <div class="row">
-                        <div class="col-md-6">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
                             <form action="{{ route('admin.system.composer.download') }}" method="POST">
                                 @csrf
                                 <button type="submit" class="btn btn--warning w-100 h-45">
@@ -32,19 +32,31 @@
                                 </button>
                             </form>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <form action="{{ route('admin.system.composer.install') }}" method="POST">
                                 @csrf
                                 <button type="submit" class="btn btn--primary w-100 h-45">
-                                    <i class="las la-download"></i> @lang('Install Dependencies')
+                                    <i class="las la-download"></i> @lang('Composer Install')
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-md-4">
+                            <form action="{{ route('admin.system.composer.manual') }}" method="POST">
+                                @csrf
+                                <button type="submit" class="btn btn--success w-100 h-45">
+                                    <i class="las la-tools"></i> @lang('Manual Install')
                                 </button>
                             </form>
                         </div>
                     </div>
-                    <div class="mt-3">
-                        <small class="text-muted">
-                            @lang('If composer is not available, first download composer.phar, then install dependencies.')
-                        </small>
+                    <div class="alert alert-info">
+                        <strong>@lang('Installation Options:')</strong><br>
+                        1. @lang('Download Composer.phar first, then use Composer Install')<br>
+                        2. @lang('If Composer Install fails, try Manual Install (downloads all packages at once)')<br>
+                        3. @lang('Or use Direct Download to install packages individually')<br><br>
+                        <a href="{{ route('admin.system.composer.direct') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="las la-external-link-alt"></i> @lang('Go to Direct Download Page')
+                        </a>
                     </div>
                 </div>
             </div>
