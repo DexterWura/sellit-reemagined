@@ -1,1542 +1,1581 @@
 @extends($activeTemplate . 'layouts.frontend')
+
 @section('content')
 <section class="section bg--light">
-<div class="py-5">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-10">
-                
-                {{-- Progress Steps --}}
-                <div class="listing-progress mb-4">
-                    <div class="progress-steps">
-                        <div class="step active" data-step="1">
-                            <span class="step-number">1</span>
-                            <span class="step-text">@lang('Type')</span>
-                        </div>
-                        <div class="step" data-step="2">
-                            <span class="step-number">2</span>
-                            <span class="step-text">@lang('Asset')</span>
-                        </div>
-                        <div class="step" data-step="3">
-                            <span class="step-number">3</span>
-                            <span class="step-text">@lang('Verify')</span>
-                        </div>
-                        <div class="step" data-step="4">
-                            <span class="step-number">4</span>
-                            <span class="step-text">@lang('Details')</span>
-                        </div>
-                        <div class="step" data-step="5">
-                            <span class="step-number">5</span>
-                            <span class="step-text">@lang('Pricing')</span>
-                        </div>
-                        <div class="step" data-step="6">
-                            <span class="step-number">6</span>
-                            <span class="step-text">@lang('Media')</span>
+    <div class="py-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    
+                    {{-- Progress Steps --}}
+                    <div class="listing-progress mb-4">
+                        <div class="progress-steps" id="progressSteps">
+                            <div class="step active" data-step="1"><span class="step-number">1</span><span class="step-text">@lang('Type')</span></div>
+                            <div class="step" data-step="2"><span class="step-number">2</span><span class="step-text">@lang('Asset')</span></div>
+                            <div class="step" data-step="3"><span class="step-number">3</span><span class="step-text">@lang('Verify')</span></div>
+                            <div class="step" data-step="4"><span class="step-number">4</span><span class="step-text">@lang('Details')</span></div>
+                            <div class="step" data-step="5"><span class="step-number">5</span><span class="step-text">@lang('Pricing')</span></div>
+                            <div class="step" data-step="6"><span class="step-number">6</span><span class="step-text">@lang('Media')</span></div>
                         </div>
                     </div>
-                </div>
 
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white border-bottom py-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">
-                                <i class="las la-plus-circle text--base me-2"></i>
-                                @lang('Create New Listing')
-                            </h5>
-                            @if(!empty($draftData))
-                                <div class="draft-indicator">
-                                    <span class="badge bg-info">
-                                        <i class="las la-save me-1"></i>
-                                        @lang('Draft Saved')
-                                    </span>
-                                    <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="clearDraftBtn">
-                                        <i class="las la-trash"></i> @lang('Clear Draft')
-                                    </button>
-                                </div>
-                            @endif
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white border-bottom py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="las la-plus-circle text--base me-2"></i>
+                                    @lang('Create New Listing')
+                                </h5>
+                                @if(!empty($draftData))
+                                    <div class="draft-indicator">
+                                        <span class="badge bg-info" id="draftStatusBadge">
+                                            <i class="las la-save me-1"></i>
+                                            @lang('Draft Saved')
+                                        </span>
+                                        <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="clearDraftBtn">
+                                            <i class="las la-trash"></i> @lang('Clear Draft')
+                                        </button>
+                                    </div>
+                                @endif
+                            </div>
                         </div>
-                    </div>
-                    <div class="card-body p-4">
-                        <form action="{{ route('user.listing.store') }}" method="POST" enctype="multipart/form-data" id="listingForm">
-                            @csrf
-                            
-                            {{-- ============================================
-                                 STEP 1: Business Type Selection Only
-                                 ============================================ --}}
-                            <div class="form-step" data-step="1">
-                                <div class="step-header mb-4">
-                                    <h5 class="fw-bold mb-1">@lang('What are you selling?')</h5>
-                                    <p class="text-muted mb-0">@lang('Select the type of online business you want to list')</p>
+                        <div class="card-body p-4">
+                            <form action="{{ route('user.listing.store') }}" method="POST" enctype="multipart/form-data" id="listingForm">
+                                @csrf
+                                
+                                {{-- Hidden fields for validation state --}}
+                                <input type="hidden" name="verification_token" id="verificationTokenInput" value="{{ $ownershipValidationData['verification_token'] ?? '' }}">
+                                <input type="hidden" name="verification_method" id="verificationMethodInput" value="{{ $ownershipValidationData['verification_method'] ?? '' }}">
+                                <input type="hidden" name="is_verified" id="isVerifiedInput" value="{{ $ownershipValidationData['is_verified'] ? '1' : '0' }}">
+                                <input type="hidden" name="verification_asset" id="verificationAssetInput" value="{{ $ownershipValidationData['verification_asset'] ?? '' }}">
+
+                                {{-- ============================================
+                                     STEP 1: Business Type Selection
+                                     ============================================ --}}
+                                <div class="form-step" data-step="1">
+                                    <div class="step-header mb-4">
+                                        <h5 class="fw-bold mb-1">@lang('What are you selling?')</h5>
+                                        <p class="text-muted mb-0">@lang('Select the type of online business you want to list')</p>
+                                    </div>
+                                    
+                                    <div class="business-type-grid mb-4">
+                                        @php
+                                            $typeIcons = [
+                                                'domain' => ['icon' => 'las la-globe', 'color' => '#3b82f6'],
+                                                'website' => ['icon' => 'las la-laptop-code', 'color' => '#10b981'],
+                                                'social_media_account' => ['icon' => 'las la-users', 'color' => '#8b5cf6'],
+                                                'mobile_app' => ['icon' => 'las la-mobile-alt', 'color' => '#f59e0b'],
+                                                'desktop_app' => ['icon' => 'las la-desktop', 'color' => '#ef4444'],
+                                            ];
+                                        @endphp
+                                        
+                                        @foreach($businessTypes as $key => $name)
+                                            @if(($marketplaceSettings['allow_' . $key] ?? '1') == '1')
+                                                <label class="business-type-card">
+                                                    <input type="radio" name="business_type" value="{{ $key }}" 
+                                                            {{ old('business_type', $draftData['business_type'] ?? '') == $key ? 'checked' : '' }} required>
+                                                    <div class="card-inner">
+                                                        <div class="type-icon" style="background: {{ $typeIcons[$key]['color'] ?? '#6b7280' }}20; color: {{ $typeIcons[$key]['color'] ?? '#6b7280' }}">
+                                                            <i class="{{ $typeIcons[$key]['icon'] ?? 'las la-box' }}"></i>
+                                                        </div>
+                                                        <h6 class="type-name">{{ $name }}</h6>
+                                                        <span class="check-mark"><i class="las la-check"></i></span>
+                                                    </div>
+                                                </label>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                    
+                                    <div class="alert alert-info mt-4">
+                                        <i class="las la-info-circle me-2"></i>
+                                        <strong>@lang('Next Step:')</strong> 
+                                        @lang('After selecting a business type, you will be asked to enter the specific asset details.')
+                                    </div>
+                                    
+                                    <div class="step-actions mt-4 d-flex justify-content-end">
+                                        <button type="button" class="btn btn--base btn-next" data-step="2" id="step1ContinueBtn">
+                                            @lang('Continue') <i class="las la-arrow-right ms-1"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 
-                                <div class="business-type-grid mb-4">
-                                    @php
-                                        $typeIcons = [
-                                            'domain' => ['icon' => 'las la-globe', 'color' => '#3b82f6'],
-                                            'website' => ['icon' => 'las la-laptop-code', 'color' => '#10b981'],
-                                            'social_media_account' => ['icon' => 'las la-users', 'color' => '#8b5cf6'],
-                                            'mobile_app' => ['icon' => 'las la-mobile-alt', 'color' => '#f59e0b'],
-                                            'desktop_app' => ['icon' => 'las la-desktop', 'color' => '#ef4444'],
-                                        ];
-                                    @endphp
+                                {{-- ============================================
+                                     STEP 2: Asset Entry (Domain/Website/Social Media/App)
+                                     ============================================ --}}
+                                <div class="form-step d-none" data-step="2">
+                                    <div class="step-header mb-4">
+                                        <h5 class="fw-bold mb-1">@lang('Enter Asset Details')</h5>
+                                        <p class="text-muted mb-0">@lang('Provide information about the specific asset you are selling')</p>
+                                    </div>
                                     
-                                    @foreach($businessTypes as $key => $name)
-                                        @if(($marketplaceSettings['allow_' . $key] ?? '1') == '1')
-                                            <label class="business-type-card">
-                                                <input type="radio" name="business_type" value="{{ $key }}" 
-                                                       {{ old('business_type', $draftData['business_type'] ?? '') == $key ? 'checked' : '' }} required>
-                                                <div class="card-inner">
-                                                    <div class="type-icon" style="background: {{ $typeIcons[$key]['color'] ?? '#6b7280' }}20; color: {{ $typeIcons[$key]['color'] ?? '#6b7280' }}">
-                                                        <i class="{{ $typeIcons[$key]['icon'] ?? 'las la-box' }}"></i>
+                                    {{-- Domain Input Section --}}
+                                    <div id="domainInputSection" class="business-fields domain-fields mb-4" style="display: none;">
+                                        <div class="card border-primary">
+                                            <div class="card-header bg-primary bg-opacity-10">
+                                                <h6 class="mb-0">
+                                                    <i class="las la-globe me-2"></i>@lang('Domain Information')
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-semibold">@lang('Domain Name') <span class="text-danger">*</span></label>
+                                                    <div class="input-group input-group-lg">
+                                                        <span class="input-group-text bg-light"><i class="las la-globe"></i></span>
+                                                        <input type="url" name="domain_name" id="domainNameInput" class="form-control" 
+                                                                value="{{ old('domain_name', $draftData['domain_name'] ?? '') }}" placeholder="https://example.com" data-required="domain">
                                                     </div>
-                                                    <h6 class="type-name">{{ $name }}</h6>
+                                                    <small class="text-muted d-block mt-1">
+                                                        <i class="las la-info-circle"></i> 
+                                                        <span id="domainHelpText">@lang('Enter domain with http:// or https:// (e.g., https://example.com)')</span>
+                                                    </small>
+                                                </div>
+                                                
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label">@lang('Domain Registrar')</label>
+                                                        <input type="text" name="domain_registrar" class="form-control" 
+                                                                value="{{ old('domain_registrar', $draftData['domain_registrar'] ?? '') }}" placeholder="@lang('e.g., GoDaddy, Namecheap')">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label">@lang('Expiry Date')</label>
+                                                        <input type="date" name="domain_expiry" class="form-control" value="{{ old('domain_expiry', $draftData['domain_expiry'] ?? '') }}">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {{-- Website Input Section --}}
+                                    <div id="websiteInputSection" class="business-fields website-fields mb-4" style="display: none;">
+                                        <div class="card border-success">
+                                            <div class="card-header bg-success bg-opacity-10">
+                                                <h6 class="mb-0">
+                                                    <i class="las la-laptop-code me-2"></i>@lang('Website Information')
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-semibold">@lang('Website URL') <span class="text-danger">*</span></label>
+                                                    <div class="input-group input-group-lg">
+                                                        <span class="input-group-text bg-light"><i class="las la-link"></i></span>
+                                                        <input type="url" name="website_url" id="websiteUrlInput" class="form-control" 
+                                                                value="{{ old('website_url', $draftData['website_url'] ?? '') }}" placeholder="https://example.com" data-required="website">
+                                                    </div>
+                                                    <small class="text-muted d-block mt-1">
+                                                        <i class="las la-info-circle"></i> 
+                                                        <span id="websiteHelpText">@lang('Enter full URL starting with http:// or https://')</span>
+                                                    </small>
+                                                </div>
+                                                
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label">@lang('Website Niche')</label>
+                                                        <input type="text" name="website_niche" class="form-control" 
+                                                                value="{{ old('website_niche', $draftData['website_niche'] ?? '') }}" placeholder="@lang('e.g., Technology, Health, Finance')">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label">@lang('Tech Stack / Platform')</label>
+                                                        <input type="text" name="website_tech_stack" class="form-control" 
+                                                                value="{{ old('website_tech_stack', $draftData['website_tech_stack'] ?? '') }}" placeholder="@lang('e.g., WordPress, Shopify, Laravel')">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label">@lang('Domain Registrar')</label>
+                                                        <input type="text" name="website_domain_registrar" class="form-control" 
+                                                                value="{{ old('website_domain_registrar', $draftData['website_domain_registrar'] ?? '') }}" placeholder="@lang('e.g., GoDaddy, Namecheap')">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label">@lang('Domain Expiry')</label>
+                                                        <input type="date" name="website_domain_expiry" class="form-control" value="{{ old('website_domain_expiry', $draftData['website_domain_expiry'] ?? '') }}">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {{-- Social Media Fields --}}
+                                    <div class="business-fields social_media_account-fields mb-4" style="display: none;">
+                                        <div class="card border-purple">
+                                            <div class="card-header bg-purple bg-opacity-10">
+                                                <h6 class="mb-0">
+                                                    <i class="las la-users me-2"></i>@lang('Social Media Account Information')
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">@lang('Platform') <span class="text-danger">*</span></label>
+                                                        <select name="platform" id="socialPlatformSelect" class="form-select form-select-lg" data-required="social_media_account">
+                                                            <option value="">@lang('Select Platform')</option>
+                                                            @foreach($platforms as $key => $name)
+                                                                <option value="{{ $key }}" {{ old('platform', $draftData['platform'] ?? '') == $key ? 'selected' : '' }}>{{ $name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">@lang('Username / Handle') <span class="text-danger">*</span></label>
+                                                        <div class="input-group input-group-lg">
+                                                            <span class="input-group-text bg-light">@</span>
+                                                            <input type="text" name="social_username" id="socialUsernameInput" class="form-control" 
+                                                                    value="{{ old('social_username', $draftData['social_username'] ?? '') }}" placeholder="username" data-required="social_media_account">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <label class="form-label">@lang('Account URL')</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text bg-light"><i class="las la-link"></i></span>
+                                                            <input type="url" name="social_url" id="socialUrlInput" class="form-control" 
+                                                                    value="{{ old('social_url', $draftData['social_url'] ?? '') }}" placeholder="https://instagram.com/username">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">@lang('Followers')</label>
+                                                        <input type="number" name="followers_count" class="form-control" 
+                                                                value="{{ old('followers_count', $draftData['followers_count'] ?? '') }}" placeholder="0" min="0">
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">@lang('Engagement Rate') (%)</label>
+                                                        <input type="number" name="engagement_rate" class="form-control" 
+                                                                value="{{ old('engagement_rate', $draftData['engagement_rate'] ?? '') }}" step="0.01" min="0" max="100" placeholder="0.00">
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">@lang('Account Niche')</label>
+                                                        <input type="text" name="social_niche" class="form-control" 
+                                                                value="{{ old('social_niche', $draftData['social_niche'] ?? '') }}" placeholder="@lang('e.g., Fashion, Gaming')">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {{-- Mobile App Fields --}}
+                                    <div class="business-fields mobile_app-fields mb-4" style="display: none;">
+                                        <div class="card border-warning">
+                                            <div class="card-header bg-warning bg-opacity-10">
+                                                <h6 class="mb-0">
+                                                    <i class="las la-mobile-alt me-2"></i>@lang('Mobile App Information')
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">@lang('App Name') <span class="text-danger">*</span></label>
+                                                        <input type="text" name="mobile_app_name" class="form-control form-control-lg" 
+                                                                value="{{ old('mobile_app_name', $draftData['mobile_app_name'] ?? '') }}" placeholder="@lang('Your App Name')" data-required="mobile_app">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label">@lang('Tech Stack')</label>
+                                                        <input type="text" name="mobile_tech_stack" class="form-control form-control-lg" 
+                                                                value="{{ old('mobile_tech_stack', $draftData['mobile_tech_stack'] ?? '') }}" placeholder="@lang('e.g., React Native, Flutter')">
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <label class="form-label">@lang('App Store URL (iOS)')</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text bg-light"><i class="lab la-apple"></i></span>
+                                                            <input type="url" name="app_store_url" class="form-control" 
+                                                                    value="{{ old('app_store_url', $draftData['app_store_url'] ?? '') }}" placeholder="https://apps.apple.com/...">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <label class="form-label">@lang('Play Store URL (Android)')</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text bg-light"><i class="lab la-google-play"></i></span>
+                                                            <input type="url" name="play_store_url" class="form-control" 
+                                                                    value="{{ old('play_store_url', $draftData['play_store_url'] ?? '') }}" placeholder="https://play.google.com/...">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">@lang('Total Downloads')</label>
+                                                        <input type="number" name="downloads_count" class="form-control" 
+                                                                value="{{ old('downloads_count', $draftData['downloads_count'] ?? '') }}" placeholder="0" min="0">
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">@lang('Rating') (0-5)</label>
+                                                        <input type="number" name="app_rating" class="form-control" 
+                                                                value="{{ old('app_rating', $draftData['app_rating'] ?? '') }}" step="0.1" min="0" max="5" placeholder="4.5">
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">@lang('Active Users')</label>
+                                                        <input type="number" name="active_users" class="form-control" 
+                                                                value="{{ old('active_users', $draftData['active_users'] ?? '') }}" placeholder="0" min="0">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {{-- Desktop App Fields --}}
+                                    <div class="business-fields desktop_app-fields mb-4" style="display: none;">
+                                        <div class="card border-danger">
+                                            <div class="card-header bg-danger bg-opacity-10">
+                                                <h6 class="mb-0">
+                                                    <i class="las la-desktop me-2"></i>@lang('Desktop App Information')
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">@lang('App Name') <span class="text-danger">*</span></label>
+                                                        <input type="text" name="desktop_app_name" class="form-control form-control-lg" 
+                                                                value="{{ old('desktop_app_name', $draftData['desktop_app_name'] ?? '') }}" placeholder="@lang('Your App Name')" data-required="desktop_app">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label">@lang('Tech Stack')</label>
+                                                        <input type="text" name="desktop_tech_stack" class="form-control form-control-lg" 
+                                                                value="{{ old('desktop_tech_stack', $draftData['desktop_tech_stack'] ?? '') }}" placeholder="@lang('e.g., Electron, .NET, Java')">
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <label class="form-label">@lang('Download / Website URL')</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text bg-light"><i class="las la-download"></i></span>
+                                                            <input type="url" name="desktop_url" class="form-control" 
+                                                                    value="{{ old('desktop_url', $draftData['desktop_url'] ?? '') }}" placeholder="https://yourapp.com/download">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">@lang('Total Downloads')</label>
+                                                        <input type="number" name="desktop_downloads_count" class="form-control" 
+                                                                value="{{ old('desktop_downloads_count', $draftData['desktop_downloads_count'] ?? '') }}" placeholder="0" min="0">
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">@lang('Active Users')</label>
+                                                        <input type="number" name="desktop_active_users" class="form-control" 
+                                                                value="{{ old('desktop_active_users', $draftData['desktop_active_users'] ?? '') }}" placeholder="0" min="0">
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">@lang('Supported Platforms')</label>
+                                                        <input type="text" name="supported_platforms" class="form-control" 
+                                                                value="{{ old('supported_platforms', $draftData['supported_platforms'] ?? '') }}" placeholder="@lang('Windows, Mac, Linux')">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="step-actions mt-4 d-flex justify-content-between">
+                                        <button type="button" class="btn btn-outline-secondary btn-prev" data-step="1">
+                                            <i class="las la-arrow-left me-1"></i> @lang('Back')
+                                        </button>
+                                        <button type="button" class="btn btn--base btn-next" data-step="3" id="step2ContinueBtn">
+                                            @lang('Continue') <i class="las la-arrow-right ms-1"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                {{-- ============================================
+                                     STEP 3: Ownership Verification (Conditional)
+                                     ============================================ --}}
+                                <div class="form-step d-none" data-step="3" id="ownershipVerificationStep">
+                                    <div class="step-header mb-4">
+                                        <h5 class="fw-bold mb-1">@lang('Verify Ownership')</h5>
+                                        <p class="text-muted mb-0">@lang('Verify that you own this asset before continuing')</p>
+                                    </div>
+                                    
+                                    {{-- Ownership Validation Section --}}
+                                    <div id="ownershipValidationSection" class="mb-4" style="display: none;">
+                                        <div class="card border-warning">
+                                            <div class="card-header bg-warning bg-opacity-10">
+                                                <h6 class="mb-0">
+                                                    <i class="las la-shield-alt me-2"></i>@lang('Ownership Validation') <span class="text-danger">*</span>
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <p class="text-muted mb-3">
+                                                    @lang('To ensure you own this asset, please verify ownership using one of the methods below.')
+                                                </p>
+                                                
+                                                <div id="validationMethodsContainer" class="mb-3">
+                                                    <label class="form-label fw-semibold">@lang('Select Verification Method')</label>
+                                                    <div id="validationMethodsList">
+                                                        <div class="text-center py-2"><i class="las la-spinner la-spin"></i> <small>Loading methods...</small></div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div id="validationInstructions" class="alert alert-info" style="display: none;">
+                                                    <h6 class="alert-heading">@lang('Instructions')</h6>
+                                                    <div id="instructionsContent"></div>
+                                                </div>
+                                                
+                                                <div id="validationResult" class="mt-3" style="display: none;"></div>
+                                                
+                                                <div id="oauthLoginButtons" class="mt-3" style="display: none;"></div>
+
+                                                <div class="d-flex gap-2 mt-3" id="verificationActionButtons">
+                                                    <button type="button" class="btn btn--base" id="generateTokenBtn" style="display: none;">
+                                                        <i class="las la-key me-1"></i>@lang('Generate Verification Token')
+                                                    </button>
+                                                    <button type="button" class="btn btn-success" id="validateOwnershipBtn" style="display: none;">
+                                                        <i class="las la-check-circle me-1"></i>@lang('Validate Ownership')
+                                                    </button>
+                                                </div>
+                                                
+                                                <div id="validationStatus" class="mt-3" style="display: none;">
+                                                    <div class="alert alert-success">
+                                                        <i class="las la-check-circle me-2"></i>
+                                                        <strong>@lang('Ownership Verified!')</strong>
+                                                        <p class="mb-0 mt-1">@lang('You can now continue with your listing.')</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {{-- Skip message for types that don't require verification --}}
+                                    <div id="verificationNotRequiredMessage" class="alert alert-info" style="display: none;">
+                                        <i class="las la-info-circle me-2"></i>
+                                        <strong>@lang('Ownership verification not required')</strong>
+                                        <p class="mb-0 mt-2">@lang('Ownership verification is not required for this business type. You can proceed to the next step.')</p>
+                                    </div>
+                                    
+                                    <div class="step-actions mt-4 d-flex justify-content-between">
+                                        <button type="button" class="btn btn-outline-secondary btn-prev" data-step="2">
+                                            <i class="las la-arrow-left me-1"></i> @lang('Back')
+                                        </button>
+                                        <button type="button" class="btn btn--base btn-next" data-step="4" id="step3ContinueBtn">
+                                            @lang('Continue') <i class="las la-arrow-right ms-1"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                {{-- ============================================
+                                     STEP 4: Business Details 
+                                     ============================================ --}}
+                                <div class="form-step d-none" data-step="4">
+                                    <div class="step-header mb-4">
+                                        <h5 class="fw-bold mb-1">@lang('Business Details')</h5>
+                                        <p class="text-muted mb-0">@lang('Provide information about your business')</p>
+                                    </div>
+                                    
+                                    {{-- Common Fields for All Types --}}
+                                    <div class="row g-3">
+                                        <div class="col-md-12">
+                                            <label class="form-label fw-semibold">@lang('Category') <span class="text-danger">*</span></label>
+                                            <select name="listing_category_id" class="form-select form-select-lg" id="listingCategory" required>
+                                                <option value="">@lang('Select Category')</option>
+                                                @foreach($listingCategories as $category)
+                                                    <option value="{{ $category->id }}" data-type="{{ $category->business_type }}" 
+                                                             {{ old('listing_category_id', $draftData['listing_category_id'] ?? '') == $category->id ? 'selected' : '' }}>
+                                                        {{ $category->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label fw-semibold">@lang('Description') <span class="text-danger">*</span></label>
+                                            <textarea name="description" class="form-control" rows="6" required
+                                                     placeholder="@lang('Describe your business in detail. Include information about traffic sources, monetization methods, growth potential, and what is included in the sale...')">{{ old('description', $draftData['description'] ?? '') }}</textarea>
+                                            <small class="text-muted">@lang('Minimum 100 characters. Be detailed to attract serious buyers.')</small>
+                                        </div>
+                                    </div>
+                                    
+                                    {{-- Financials Section (Conditional based on type) --}}
+                                    <div class="mt-4 p-3 bg-light rounded financial-section">
+                                        <h6 class="fw-bold mb-3"><i class="las la-chart-line me-2"></i>@lang('Financial Information') <small class="text-muted financial-note">(@lang('Optional, except for certain business types'))</small></h6>
+                                        <div class="row g-3">
+                                            <div class="col-md-3">
+                                                <label class="form-label">@lang('Monthly Revenue')</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">{{ gs()->cur_sym }}</span>
+                                                    <input type="number" name="monthly_revenue" class="form-control" 
+                                                            value="{{ old('monthly_revenue', $draftData['monthly_revenue'] ?? '') }}" step="0.01" min="0" placeholder="0.00">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">@lang('Monthly Profit')</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">{{ gs()->cur_sym }}</span>
+                                                    <input type="number" name="monthly_profit" class="form-control" 
+                                                            value="{{ old('monthly_profit', $draftData['monthly_profit'] ?? '') }}" step="0.01" min="0" placeholder="0.00">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">@lang('Monthly Visitors')</label>
+                                                <input type="number" name="monthly_visitors" class="form-control" 
+                                                        value="{{ old('monthly_visitors', $draftData['monthly_visitors'] ?? '') }}" min="0" placeholder="0">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">@lang('Page Views/Month')</label>
+                                                <input type="number" name="monthly_page_views" class="form-control" 
+                                                        value="{{ old('monthly_page_views', $draftData['monthly_page_views'] ?? '') }}" min="0" placeholder="0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {{-- Confidential & NDA Section --}}
+                                    <div class="mt-4 p-3 border rounded">
+                                        <h6 class="fw-bold mb-3"><i class="las la-shield-alt me-2"></i>@lang('Confidentiality & NDA Settings')</h6>
+                                        <p class="text-muted small mb-3">@lang('Protect sensitive information by making your listing confidential and requiring an NDA before buyers can view details.')</p>
+                                        
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="is_confidential" id="isConfidential" 
+                                                            value="1" {{ old('is_confidential', $draftData['is_confidential'] ?? '') ? 'checked' : '' }}>
+                                                    <label class="form-check-label fw-semibold" for="isConfidential">
+                                                        @lang('Make this listing confidential')
+                                                    </label>
+                                                    <small class="text-muted d-block mt-1">
+                                                        @lang('Confidential listings hide sensitive details from unauthorized users.')
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="col-12" id="ndaSection" style="display: {{ old('is_confidential', $draftData['is_confidential'] ?? '') ? 'block' : 'none' }};">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="requires_nda" id="requiresNda" 
+                                                            value="1" {{ old('requires_nda', $draftData['requires_nda'] ?? '') ? 'checked' : '' }}>
+                                                    <label class="form-check-label fw-semibold" for="requiresNda">
+                                                        @lang('Require NDA before viewing details')
+                                                    </label>
+                                                    <small class="text-muted d-block mt-1">
+                                                        @lang('Buyers must sign a Non-Disclosure Agreement before they can view confidential details of your listing.')
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="col-12" id="confidentialReasonSection" style="display: {{ old('is_confidential', $draftData['is_confidential'] ?? '') ? 'block' : 'none' }};">
+                                                <label class="form-label fw-semibold">@lang('Reason for Confidentiality')</label>
+                                                <textarea name="confidential_reason" class="form-control" rows="3" 
+                                                          placeholder="@lang('Explain why this listing is confidential (e.g., sensitive financial data, proprietary technology, etc.)')">{{ old('confidential_reason', $draftData['confidential_reason'] ?? '') }}</textarea>
+                                                <small class="text-muted">@lang('This information helps buyers understand why an NDA is required.')</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="step-actions mt-4 d-flex justify-content-between">
+                                        <button type="button" class="btn btn-outline-secondary btn-prev" data-step="3">
+                                            <i class="las la-arrow-left me-1"></i> @lang('Back')
+                                        </button>
+                                        <button type="button" class="btn btn--base btn-next" data-step="5">
+                                            @lang('Continue') <i class="las la-arrow-right ms-1"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                {{-- ============================================
+                                     STEP 5: Sale Type & Pricing
+                                     ============================================ --}}
+                                <div class="form-step d-none" data-step="5">
+                                    <div class="step-header mb-4">
+                                        <h5 class="fw-bold mb-1">@lang('How do you want to sell?')</h5>
+                                        <p class="text-muted mb-0">@lang('Choose your sale method and set your price')</p>
+                                    </div>
+                                    
+                                    {{-- Sale Type Selection --}}
+                                    <div class="sale-type-grid mb-4">
+                                        @if(($marketplaceSettings['allow_fixed_price'] ?? '1') == '1')
+                                            <label class="sale-type-card">
+                                                <input type="radio" name="sale_type" value="fixed_price" id="fixedPriceRadio" 
+                                                        {{ old('sale_type', $draftData['sale_type'] ?? 'fixed_price') == 'fixed_price' ? 'checked' : '' }} required>
+                                                <div class="card-inner">
+                                                    <div class="sale-icon">
+                                                        <i class="las la-tag"></i>
+                                                    </div>
+                                                    <div class="sale-info">
+                                                        <h6 class="mb-1">@lang('Fixed Price')</h6>
+                                                        <p class="small text-muted mb-0">@lang('Set a specific price for your business')</p>
+                                                    </div>
                                                     <span class="check-mark"><i class="las la-check"></i></span>
                                                 </div>
                                             </label>
                                         @endif
-                                    @endforeach
-                                </div>
-                                
-                                <div class="alert alert-info mt-4">
-                                    <i class="las la-info-circle me-2"></i>
-                                    <strong>@lang('Next Step:')</strong> 
-                                    @lang('After selecting a business type, you will be asked to enter the specific asset details.')
-                                </div>
-                                
-                                <div class="step-actions mt-4 d-flex justify-content-between">
-                                    <div></div>
-                                    <button type="button" class="btn btn--base btn-next" data-next="2" id="step1ContinueBtn">
-                                        @lang('Continue') <i class="las la-arrow-right ms-1"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            {{-- ============================================
-                                 STEP 2: Asset Entry (Domain/Website/Social Media/App)
-                                 ============================================ --}}
-                            <div class="form-step d-none" data-step="2">
-                                <div class="step-header mb-4">
-                                    <h5 class="fw-bold mb-1">@lang('Enter Asset Details')</h5>
-                                    <p class="text-muted mb-0">@lang('Provide information about the specific asset you are selling')</p>
-                                </div>
-                                
-                                {{-- Domain Input Section --}}
-                                <div id="domainInputSection" class="mb-4" style="display: none;">
-                                    <div class="card border-primary">
-                                        <div class="card-header bg-primary bg-opacity-10">
-                                            <h6 class="mb-0">
-                                                <i class="las la-globe me-2"></i>@lang('Domain Information')
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="mb-3">
-                                                <label class="form-label fw-semibold">@lang('Domain Name') <span class="text-danger">*</span></label>
-                                                <div class="input-group input-group-lg">
-                                                    <span class="input-group-text bg-light"><i class="las la-globe"></i></span>
-                                                    <input type="text" name="domain_name" id="domainNameInput" class="form-control" 
-                                                           value="{{ old('domain_name', $draftData['domain_name'] ?? '') }}" placeholder="https://example.com" required>
-                                                </div>
-                                                <small class="text-muted d-block mt-1">
-                                                    <i class="las la-info-circle"></i> 
-                                                    <span id="domainHelpText">@lang('Enter domain with http:// or https:// (e.g., https://example.com)')</span>
-                                                </small>
-                                                <div id="domainProtocolWarning" class="alert alert-warning alert-sm mt-2 mb-0" style="display: none;">
-                                                    <i class="las la-exclamation-triangle"></i> 
-                                                    <strong>@lang('Protocol Required'):</strong> 
-                                                    @lang('Please start with http:// or https://')
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="row g-3">
-                                                <div class="col-md-6">
-                                                    <label class="form-label">@lang('Domain Registrar')</label>
-                                                    <input type="text" name="domain_registrar" class="form-control" 
-                                                           value="{{ old('domain_registrar', $draftData['domain_registrar'] ?? '') }}" placeholder="@lang('e.g., GoDaddy, Namecheap')">
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label">@lang('Expiry Date')</label>
-                                                    <input type="date" name="domain_expiry" class="form-control" value="{{ old('domain_expiry', $draftData['domain_expiry'] ?? '') }}">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {{-- Website Input Section --}}
-                                <div id="websiteInputSection" class="mb-4" style="display: none;">
-                                    <div class="card border-success">
-                                        <div class="card-header bg-success bg-opacity-10">
-                                            <h6 class="mb-0">
-                                                <i class="las la-laptop-code me-2"></i>@lang('Website Information')
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="mb-3">
-                                                <label class="form-label fw-semibold">@lang('Website URL') <span class="text-danger">*</span></label>
-                                                <div class="input-group input-group-lg">
-                                                    <span class="input-group-text bg-light"><i class="las la-link"></i></span>
-                                                    <input type="url" name="website_url" id="websiteUrlInput" class="form-control" 
-                                                           value="{{ old('website_url', $draftData['website_url'] ?? '') }}" placeholder="https://example.com" required>
-                                                </div>
-                                                <small class="text-muted d-block mt-1">
-                                                    <i class="las la-info-circle"></i> 
-                                                    <span id="websiteHelpText">@lang('Enter full URL starting with http:// or https://')</span>
-                                                </small>
-                                                <div id="websiteProtocolWarning" class="alert alert-warning alert-sm mt-2 mb-0" style="display: none;">
-                                                    <i class="las la-exclamation-triangle"></i> 
-                                                    <strong>@lang('Protocol Required'):</strong> 
-                                                    @lang('Please start with http:// or https://')
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="row g-3">
-                                                <div class="col-md-6">
-                                                    <label class="form-label">@lang('Website Niche')</label>
-                                                    <input type="text" name="website_niche" class="form-control" 
-                                                           value="{{ old('website_niche', $draftData['website_niche'] ?? '') }}" placeholder="@lang('e.g., Technology, Health, Finance')">
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label">@lang('Tech Stack / Platform')</label>
-                                                    <input type="text" name="website_tech_stack" class="form-control" 
-                                                           value="{{ old('website_tech_stack', $draftData['website_tech_stack'] ?? '') }}" placeholder="@lang('e.g., WordPress, Shopify, Laravel')">
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label">@lang('Domain Registrar')</label>
-                                                    <input type="text" name="website_domain_registrar" class="form-control" 
-                                                           value="{{ old('website_domain_registrar', $draftData['website_domain_registrar'] ?? '') }}" placeholder="@lang('e.g., GoDaddy, Namecheap')">
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label">@lang('Domain Expiry')</label>
-                                                    <input type="date" name="website_domain_expiry" class="form-control" value="{{ old('website_domain_expiry', $draftData['website_domain_expiry'] ?? '') }}">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {{-- Social Media Fields --}}
-                                <div class="business-fields social_media_account-fields d-none">
-                                    <div class="card border-purple">
-                                        <div class="card-header bg-purple bg-opacity-10">
-                                            <h6 class="mb-0">
-                                                <i class="las la-users me-2"></i>@lang('Social Media Account Information')
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row g-3">
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-semibold">@lang('Platform') <span class="text-danger">*</span></label>
-                                                    <select name="platform" class="form-select form-select-lg" required>
-                                                        <option value="">@lang('Select Platform')</option>
-                                                        @foreach($platforms as $key => $name)
-                                                            <option value="{{ $key }}" {{ old('platform', $draftData['platform'] ?? '') == $key ? 'selected' : '' }}>{{ $name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-semibold">@lang('Username / Handle') <span class="text-danger">*</span></label>
-                                                    <div class="input-group input-group-lg">
-                                                        <span class="input-group-text bg-light">@</span>
-                                                        <input type="text" name="social_username" class="form-control" 
-                                                               value="{{ old('social_username', $draftData['social_username'] ?? '') }}" placeholder="username" required>
+                                        
+                                        @if(($marketplaceSettings['allow_auctions'] ?? '1') == '1')
+                                            <label class="sale-type-card">
+                                                <input type="radio" name="sale_type" value="auction" id="auctionRadio" 
+                                                        {{ old('sale_type', $draftData['sale_type'] ?? '') == 'auction' ? 'checked' : '' }}>
+                                                <div class="card-inner">
+                                                    <div class="sale-icon auction">
+                                                        <i class="las la-gavel"></i>
                                                     </div>
-                                                </div>
-                                                <div class="col-12">
-                                                    <label class="form-label">@lang('Account URL')</label>
-                                                    <div class="input-group">
-                                                        <span class="input-group-text bg-light"><i class="las la-link"></i></span>
-                                                        <input type="url" name="social_url" class="form-control" 
-                                                               value="{{ old('social_url', $draftData['social_url'] ?? '') }}" placeholder="https://instagram.com/username">
+                                                    <div class="sale-info">
+                                                        <h6 class="mb-1">@lang('Auction')</h6>
+                                                        <p class="small text-muted mb-0">@lang('Let buyers bid for your business')</p>
                                                     </div>
+                                                    <span class="check-mark"><i class="las la-check"></i></span>
                                                 </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label">@lang('Followers')</label>
-                                                    <input type="number" name="followers_count" class="form-control" 
-                                                           value="{{ old('followers_count', $draftData['followers_count'] ?? '') }}" placeholder="0" min="0">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label">@lang('Engagement Rate') (%)</label>
-                                                    <input type="number" name="engagement_rate" class="form-control" 
-                                                           value="{{ old('engagement_rate', $draftData['engagement_rate'] ?? '') }}" step="0.01" min="0" max="100" placeholder="0.00">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label">@lang('Account Niche')</label>
-                                                    <input type="text" name="social_niche" class="form-control" 
-                                                           value="{{ old('social_niche', $draftData['social_niche'] ?? '') }}" placeholder="@lang('e.g., Fashion, Gaming')">
-                                                </div>
-                                            </div>
-                                        </div>
+                                            </label>
+                                        @endif
                                     </div>
-                                </div>
-                                
-                                {{-- Mobile App Fields --}}
-                                <div class="business-fields mobile_app-fields d-none">
-                                    <div class="card border-warning">
-                                        <div class="card-header bg-warning bg-opacity-10">
-                                            <h6 class="mb-0">
-                                                <i class="las la-mobile-alt me-2"></i>@lang('Mobile App Information')
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row g-3">
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-semibold">@lang('App Name') <span class="text-danger">*</span></label>
-                                                    <input type="text" name="app_name" class="form-control form-control-lg" 
-                                                           value="{{ old('app_name', $draftData['app_name'] ?? '') }}" placeholder="@lang('Your App Name')" required>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label">@lang('Tech Stack')</label>
-                                                    <input type="text" name="mobile_tech_stack" class="form-control form-control-lg" 
-                                                           value="{{ old('mobile_tech_stack', $draftData['mobile_tech_stack'] ?? '') }}" placeholder="@lang('e.g., React Native, Flutter')">
-                                                </div>
-                                                <div class="col-12">
-                                                    <label class="form-label">@lang('App Store URL (iOS)')</label>
-                                                    <div class="input-group">
-                                                        <span class="input-group-text bg-light"><i class="lab la-apple"></i></span>
-                                                        <input type="url" name="app_store_url" class="form-control" 
-                                                               value="{{ old('app_store_url', $draftData['app_store_url'] ?? '') }}" placeholder="https://apps.apple.com/...">
-                                                    </div>
-                                                </div>
-                                                <div class="col-12">
-                                                    <label class="form-label">@lang('Play Store URL (Android)')</label>
-                                                    <div class="input-group">
-                                                        <span class="input-group-text bg-light"><i class="lab la-google-play"></i></span>
-                                                        <input type="url" name="play_store_url" class="form-control" 
-                                                               value="{{ old('play_store_url', $draftData['play_store_url'] ?? '') }}" placeholder="https://play.google.com/...">
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label">@lang('Total Downloads')</label>
-                                                    <input type="number" name="downloads_count" class="form-control" 
-                                                           value="{{ old('downloads_count', $draftData['downloads_count'] ?? '') }}" placeholder="0" min="0">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label">@lang('Rating') (0-5)</label>
-                                                    <input type="number" name="app_rating" class="form-control" 
-                                                           value="{{ old('app_rating', $draftData['app_rating'] ?? '') }}" step="0.1" min="0" max="5" placeholder="4.5">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label">@lang('Active Users')</label>
-                                                    <input type="number" name="active_users" class="form-control" 
-                                                           value="{{ old('active_users', $draftData['active_users'] ?? '') }}" placeholder="0" min="0">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {{-- Desktop App Fields --}}
-                                <div class="business-fields desktop_app-fields d-none">
-                                    <div class="card border-danger">
-                                        <div class="card-header bg-danger bg-opacity-10">
-                                            <h6 class="mb-0">
-                                                <i class="las la-desktop me-2"></i>@lang('Desktop App Information')
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row g-3">
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-semibold">@lang('App Name') <span class="text-danger">*</span></label>
-                                                    <input type="text" name="app_name" class="form-control form-control-lg" 
-                                                           value="{{ old('app_name', $draftData['app_name'] ?? '') }}" placeholder="@lang('Your App Name')" required>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label">@lang('Tech Stack')</label>
-                                                    <input type="text" name="desktop_tech_stack" class="form-control form-control-lg" 
-                                                           value="{{ old('desktop_tech_stack', $draftData['desktop_tech_stack'] ?? '') }}" placeholder="@lang('e.g., Electron, .NET, Java')">
-                                                </div>
-                                                <div class="col-12">
-                                                    <label class="form-label">@lang('Download / Website URL')</label>
-                                                    <div class="input-group">
-                                                        <span class="input-group-text bg-light"><i class="las la-download"></i></span>
-                                                        <input type="url" name="desktop_url" class="form-control" 
-                                                               value="{{ old('desktop_url', $draftData['desktop_url'] ?? '') }}" placeholder="https://yourapp.com/download">
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label">@lang('Total Downloads')</label>
-                                                    <input type="number" name="downloads_count" class="form-control" 
-                                                           value="{{ old('downloads_count', $draftData['downloads_count'] ?? '') }}" placeholder="0" min="0">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label">@lang('Active Users')</label>
-                                                    <input type="number" name="active_users" class="form-control" 
-                                                           value="{{ old('active_users', $draftData['active_users'] ?? '') }}" placeholder="0" min="0">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label">@lang('Supported Platforms')</label>
-                                                    <input type="text" name="supported_platforms" class="form-control" 
-                                                           value="{{ old('supported_platforms', $draftData['supported_platforms'] ?? '') }}" placeholder="@lang('Windows, Mac, Linux')">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="step-actions mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="1">
-                                        <i class="las la-arrow-left me-1"></i> @lang('Back')
-                                    </button>
-                                    <button type="button" class="btn btn--base btn-next" data-next="3" id="step2ContinueBtn">
-                                        @lang('Continue') <i class="las la-arrow-right ms-1"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            {{-- ============================================
-                                 STEP 3: Ownership Verification (Conditional)
-                                 ============================================ --}}
-                            <div class="form-step d-none" data-step="3" id="ownershipVerificationStep">
-                                <div class="step-header mb-4">
-                                    <h5 class="fw-bold mb-1">@lang('Verify Ownership')</h5>
-                                    <p class="text-muted mb-0">@lang('Verify that you own this asset before continuing')</p>
-                                </div>
-                                
-                                {{-- Ownership Validation Section --}}
-                                <div id="ownershipValidationSection" class="mb-4">
-                                    <div class="card border-warning">
-                                        <div class="card-header bg-warning bg-opacity-10">
-                                            <h6 class="mb-0">
-                                                <i class="las la-shield-alt me-2"></i>@lang('Ownership Validation') <span class="text-danger">*</span>
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <p class="text-muted mb-3">
-                                                @lang('To ensure you own this asset, please verify ownership using one of the methods below.')
-                                            </p>
-                                            
-                                            <div id="validationMethodsContainer" class="mb-3">
-                                                <label class="form-label fw-semibold">@lang('Select Verification Method')</label>
-                                                <div id="validationMethodsList"></div>
-                                            </div>
-                                            
-                                            <div id="validationInstructions" class="alert alert-info" style="display: none;">
-                                                <h6 class="alert-heading">@lang('Instructions')</h6>
-                                                <div id="instructionsContent"></div>
-                                            </div>
-                                            
-                                            <div id="validationResult" class="mt-3" style="display: none;"></div>
-                                            
-                                            <div class="d-flex gap-2 mt-3">
-                                                <button type="button" class="btn btn--base" id="generateTokenBtn" style="display: none;">
-                                                    <i class="las la-key me-1"></i>@lang('Generate Verification Token')
-                                                </button>
-                                                <button type="button" class="btn btn-success" id="validateOwnershipBtn" style="display: none;">
-                                                    <i class="las la-check-circle me-1"></i>@lang('Validate Ownership')
-                                                </button>
-                                            </div>
-                                            
-                                            <div id="validationStatus" class="mt-3" style="display: none;">
-                                                <div class="alert alert-success">
-                                                    <i class="las la-check-circle me-2"></i>
-                                                    <strong>@lang('Ownership Verified!')</strong>
-                                                    <p class="mb-0 mt-1">@lang('You can now continue with your listing.')</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {{-- Skip message for types that don't require verification --}}
-                                <div id="verificationNotRequiredMessage" class="alert alert-info" style="display: none;">
-                                    <i class="las la-info-circle me-2"></i>
-                                    <strong>@lang('Ownership verification not required')</strong>
-                                    <p class="mb-0 mt-2">@lang('Ownership verification is not required for this business type. You can proceed to the next step.')</p>
-                                </div>
-                                
-                                <div class="step-actions mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="2">
-                                        <i class="las la-arrow-left me-1"></i> @lang('Back')
-                                    </button>
-                                    <button type="button" class="btn btn--base btn-next" data-next="4" id="step3ContinueBtn">
-                                        @lang('Continue') <i class="las la-arrow-right ms-1"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            {{-- ============================================
-                                 STEP 4: Business Details (Renumbered from old Step 2)
-                                 ============================================ --}}
-                            <div class="form-step d-none" data-step="4">
-                                <div class="step-header mb-4">
-                                    <h5 class="fw-bold mb-1">@lang('Business Details')</h5>
-                                    <p class="text-muted mb-0">@lang('Provide information about your business')</p>
-                                </div>
-                                
-                                {{-- Common Fields for All Types --}}
-                                <div class="row g-3">
-                                    <div class="col-md-12">
-                                        <label class="form-label fw-semibold">@lang('Category')</label>
-                                        <select name="listing_category_id" class="form-select form-select-lg" id="listingCategory">
-                                            <option value="">@lang('Select Category')</option>
-                                            @foreach($listingCategories as $category)
-                                                <option value="{{ $category->id }}" data-type="{{ $category->business_type }}" 
-                                                        {{ old('listing_category_id', $draftData['listing_category_id'] ?? '') == $category->id ? 'selected' : '' }}>
-                                                    {{ $category->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label fw-semibold">@lang('Description') <span class="text-danger">*</span></label>
-                                        <textarea name="description" class="form-control" rows="6" required
-                                                  placeholder="@lang('Describe your business in detail. Include information about traffic sources, monetization methods, growth potential, and what is included in the sale...')">{{ old('description', $draftData['description'] ?? '') }}</textarea>
-                                        <small class="text-muted">@lang('Minimum 100 characters. Be detailed to attract serious buyers.')</small>
-                                    </div>
-                                </div>
-                                
-                                {{-- Financials Section (Hidden for domain type) --}}
-                                <div class="mt-4 p-3 bg-light rounded financial-section">
-                                    <h6 class="fw-bold mb-3"><i class="las la-chart-line me-2"></i>@lang('Financial Information')</h6>
-                                    <div class="row g-3">
-                                        <div class="col-md-3">
-                                            <label class="form-label">@lang('Monthly Revenue')</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text">{{ gs()->cur_sym }}</span>
-                                                <input type="number" name="monthly_revenue" class="form-control" 
-                                                       value="{{ old('monthly_revenue', $draftData['monthly_revenue'] ?? '') }}" step="0.01" min="0" placeholder="0.00">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label">@lang('Monthly Profit')</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text">{{ gs()->cur_sym }}</span>
-                                                <input type="number" name="monthly_profit" class="form-control" 
-                                                       value="{{ old('monthly_profit', $draftData['monthly_profit'] ?? '') }}" step="0.01" min="0" placeholder="0.00">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label">@lang('Monthly Visitors')</label>
-                                            <input type="number" name="monthly_visitors" class="form-control" 
-                                                   value="{{ old('monthly_visitors', $draftData['monthly_visitors'] ?? '') }}" min="0" placeholder="0">
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label">@lang('Page Views/Month')</label>
-                                            <input type="number" name="monthly_page_views" class="form-control" 
-                                                   value="{{ old('monthly_page_views', $draftData['monthly_page_views'] ?? '') }}" min="0" placeholder="0">
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {{-- Confidential & NDA Section --}}
-                                <div class="mt-4 p-3 border rounded">
-                                    <h6 class="fw-bold mb-3"><i class="las la-shield-alt me-2"></i>@lang('Confidentiality & NDA Settings')</h6>
-                                    <p class="text-muted small mb-3">@lang('Protect sensitive information by making your listing confidential and requiring an NDA before buyers can view details.')</p>
                                     
-                                    <div class="row g-3">
-                                        <div class="col-12">
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input" type="checkbox" name="is_confidential" id="isConfidential" 
-                                                       value="1" {{ old('is_confidential', $draftData['is_confidential'] ?? '') ? 'checked' : '' }}>
-                                                <label class="form-check-label fw-semibold" for="isConfidential">
-                                                    @lang('Make this listing confidential')
+                                    {{-- Fixed Price Fields --}}
+                                    <div class="pricing-fields fixed-price-fields" style="display: {{ old('sale_type', $draftData['sale_type'] ?? 'fixed_price') == 'fixed_price' ? 'block' : 'none' }}">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">@lang('Asking Price') <span class="text-danger">*</span></label>
+                                                <div class="input-group input-group-lg">
+                                                    <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
+                                                    <input type="number" name="asking_price" id="askingPriceInput" class="form-control" 
+                                                            value="{{ old('asking_price', $draftData['asking_price'] ?? '') }}" step="0.01" min="1" placeholder="0.00">
+                                                </div>
+                                                <small class="text-muted">@lang('The price you want to sell for')</small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">@lang('Allow Offers?')</label>
+                                                <select name="allow_offers" class="form-select form-select-lg">
+                                                    <option value="1" {{ old('allow_offers', $draftData['allow_offers'] ?? '1') == '1' ? 'selected' : '' }}>@lang('Yes, accept offers from buyers')</option>
+                                                    <option value="0" {{ old('allow_offers', $draftData['allow_offers'] ?? '') == '0' ? 'selected' : '' }}>@lang('No, fixed price only')</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {{-- Auction Fields --}}
+                                    <div class="pricing-fields auction-fields" style="display: {{ old('sale_type', $draftData['sale_type'] ?? '') == 'auction' ? 'block' : 'none' }}">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">@lang('Starting Bid') <span class="text-danger">*</span></label>
+                                                <div class="input-group input-group-lg">
+                                                    <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
+                                                    <input type="number" name="starting_bid" id="startingBidInput" class="form-control" 
+                                                            value="{{ old('starting_bid', $draftData['starting_bid'] ?? '') }}" step="0.01" min="1" placeholder="0.00">
+                                                </div>
+                                                <small class="text-muted">@lang('Minimum bid to start the auction')</small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">@lang('Reserve Price') <small class="text-muted">(@lang('Optional'))</small></label>
+                                                <div class="input-group input-group-lg">
+                                                    <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
+                                                    <input type="number" name="reserve_price" id="reservePriceInput" class="form-control" 
+                                                            value="{{ old('reserve_price', $draftData['reserve_price'] ?? '') }}" step="0.01" min="0" placeholder="0.00">
+                                                </div>
+                                                <small class="text-muted">@lang('Minimum price you will accept (hidden from buyers)')</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">@lang('Buy Now Price') <small class="text-muted">(@lang('Optional'))</small></label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
+                                                    <input type="number" name="buy_now_price" class="form-control" 
+                                                            value="{{ old('buy_now_price', $draftData['buy_now_price'] ?? '') }}" step="0.01" min="0" placeholder="0.00">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">@lang('Bid Increment') <span class="text-danger">*</span></label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
+                                                    <input type="number" name="bid_increment" id="bidIncrementInput" class="form-control" 
+                                                            value="{{ old('bid_increment', $draftData['bid_increment'] ?? 10) }}" step="0.01" min="1" placeholder="10.00">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">@lang('Auction Duration') <span class="text-danger">*</span></label>
+                                                @php
+                                                    $maxDays = $marketplaceSettings['max_auction_days'] ?? 30;
+                                                @endphp
+                                                <select name="auction_duration" id="auctionDurationSelect" class="form-select" required>
+                                                    @foreach([3, 5, 7, 10, 14, 21, 30] as $days)
+                                                        @if($days <= $maxDays)
+                                                            <option value="{{ $days }}" {{ old('auction_duration', $draftData['auction_duration'] ?? ($days == 7 ? 7 : '')) == $days ? 'selected' : '' }}>{{ $days }} @lang('days')</option>
+                                                        @endif
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="step-actions mt-4 d-flex justify-content-between">
+                                        <button type="button" class="btn btn-outline-secondary btn-prev" data-step="4">
+                                            <i class="las la-arrow-left me-1"></i> @lang('Back')
+                                        </button>
+                                        <button type="button" class="btn btn--base btn-next" data-step="6">
+                                            @lang('Continue') <i class="las la-arrow-right ms-1"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                {{-- ============================================
+                                     STEP 6: Media & Review
+                                     ============================================ --}}
+                                <div class="form-step d-none" data-step="6">
+                                    <div class="step-header mb-4">
+                                        <h5 class="fw-bold mb-1">@lang('Media & Review')</h5>
+                                        <p class="text-muted mb-0">@lang('Upload images/screenshots and review your listing')</p>
+                                    </div>
+                                    
+                                    {{-- Domain Information Message (conditional display) --}}
+                                    <div class="domain-info-message d-none mb-4">
+                                        @php
+                                            $requiresApproval = ($marketplaceSettings['listing_approval_required'] ?? '1') == '1';
+                                        @endphp
+                                        <div class="alert alert-info border-0 shadow-sm">
+                                            <div class="d-flex align-items-start">
+                                                <div class="flex-shrink-0 me-3">
+                                                    <i class="las la-info-circle" style="font-size: 2rem; color: #0dcaf0;"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h5 class="alert-heading mb-2">
+                                                        <i class="las la-globe me-2"></i>@lang('Domain Listing')
+                                                    </h5>
+                                                    @if($requiresApproval)
+                                                        <p class="mb-2">@lang('Your domain listing will be reviewed and approved before going live.')</p>
+                                                        <p class="mb-0 small text-muted"><i class="las la-clock me-1"></i>@lang('Approval usually takes less than a day.')</p>
+                                                    @else
+                                                        <p class="mb-0">@lang('Your domain listing will be published immediately after submission.')</p>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {{-- Image Upload (conditional display) --}}
+                                    <div class="image-upload-section">
+                                        <div class="upload-area" id="uploadArea">
+                                            <div class="upload-placeholder">
+                                                <i class="las la-cloud-upload-alt"></i>
+                                                <h6>@lang('Drag & Drop Images Here')</h6>
+                                                <p class="text-muted mb-2">@lang('or')</p>
+                                                <label class="btn btn--base btn-sm">
+                                                    <i class="las la-folder-open me-1"></i> @lang('Browse Files')
+                                                    <input type="file" name="images[]" id="imageInput" multiple accept="image/*" class="d-none">
                                                 </label>
-                                                <small class="text-muted d-block mt-1">
-                                                    @lang('Confidential listings hide sensitive details from unauthorized users.')
-                                                </small>
+                                                <p class="text-muted mt-3 small">
+                                                    @lang('Upload up to') {{ $marketplaceSettings['max_images_per_listing'] ?? 10 }} @lang('images') 
+                                                    • @lang('Max 2MB each') • @lang('JPG, PNG, GIF')
+                                                </p>
                                             </div>
                                         </div>
                                         
-                                        <div class="col-12" id="ndaSection" style="display: none;">
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input" type="checkbox" name="requires_nda" id="requiresNda" 
-                                                       value="1" {{ old('requires_nda', $draftData['requires_nda'] ?? '') ? 'checked' : '' }}>
-                                                <label class="form-check-label fw-semibold" for="requiresNda">
-                                                    @lang('Require NDA before viewing details')
-                                                </label>
-                                                <small class="text-muted d-block mt-1">
-                                                    @lang('Buyers must sign a Non-Disclosure Agreement before they can view confidential details of your listing.')
-                                                </small>
-                                            </div>
+                                        <div class="image-preview-grid mt-3" id="imagePreview">
+                                            {{-- Pre-loaded images from draft will go here --}}
                                         </div>
                                         
-                                        <div class="col-12" id="confidentialReasonSection" style="display: none;">
-                                            <label class="form-label fw-semibold">@lang('Reason for Confidentiality')</label>
-                                            <textarea name="confidential_reason" class="form-control" rows="3" 
-                                                      placeholder="@lang('Explain why this listing is confidential (e.g., sensitive financial data, proprietary technology, etc.)')">{{ old('confidential_reason', $draftData['confidential_reason'] ?? '') }}</textarea>
-                                            <small class="text-muted">@lang('This information helps buyers understand why an NDA is required.')</small>
+                                        <div class="alert alert-light border mt-4">
+                                            <h6 class="mb-2"><i class="las la-lightbulb text-warning me-2"></i>@lang('Tips for Great Images')</h6>
+                                            <ul class="mb-0 small">
+                                                <li>@lang('Include screenshots of traffic stats and analytics')</li>
+                                                <li>@lang('Show revenue/earnings proof if applicable')</li>
+                                                <li>@lang('Capture the homepage and key pages')</li>
+                                                <li>@lang('NB : First image will be used as the thumbnail')</li>
+                                            </ul>
                                         </div>
                                     </div>
-                                </div>
-                                
-                                <div class="step-actions mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="3">
-                                        <i class="las la-arrow-left me-1"></i> @lang('Back')
-                                    </button>
-                                    <button type="button" class="btn btn--base btn-next" data-next="5">
-                                        @lang('Continue') <i class="las la-arrow-right ms-1"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            {{-- ============================================
-                                 STEP 5: Sale Type & Pricing (Renumbered from old Step 3)
-                                 ============================================ --}}
-                            <div class="form-step d-none" data-step="5">
-                                <div class="step-header mb-4">
-                                    <h5 class="fw-bold mb-1">@lang('How do you want to sell?')</h5>
-                                    <p class="text-muted mb-0">@lang('Choose your sale method and set your price')</p>
-                                </div>
-                                
-                                {{-- Sale Type Selection --}}
-                                <div class="sale-type-grid mb-4">
-                                    @if(($marketplaceSettings['allow_fixed_price'] ?? '1') == '1')
-                                        <label class="sale-type-card">
-                                            <input type="radio" name="sale_type" value="fixed_price" 
-                                                   {{ old('sale_type', $draftData['sale_type'] ?? 'fixed_price') == 'fixed_price' ? 'checked' : '' }} required>
-                                            <div class="card-inner">
-                                                <div class="sale-icon">
-                                                    <i class="las la-tag"></i>
-                                                </div>
-                                                <div class="sale-info">
-                                                    <h6 class="mb-1">@lang('Fixed Price')</h6>
-                                                    <p class="small text-muted mb-0">@lang('Set a specific price for your business')</p>
-                                                </div>
-                                                <span class="check-mark"><i class="las la-check"></i></span>
-                                            </div>
-                                        </label>
-                                    @endif
                                     
-                                    @if(($marketplaceSettings['allow_auctions'] ?? '1') == '1')
-                                        <label class="sale-type-card">
-                                            <input type="radio" name="sale_type" value="auction" 
-                                                   {{ old('sale_type', $draftData['sale_type'] ?? '') == 'auction' ? 'checked' : '' }}>
-                                            <div class="card-inner">
-                                                <div class="sale-icon auction">
-                                                    <i class="las la-gavel"></i>
-                                                </div>
-                                                <div class="sale-info">
-                                                    <h6 class="mb-1">@lang('Auction')</h6>
-                                                    <p class="small text-muted mb-0">@lang('Let buyers bid for your business')</p>
-                                                </div>
-                                                <span class="check-mark"><i class="las la-check"></i></span>
-                                            </div>
-                                        </label>
-                                    @endif
-                                </div>
-                                
-                                {{-- Fixed Price Fields --}}
-                                <div class="pricing-fields fixed-price-fields">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-semibold">@lang('Asking Price') <span class="text-danger">*</span></label>
-                                            <div class="input-group input-group-lg">
-                                                <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
-                                                <input type="number" name="asking_price" class="form-control" 
-                                                       value="{{ old('asking_price', $draftData['asking_price'] ?? '') }}" step="0.01" min="1" placeholder="0.00">
-                                            </div>
-                                            <small class="text-muted">@lang('The price you want to sell for')</small>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">@lang('Allow Offers?')</label>
-                                            <select name="allow_offers" class="form-select form-select-lg">
-                                                <option value="1" {{ old('allow_offers', $draftData['allow_offers'] ?? '1') == '1' ? 'selected' : '' }}>@lang('Yes, accept offers from buyers')</option>
-                                                <option value="0" {{ old('allow_offers', $draftData['allow_offers'] ?? '') == '0' ? 'selected' : '' }}>@lang('No, fixed price only')</option>
-                                            </select>
-                                        </div>
+                                    <div class="step-actions mt-4 d-flex justify-content-between">
+                                        <button type="button" class="btn btn-outline-secondary btn-prev" data-step="5">
+                                            <i class="las la-arrow-left me-1"></i> @lang('Back')
+                                        </button>
+                                        <button type="submit" class="btn btn--base" id="submitListingBtn">
+                                            <i class="las la-check-circle me-1"></i> @lang('Submit Listing')
+                                        </button>
                                     </div>
                                 </div>
                                 
-                                {{-- Auction Fields --}}
-                                <div class="pricing-fields auction-fields d-none">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-semibold">@lang('Starting Bid') <span class="text-danger">*</span></label>
-                                            <div class="input-group input-group-lg">
-                                                <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
-                                                <input type="number" name="starting_bid" class="form-control" 
-                                                       value="{{ old('starting_bid', $draftData['starting_bid'] ?? '') }}" step="0.01" min="1" placeholder="0.00">
-                                            </div>
-                                            <small class="text-muted">@lang('Minimum bid to start the auction')</small>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">@lang('Reserve Price') <small class="text-muted">(@lang('Optional'))</small></label>
-                                            <div class="input-group input-group-lg">
-                                                <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
-                                                <input type="number" name="reserve_price" class="form-control" 
-                                                       value="{{ old('reserve_price', $draftData['reserve_price'] ?? '') }}" step="0.01" min="0" placeholder="0.00">
-                                            </div>
-                                            <small class="text-muted">@lang('Minimum price you will accept (hidden from buyers)')</small>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">@lang('Buy Now Price') <small class="text-muted">(@lang('Optional'))</small></label>
-                                            <div class="input-group">
-                                                <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
-                                                <input type="number" name="buy_now_price" class="form-control" 
-                                                       value="{{ old('buy_now_price', $draftData['buy_now_price'] ?? '') }}" step="0.01" min="0" placeholder="0.00">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">@lang('Bid Increment')</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text bg-light">{{ gs()->cur_sym }}</span>
-                                                <input type="number" name="bid_increment" class="form-control" 
-                                                       value="{{ old('bid_increment', $draftData['bid_increment'] ?? 10) }}" step="0.01" min="1" placeholder="10.00">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">@lang('Auction Duration')</label>
-                                            @php
-                                                $maxDays = $marketplaceSettings['max_auction_days'] ?? 30;
-                                            @endphp
-                                            <select name="auction_duration" class="form-select">
-                                                <option value="3" {{ old('auction_duration', $draftData['auction_duration'] ?? '') == '3' ? 'selected' : '' }}>3 @lang('days')</option>
-                                                <option value="5" {{ old('auction_duration', $draftData['auction_duration'] ?? '') == '5' ? 'selected' : '' }}>5 @lang('days')</option>
-                                                <option value="7" {{ old('auction_duration', $draftData['auction_duration'] ?? '7') == '7' ? 'selected' : '' }}>7 @lang('days')</option>
-                                                <option value="10" {{ old('auction_duration', $draftData['auction_duration'] ?? '') == '10' ? 'selected' : '' }}>10 @lang('days')</option>
-                                                <option value="14" {{ old('auction_duration', $draftData['auction_duration'] ?? '') == '14' ? 'selected' : '' }}>14 @lang('days')</option>
-                                                @if($maxDays >= 21)
-                                                    <option value="21" {{ old('auction_duration', $draftData['auction_duration'] ?? '') == '21' ? 'selected' : '' }}>21 @lang('days')</option>
-                                                @endif
-                                                @if($maxDays >= 30)
-                                                    <option value="30" {{ old('auction_duration', $draftData['auction_duration'] ?? '') == '30' ? 'selected' : '' }}>30 @lang('days')</option>
-                                                @endif
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="step-actions mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="4">
-                                        <i class="las la-arrow-left me-1"></i> @lang('Back')
-                                    </button>
-                                    <button type="button" class="btn btn--base btn-next" data-next="6">
-                                        @lang('Continue') <i class="las la-arrow-right ms-1"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            {{-- ============================================
-                                 STEP 6: Media & Review (Renumbered from old Step 4)
-                                 ============================================ --}}
-                            <div class="form-step d-none" data-step="6">
-                                <div class="step-header mb-4">
-                                    <h5 class="fw-bold mb-1">@lang('Review & Submit')</h5>
-                                    <p class="text-muted mb-0">@lang('Review your listing and submit for approval')</p>
-                                </div>
-                                
-                                {{-- Domain Information Message (for domain type) --}}
-                                <div class="domain-info-message d-none mb-4">
-                                    @php
-                                        $requiresApproval = ($marketplaceSettings['listing_approval_required'] ?? '1') == '1';
-                                    @endphp
-                                    <div class="alert alert-info border-0 shadow-sm">
-                                        <div class="d-flex align-items-start">
-                                            <div class="flex-shrink-0 me-3">
-                                                <i class="las la-info-circle" style="font-size: 2rem; color: #0dcaf0;"></i>
-                                            </div>
-                                            <div class="flex-grow-1">
-                                                <h5 class="alert-heading mb-2">
-                                                    <i class="las la-globe me-2"></i>@lang('Domain Listing Information')
-                                                </h5>
-                                                @if($requiresApproval)
-                                                    <p class="mb-2">
-                                                        @lang('By clicking submit, you have submitted your domain listing to our admin team. They will review and approve it - this usually takes less than a day.')
-                                                    </p>
-                                                    <p class="mb-0 small text-muted">
-                                                        <i class="las la-clock me-1"></i>
-                                                        @lang('You will be notified once your listing is approved and goes live.')
-                                                    </p>
-                                                @else
-                                                    <p class="mb-0">
-                                                        @lang('Your domain listing will be published immediately after submission and will be visible to all buyers.')
-                                                    </p>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p class="text-center text-muted small mt-3">
-                                        <i class="las la-globe me-1"></i>
-                                        @lang('Your domain will be displayed as a card with a colored background.')
-                                    </p>
-                                </div>
-                                
-                                {{-- Image Upload (hidden for domain type) --}}
-                                <div class="image-upload-section">
-                                <div class="upload-area" id="uploadArea">
-                                    <div class="upload-placeholder">
-                                        <i class="las la-cloud-upload-alt"></i>
-                                        <h6>@lang('Drag & Drop Images Here')</h6>
-                                        <p class="text-muted mb-2">@lang('or')</p>
-                                        <label class="btn btn--base btn-sm">
-                                            <i class="las la-folder-open me-1"></i> @lang('Browse Files')
-                                            <input type="file" name="images[]" id="imageInput" multiple accept="image/*" class="d-none">
-                                        </label>
-                                        <p class="text-muted mt-3 small">
-                                            @lang('Upload up to') {{ $marketplaceSettings['max_images_per_listing'] ?? 10 }} @lang('images') 
-                                            • @lang('Max 2MB each') • @lang('JPG, PNG, GIF')
-                                        </p>
-                                    </div>
-                                </div>
-                                
-                                <div class="image-preview-grid mt-3" id="imagePreview"></div>
-                                
-                                <div class="alert alert-light border mt-4">
-                                    <h6 class="mb-2"><i class="las la-lightbulb text-warning me-2"></i>@lang('Tips for Great Images')</h6>
-                                    <ul class="mb-0 small">
-                                        <li>@lang('Include screenshots of traffic stats and analytics')</li>
-                                        <li>@lang('Show revenue/earnings proof if applicable')</li>
-                                        <li>@lang('Capture the homepage and key pages')</li>
-                                        <li>@lang('NB : First image will be used as the thumbnail')</li>
-                                    </ul>
-                                    </div>
-                                </div>
-                                
-                                <div class="step-actions mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary btn-prev" data-prev="5">
-                                        <i class="las la-arrow-left me-1"></i> @lang('Back')
-                                    </button>
-                                    <button type="submit" class="btn btn--base" id="submitListingBtn">
-                                        <i class="las la-check-circle me-1"></i> @lang('Submit Listing')
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            {{-- All Step 5 content has been moved to Step 1 to prevent duplicate IDs --}}
-                            
-                        </form>
-                    </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
-                
             </div>
         </div>
     </div>
-</div>
 </section>
 @endsection
 
 @push('style')
 <link rel="stylesheet" href="{{ asset('assets/templates/basic/css/listing-form.css') }}">
+{{-- Custom CSS for better UI (as per original intent) --}}
+<style>
+    .listing-progress .progress-steps { display: flex; justify-content: space-between; align-items: center; background: #fff; border-radius: 8px; padding: 15px; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075); }
+    .listing-progress .step { flex: 1; text-align: center; position: relative; color: #6c757d; cursor: pointer; }
+    .listing-progress .step:not(:last-child)::after { content: ''; position: absolute; top: 18px; left: 50%; right: -50%; height: 2px; background: #e9ecef; z-index: 0; }
+    .listing-progress .step.active .step-number { background-color: #007bff; color: #fff; box-shadow: 0 0 0 5px rgba(0, 123, 255, 0.5); }
+    .listing-progress .step.active ~ .step .step-number { background-color: #6c757d; }
+    .listing-progress .step.active::after, .listing-progress .step.completed::after { background: #007bff !important; }
+    .listing-progress .step.completed .step-number { background-color: #10b981; color: #fff; }
+    .listing-progress .step-number { width: 36px; height: 36px; line-height: 36px; border-radius: 50%; background: #e9ecef; display: inline-block; font-weight: 700; position: relative; z-index: 1; margin-bottom: 5px; }
+    .business-type-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
+    .business-type-card, .sale-type-card { display: block; border: 2px solid #e9ecef; border-radius: 8px; cursor: pointer; transition: all 0.3s; position: relative; }
+    .business-type-card .card-inner, .sale-type-card .card-inner { padding: 20px; text-align: center; }
+    .business-type-card input:checked + .card-inner, .sale-type-card input:checked + .card-inner { border-color: #007bff; box-shadow: 0 0 0 2px #007bff20; }
+    .business-type-card input, .sale-type-card input { display: none; }
+    .type-icon, .sale-icon { width: 50px; height: 50px; line-height: 50px; border-radius: 50%; font-size: 1.5rem; margin: 0 auto 10px; }
+    .check-mark { position: absolute; top: 5px; right: 5px; color: #10b981; font-size: 1.25rem; display: none; }
+    .business-type-card input:checked + .card-inner .check-mark, .sale-type-card input:checked + .card-inner .check-mark { display: block; }
+
+    .image-upload-section { border: 2px dashed #ddd; border-radius: 8px; padding: 30px; text-align: center; transition: background-color 0.3s; cursor: pointer; }
+    .image-upload-section:hover { background-color: #f8f9fa; }
+    .upload-placeholder i { font-size: 3rem; color: #007bff; margin-bottom: 10px; }
+    .image-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
+    .image-preview-item { position: relative; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; height: 100px; }
+    .image-preview-item img { width: 100%; height: 100%; object-fit: cover; }
+    .image-preview-item .remove-btn { position: absolute; top: 5px; right: 5px; background: rgba(255, 0, 0, 0.7); color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8rem; padding: 2px 5px; }
+</style>
 @endpush
 
 @push('script')
-<script src="{{ asset('assets/templates/basic/js/listing-form.js') }}"></script>
 <script>
-$(document).ready(function() {
-    // Initialize the Listing Form Handler
-    ListingFormHandler.init({
+    // Global notification helper (assuming this exists or is provided by the template)
+    function notify(status, message) {
+        // This is a placeholder for your actual notification function (e.g., toastr, sweetalert, etc.)
+        console.log(`[${status.toUpperCase()}] ${message}`);
+        // Example: if using a simple alert
+        // alert(`[${status.toUpperCase()}] ${message}`);
+        
+        // Example with Bootstrap alert for in-page display (optional)
+        const alertHtml = `<div class="alert alert-${status === 'error' ? 'danger' : status}" role="alert">
+            <i class="las la-${status === 'success' ? 'check-circle' : status === 'error' ? 'times-circle' : 'info-circle'} me-2"></i>
+            ${message}
+        </div>`;
+        
+        // Temporarily display the alert on top of the form
+        const container = $('#listingForm').closest('.card-body');
+        container.prepend(alertHtml);
+        setTimeout(() => {
+            container.find('.alert').first().slideUp(300, function() {
+                $(this).remove();
+            });
+        }, 5000);
+    }
+
+
+    /**
+     * Core Multi-Step Form Logic (ListingFormController)
+     */
+    const ListingFormController = {
+        currentStep: {{ $currentStage ?? 1 }},
+        maxStep: 6,
         draftSaveUrl: '{{ route("user.listing.draft.save") }}',
         draftClearUrl: '{{ route("user.listing.draft.clear") }}',
-        maxImages: {{ $marketplaceSettings['max_images_per_listing'] ?? 10 }},
         hasDraft: {{ !empty($draftData) ? 'true' : 'false' }},
-        currentStage: {{ $currentStage ?? 1 }}
-    });
-
-    // Ownership Validation Handler
-    let ownershipValidation = {
-        businessType: null,
-        primaryAssetUrl: null,
-        verificationToken: null,
-        selectedMethod: null,
-        instructions: null,
-        isVerified: {{ $ownershipValidationData['is_verified'] ? 'true' : 'false' }},
-        isLoading: false,
-        loadTimeout: null,
-        methodsCache: null, // Cache methods to avoid duplicate requests
-        lastMethodsRequest: null, // Track last request to prevent duplicates
-        isGeneratingToken: false, // Prevent duplicate token generation
-        isValidating: false, // Prevent duplicate validation
-        urlChangeTimeout: null,
-        socialChangeTimeout: null,
+        saveDraftTimeout: null,
+        isSaving: false,
         
         init: function() {
+            // Restore draft data on first load if applicable
+            this.showStep(this.currentStep, false);
+            this.bindEvents();
+            this.initConfidentialityToggle();
+            this.initSaleTypeToggle();
+            this.initAssetTypeFields();
+            this.initImageUpload();
+
+            // Auto-save logic
+            if (this.currentStep > 1) {
+                this.startAutoSave();
+            }
+        },
+
+        bindEvents: function() {
             const self = this;
-            
-            // Restore state from session on page load
-            @if($ownershipValidationData['verification_token'])
-                this.verificationToken = '{{ $ownershipValidationData['verification_token'] }}';
-            @endif
-            
-            @if($ownershipValidationData['verification_method'])
-                this.selectedMethod = '{{ $ownershipValidationData['verification_method'] }}';
-            @endif
-            
-            @if($ownershipValidationData['verification_asset'])
-                this.primaryAssetUrl = '{{ $ownershipValidationData['verification_asset'] }}';
-            @endif
-            
-            @if($ownershipValidationData['verification_business_type'])
-                this.businessType = '{{ $ownershipValidationData['verification_business_type'] }}';
-            @endif
-            
-            // Restore state on page load - use requestAnimationFrame for instant response
-            requestAnimationFrame(function() {
-                // First, get current business type from form (draft may have restored it)
-                const selectedBusinessType = $('input[name="business_type"]:checked').val();
-                if (selectedBusinessType) {
-                    self.businessType = selectedBusinessType;
-                }
-                
-                // Get current asset URL from form (draft may have restored it)
-                const currentAssetUrl = self.getCurrentAssetUrl();
-                if (currentAssetUrl) {
-                    self.primaryAssetUrl = currentAssetUrl;
-                }
-                
-                // Normalize URLs for comparison
-                const normalizeUrl = function(url) {
-                    if (!url) return '';
-                    return url.trim().toLowerCase().replace(/\/+$/, '');
-                };
-                
-                // Check if asset URL matches session (if verified)
-                // IMPORTANT: Only compare if business type matches (prevent false positives when switching types)
-                if (self.isVerified || self.verificationToken) {
-                    const sessionAsset = '{{ $ownershipValidationData['verification_asset'] ?? '' }}';
-                    const sessionBusinessType = '{{ $ownershipValidationData['verification_business_type'] ?? '' }}';
-                    
-                    // Priority check: If business type changed, clear everything silently
-                    if (sessionBusinessType && self.businessType && sessionBusinessType !== self.businessType) {
-                        // Business type changed - clear verification silently (no warnings)
-                        self.isVerified = false;
-                        self.verificationToken = null;
-                        self.selectedMethod = null;
-                        self.instructions = null;
-                        self.primaryAssetUrl = null; // Clear to prevent false comparisons
-                        // Clear session (fire and forget, no user notification)
-                        $.ajax({
-                            url: '{{ route("user.ownership.validation.clear") }}',
-                            method: 'POST',
-                            data: { _token: '{{ csrf_token() }}' },
-                            async: true
-                        });
-                    } else if (sessionBusinessType === self.businessType && sessionAsset) {
-                        // Same business type - check if URL changed
-                        const normalizedSession = normalizeUrl(sessionAsset);
-                        const normalizedCurrent = normalizeUrl(self.primaryAssetUrl || '');
-                        
-                        // Only clear if URL changed for the SAME business type
-                        if (normalizedCurrent !== '' && normalizedSession !== normalizedCurrent) {
-                            // Asset URL changed for same business type - clear verification
-                            self.isVerified = false;
-                            self.verificationToken = null;
-                            self.selectedMethod = null;
-                            self.instructions = null;
-                            // Clear session (fire and forget)
-                            $.ajax({
-                                url: '{{ route("user.ownership.validation.clear") }}',
-                                method: 'POST',
-                                data: { _token: '{{ csrf_token() }}' },
-                                async: true
-                            });
-                        }
-                    }
-                }
-                
-                // Restore validation state immediately (but only if we have necessary data)
-                // Don't trigger validation checks during initial load - wait for user interaction
-                if (self.businessType) {
-                    // Get current asset URL from form
-                    const currentUrl = self.getCurrentAssetUrl();
-                    if (currentUrl) {
-                        self.primaryAssetUrl = currentUrl;
-                    }
-                    
-                    // Only restore if we're on Step 2 or 3 and have data
-                    const currentStep = ListingFormHandler.currentStep || 1;
-                    if (currentStep === 2 || currentStep === 3) {
-                        if (self.isVerified && self.primaryAssetUrl) {
-                            // Verified and have asset URL - restore state instantly
-                            self.restoreValidationState();
-                        } else if (self.verificationToken && self.businessType && self.primaryAssetUrl) {
-                            // Have token but not verified yet - restore UI
-                            self.checkIfValidationRequired();
-                            self.restoreValidationState();
-                        } else if (self.businessType && self.primaryAssetUrl) {
-                            // Have business type and URL - check if validation needed
-                            self.checkIfValidationRequired();
-                        }
-                    }
-                }
+
+            // Navigation buttons
+            $('.btn-next').on('click', function() {
+                const nextStep = $(this).data('step');
+                self.handleNavigation(self.currentStep, nextStep);
             });
-            
-            // Watch for business type changes
+
+            $('.btn-prev').on('click', function() {
+                const prevStep = $(this).data('step');
+                self.handleNavigation(self.currentStep, prevStep);
+            });
+
+            // Business Type Selection (Step 1)
             $('input[name="business_type"]').on('change', function() {
-                const newBusinessType = $(this).val();
-                const oldBusinessType = self.businessType;
-                
-                // If business type actually changed, completely reset validation state
-                if (oldBusinessType && oldBusinessType !== newBusinessType) {
-                    // Clear methods cache when business type changes
-                    self.methodsCache = null;
-                    self.lastMethodsRequest = null;
-                    
-                    // Completely reset validation state (don't trigger URL change warnings)
-                    self.isVerified = false;
-                    self.verificationToken = null;
-                    self.selectedMethod = null;
-                    self.instructions = null;
-                    self.primaryAssetUrl = null; // Clear old URL to prevent false comparisons
-                    
-                    // Clear UI state silently (no warnings)
-                    $('#validationStatus').hide();
-                    $('#validationMethodsList').empty();
-                    $('#validationInstructions').hide();
-                    $('#validationResult').hide();
-                    $('#generateTokenBtn').hide();
-                    $('#validateOwnershipBtn').hide();
-                    
-                    // Clear session via AJAX (async, don't block, no user notification)
-                    $.ajax({
-                        url: '{{ route("user.ownership.validation.clear") }}',
-                        method: 'POST',
-                        data: { _token: '{{ csrf_token() }}' },
-                        async: true
-                    });
-                }
-                
-                // Update business type
-                self.businessType = newBusinessType;
-                
-                // Only check validation if we're on Step 2 or 3
-                const currentStep = ListingFormHandler.currentStep || 1;
-                if (currentStep === 2 || currentStep === 3) {
-                    // Use requestAnimationFrame for instant response
-                    requestAnimationFrame(function() {
-                        self.checkIfValidationRequired();
-                    });
+                self.handleAssetTypeChange($(this).val());
+                self.triggerInputEvent(); // Trigger save on change
+            });
+
+            // Asset Detail Inputs (Step 2) for triggering Validation Check
+            $('#domainNameInput, #websiteUrlInput, #socialPlatformSelect, #socialUsernameInput, #socialUrlInput').on('input change blur', function() {
+                // Throttle this event to avoid excessive calls
+                clearTimeout(self.assetDetailTimeout);
+                self.assetDetailTimeout = setTimeout(() => {
+                    // Notify the validation module about a potential asset change
+                    $(document).trigger('assetDetailChange', self.getCurrentAssetInfo());
+                }, 300);
+                self.triggerInputEvent();
+            });
+            
+            // Other form inputs for auto-save
+            $('#listingForm').on('input change', 'input:not([type="file"]), select, textarea', function() {
+                // Only trigger auto-save for later steps or if type/asset info changes
+                if (self.currentStep >= 4 || $(this).attr('name') === 'business_type') {
+                    self.triggerInputEvent();
                 }
             });
-            
-            // Watch for domain/website URL changes (optimized debounce - shorter delay)
-            $('#domainNameInput, #websiteUrlInput').on('input blur', function() {
-                clearTimeout(self.urlChangeTimeout);
-                const inputElement = this;
-                self.urlChangeTimeout = setTimeout(function() {
-                    // Get current business type to ensure we're comparing same type
-                    const currentBusinessType = $('input[name="business_type"]:checked').val();
-                    
-                    // Only check URL changes if business type matches
-                    const currentStep = ListingFormHandler.currentStep || 1;
-                    if (currentBusinessType !== self.businessType) {
-                        // Business type changed, don't check URL changes
-                        self.businessType = currentBusinessType;
-                        self.primaryAssetUrl = null; // Clear to prevent false comparisons
-                        // Only check if we're on Step 2 or 3
-                        if (currentStep === 2 || currentStep === 3) {
-                            self.checkIfValidationRequired();
-                        }
-                        return;
-                    }
-                    
-                    const newUrl = $(inputElement).val() || '';
-                    const oldUrl = self.primaryAssetUrl || '';
-                    
-                    // Normalize URLs for comparison (remove trailing slashes, lowercase)
-                    const normalizeUrl = function(url) {
-                        if (!url) return '';
-                        return url.trim().toLowerCase().replace(/\/+$/, '');
-                    };
-                    
-                    const normalizedNew = normalizeUrl(newUrl);
-                    const normalizedOld = normalizeUrl(oldUrl);
-                    
-                    // Only check for URL changes if:
-                    // 1. We have a token/verification
-                    // 2. Old URL exists (not empty)
-                    // 3. New URL is different from old URL
-                    // 4. New URL is not empty
-                    // 5. Business type hasn't changed
-                    if ((self.verificationToken || self.isVerified) && 
-                        normalizedOld !== '' && 
-                        normalizedNew !== normalizedOld && 
-                        normalizedNew !== '' &&
-                        currentBusinessType === self.businessType) {
-                        // URL actually changed for the same business type
-                        self.clearValidationState('Asset URL changed. Please generate a new verification token.');
-                    }
-                    
-                    // Update primary asset URL and check validation (only if on Step 2 or 3)
-                    self.primaryAssetUrl = newUrl;
-                    if (currentStep === 2 || currentStep === 3) {
-                        self.checkIfValidationRequired();
-                    }
-                }, 200); // Reduced from 500ms to 200ms for faster response
+
+            // Clear Draft button
+            $('#clearDraftBtn').on('click', function() {
+                self.clearDraft();
             });
-            
-            // Watch for social media fields (optimized debounce)
-            $('input[name="social_url"], input[name="social_username"], select[name="platform"]').on('change blur', function() {
-                clearTimeout(self.socialChangeTimeout);
-                self.socialChangeTimeout = setTimeout(function() {
-                    // Get current asset URL
-                    const platform = $('select[name="platform"]').val();
-                    const username = $('input[name="social_username"]').val();
-                    const url = $('input[name="social_url"]').val();
-                    const newUrl = url || (platform && username ? platform + '/' + username : '');
-                    
-                    // Check if URL changed
-                    const normalizeUrl = function(url) {
-                        if (!url) return '';
-                        return url.trim().toLowerCase().replace(/\/+$/, '');
-                    };
-                    
-                    const normalizedNew = normalizeUrl(newUrl);
-                    const normalizedOld = normalizeUrl(self.primaryAssetUrl || '');
-                    
-                    if ((self.verificationToken || self.isVerified) && normalizedOld !== '' && normalizedNew !== normalizedOld && normalizedNew !== '') {
-                        self.clearValidationState('Asset URL changed. Please generate a new verification token.');
+        },
+
+        // --- Core Flow Management ---
+
+        handleNavigation: function(current, next) {
+            const self = this;
+            if (next > current) {
+                // Moving forward: Validate current step first
+                if (this.validateStep(current)) {
+                    // Check for conditional skip on Step 2 -> 3
+                    if (current === 2) {
+                        const businessType = $('input[name="business_type"]:checked').val();
+                        const requiresValidation = ['domain', 'website', 'social_media_account'];
+                        if (!requiresValidation.includes(businessType)) {
+                            // Skip Step 3, jump to 4
+                            next = 4;
+                        }
                     }
                     
-                    self.primaryAssetUrl = newUrl;
-                    self.checkIfValidationRequired();
-                }, 200); // Reduced from 500ms to 200ms for faster response
-            });
+                    // Check for mandatory verification on Step 3 -> 4
+                    if (current === 3) {
+                         const requiresValidation = ['domain', 'website', 'social_media_account'];
+                         const businessType = $('input[name="business_type"]:checked').val();
+                         if (requiresValidation.includes(businessType)) {
+                            // Get state from the hidden input field which is managed by ValidationController
+                            if ($('#isVerifiedInput').val() !== '1') {
+                                notify('error', 'Please verify ownership before continuing.');
+                                // Scroll to validation section if needed
+                                $('html, body').animate({
+                                    scrollTop: $('#ownershipValidationSection').offset().top - 100
+                                }, 300);
+                                return;
+                            }
+                         }
+                    }
+                    
+                    this.showStep(next, true);
+                    this.currentStep = next;
+                    if (this.currentStep >= 4) {
+                        this.startAutoSave();
+                    }
+                }
+            } else if (next < current) {
+                // Moving backward: Just navigate
+                this.showStep(next, true);
+                this.currentStep = next;
+                if (this.currentStep < 4) {
+                     this.stopAutoSave();
+                }
+            }
+        },
+
+        showStep: function(step, animate = true) {
+            $('.form-step').addClass('d-none');
+            const targetStep = $(`.form-step[data-step="${step}"]`);
+            if (animate) {
+                targetStep.fadeIn(300);
+            } else {
+                targetStep.removeClass('d-none');
+            }
+
+            // Update progress bar
+            $('.progress-steps .step').removeClass('active completed');
+            for (let i = 1; i <= this.maxStep; i++) {
+                const stepElement = $(`.progress-steps .step[data-step="${i}"]`);
+                if (i < step) {
+                    stepElement.addClass('completed');
+                } else if (i === step) {
+                    stepElement.addClass('active');
+                }
+            }
+
+            // Handle conditional field display (business type fields)
+            this.handleAssetTypeChange($('input[name="business_type"]:checked').val());
+            this.handleSaleTypeChange($('input[name="sale_type"]:checked').val());
             
-            // Also watch for when input sections become visible using MutationObserver
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                        const target = $(mutation.target);
-                        if (target.is('#domainInputSection, #websiteInputSection') && target.is(':visible')) {
-                            // Use requestAnimationFrame for instant response
-                            requestAnimationFrame(function() {
-                                self.checkIfValidationRequired();
-                            });
-                        }
+            // Handle Step 3 (Verification) content based on type
+            if (step === 3) {
+                const assetInfo = this.getCurrentAssetInfo();
+                $(document).trigger('assetDetailChange', assetInfo);
+            }
+
+            // Handle Step 6 (Media) content based on type
+            if (step === 6) {
+                const businessType = $('input[name="business_type"]:checked').val();
+                if (businessType === 'domain') {
+                    $('.domain-info-message').removeClass('d-none');
+                    $('.image-upload-section').hide();
+                } else {
+                    $('.domain-info-message').addClass('d-none');
+                    $('.image-upload-section').show();
+                }
+            }
+            
+            // Scroll to top of card body
+            $('html, body').animate({
+                scrollTop: $('#listingForm').closest('.card').offset().top - 20
+            }, 300);
+        },
+
+        validateStep: function(step) {
+            let isValid = true;
+            const currentStep = $(`.form-step[data-step="${step}"]`);
+            
+            // Clear previous errors
+            currentStep.find('.is-invalid').removeClass('is-invalid');
+            currentStep.find('.invalid-feedback').remove();
+
+            if (step === 1) {
+                // Check if a business type is selected
+                if (!$('input[name="business_type"]:checked').length) {
+                    notify('error', 'Please select a business type.');
+                    isValid = false;
+                }
+            } else if (step === 2) {
+                const businessType = $('input[name="business_type"]:checked').val();
+                // Check required fields for the selected asset type
+                currentStep.find(`.business-fields.${businessType}-fields input[data-required="${businessType}"], .business-fields.${businessType}-fields select[data-required="${businessType}"]`).each(function() {
+                    if (!$(this).val() || $(this).val().trim() === '') {
+                        $(this).addClass('is-invalid');
+                        $(this).after('<div class="invalid-feedback">This field is required for the selected asset type.</div>');
+                        isValid = false;
                     }
                 });
+                
+                if (!isValid) {
+                     notify('error', 'Please fill out all required asset details.');
+                }
+            } else if (step === 3) {
+                 // The check for ownership verification is done inside handleNavigation to allow skipping for non-web assets
+            } else if (step === 4) {
+                // Check required fields (Category and Description)
+                currentStep.find('select[name="listing_category_id"], textarea[name="description"]').each(function() {
+                    if (!$(this).val() || $(this).val().trim() === '') {
+                        $(this).addClass('is-invalid');
+                        $(this).after('<div class="invalid-feedback">This field is required.</div>');
+                        isValid = false;
+                    }
+                });
+                 if (!isValid) {
+                     notify('error', 'Please complete the Business Details section.');
+                }
+            } else if (step === 5) {
+                const saleType = $('input[name="sale_type"]:checked').val();
+                
+                if (saleType === 'fixed_price') {
+                    if (!$('#askingPriceInput').val() || parseFloat($('#askingPriceInput').val()) <= 0) {
+                        $('#askingPriceInput').addClass('is-invalid');
+                        $('#askingPriceInput').closest('.col-md-6').append('<div class="invalid-feedback">Asking price is required and must be greater than 0.</div>');
+                        isValid = false;
+                    }
+                } else if (saleType === 'auction') {
+                    if (!$('#startingBidInput').val() || parseFloat($('#startingBidInput').val()) <= 0) {
+                        $('#startingBidInput').addClass('is-invalid');
+                        $('#startingBidInput').closest('.col-md-6').append('<div class="invalid-feedback">Starting bid is required and must be greater than 0.</div>');
+                        isValid = false;
+                    }
+                    if (!$('#bidIncrementInput').val() || parseFloat($('#bidIncrementInput').val()) <= 0) {
+                        $('#bidIncrementInput').addClass('is-invalid');
+                        $('#bidIncrementInput').closest('.col-md-4').append('<div class="invalid-feedback">Bid increment is required and must be greater than 0.</div>');
+                        isValid = false;
+                    }
+                    if (!$('#auctionDurationSelect').val()) {
+                        $('#auctionDurationSelect').addClass('is-invalid');
+                        $('#auctionDurationSelect').closest('.col-md-4').append('<div class="invalid-feedback">Auction duration is required.</div>');
+                        isValid = false;
+                    }
+                    // Reserve price validation (must be > starting bid if set)
+                    const reservePrice = parseFloat($('#reservePriceInput').val() || 0);
+                    const startingBid = parseFloat($('#startingBidInput').val() || 0);
+                    if (reservePrice > 0 && reservePrice < startingBid) {
+                         $('#reservePriceInput').addClass('is-invalid');
+                         $('#reservePriceInput').closest('.col-md-6').append('<div class="invalid-feedback">Reserve price must be greater than or equal to the starting bid.</div>');
+                         isValid = false;
+                    }
+                } else {
+                     // Should not happen if a default is set, but as a fallback
+                     notify('error', 'Please select a sale type.');
+                     isValid = false;
+                }
+                 if (!isValid) {
+                     notify('error', 'Please correct the pricing details.');
+                }
+            } else if (step === 6) {
+                 // Image requirement for non-domain types
+                 const businessType = $('input[name="business_type"]:checked').val();
+                 if (businessType !== 'domain' && $('#imagePreview').children().length === 0 && $('#imageInput')[0].files.length === 0) {
+                      notify('error', 'Please upload at least one image/screenshot for your listing.');
+                      isValid = false;
+                 }
+            }
+
+            return isValid;
+        },
+
+        // --- Conditional Field & Input Management ---
+
+        handleAssetTypeChange: function(selectedType) {
+            $('.business-fields').hide();
+            if (selectedType) {
+                $(`.business-fields.${selectedType}-fields`).fadeIn(300);
+            }
+        },
+        
+        initAssetTypeFields: function() {
+            // Display the correct asset field section on initial load
+            const initialType = $('input[name="business_type"]:checked').val();
+            if (initialType) {
+                this.handleAssetTypeChange(initialType);
+            }
+        },
+
+        initConfidentialityToggle: function() {
+            $('#isConfidential').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#ndaSection, #confidentialReasonSection').slideDown(300);
+                } else {
+                    $('#ndaSection, #confidentialReasonSection').slideUp(300);
+                }
+                ListingFormController.triggerInputEvent();
+            });
+            $('#requiresNda').on('change', function() {
+                 ListingFormController.triggerInputEvent();
+            });
+        },
+
+        initSaleTypeToggle: function() {
+            $('input[name="sale_type"]').on('change', function() {
+                const selectedSaleType = $(this).val();
+                $('.pricing-fields').slideUp(300);
+                $(`.${selectedSaleType}-fields`).slideDown(300);
+                // Ensure required fields are set/unset
+                $('#askingPriceInput, #startingBidInput, #bidIncrementInput, #auctionDurationSelect').prop('required', false);
+                if (selectedSaleType === 'fixed_price') {
+                    $('#askingPriceInput').prop('required', true);
+                } else if (selectedSaleType === 'auction') {
+                    $('#startingBidInput, #bidIncrementInput, #auctionDurationSelect').prop('required', true);
+                }
+                ListingFormController.triggerInputEvent();
             });
             
-            // Observe domain and website input sections for visibility changes
-            const domainSection = document.getElementById('domainInputSection');
-            const websiteSection = document.getElementById('websiteInputSection');
-            if (domainSection) {
-                observer.observe(domainSection, { attributes: true, attributeFilter: ['style'] });
-            }
-            if (websiteSection) {
-                observer.observe(websiteSection, { attributes: true, attributeFilter: ['style'] });
-            }
+            // Initial state
+             const initialSaleType = $('input[name="sale_type"]:checked').val();
+             if (initialSaleType === 'fixed_price') {
+                 $('#askingPriceInput').prop('required', true);
+             } else if (initialSaleType === 'auction') {
+                 $('#startingBidInput, #bidIncrementInput, #auctionDurationSelect').prop('required', true);
+             }
+        },
+        
+        getCurrentAssetInfo: function() {
+            const businessType = $('input[name="business_type"]:checked').val() || null;
+            let primaryAssetUrl = '';
             
+            if (businessType === 'domain') {
+                primaryAssetUrl = $('#domainNameInput').val() || '';
+            } else if (businessType === 'website') {
+                primaryAssetUrl = $('#websiteUrlInput').val() || '';
+            } else if (businessType === 'social_media_account') {
+                const platform = $('#socialPlatformSelect').val();
+                const username = $('#socialUsernameInput').val();
+                const url = $('#socialUrlInput').val();
+                primaryAssetUrl = url || (platform && username ? platform + '/' + username : '');
+            }
+            // For apps, verification is not required, so primaryAssetUrl is less critical here.
+
+            return {
+                businessType: businessType,
+                primaryAssetUrl: primaryAssetUrl.trim(),
+                platform: $('#socialPlatformSelect').val()
+            };
+        },
+
+        // --- Image Upload Management ---
+        
+        initImageUpload: function() {
+            const self = this;
+            const maxImages = {{ $marketplaceSettings['max_images_per_listing'] ?? 10 }};
+
+            // Handle file input change
+            $('#imageInput').on('change', function() {
+                self.handleFileSelect(this.files);
+                self.triggerInputEvent();
+            });
+
+            // Handle drag and drop
+            const uploadArea = $('#uploadArea');
+            uploadArea.on('dragover', function(e) {
+                e.preventDefault();
+                uploadArea.css('border-color', '#007bff');
+            }).on('dragleave', function(e) {
+                e.preventDefault();
+                uploadArea.css('border-color', '#ddd');
+            }).on('drop', function(e) {
+                e.preventDefault();
+                uploadArea.css('border-color', '#ddd');
+                self.handleFileSelect(e.originalEvent.dataTransfer.files);
+                self.triggerInputEvent();
+            });
+
+            // Handle remove button click
+            $('#imagePreview').on('click', '.remove-btn', function() {
+                const fileName = $(this).data('file');
+                // Remove from preview and hidden input (if applicable, though submission uses file list)
+                $(this).closest('.image-preview-item').remove();
+                
+                // Clear the main file input if all files are removed (important for re-submission)
+                if ($('#imagePreview').children().length === 0) {
+                     $('#imageInput').val('');
+                }
+
+                self.triggerInputEvent();
+            });
+            
+            // Preload draft images (basic structure to avoid another loop)
+            @if(!empty($draftData['images']))
+                // This assumes your draft images are base64 or paths in a structured way
+                // For this example, we'll just log them to remind a proper implementation is needed
+                console.log('Draft images detected, proper restoration logic for imagePreview needed.');
+            @endif
+        },
+        
+        handleFileSelect: function(files) {
+            const preview = $('#imagePreview');
+            const maxImages = {{ $marketplaceSettings['max_images_per_listing'] ?? 10 }};
+            const currentCount = preview.children().length;
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (currentCount + i >= maxImages) {
+                    notify('warning', `You can only upload up to ${maxImages} images.`);
+                    break;
+                }
+                
+                if (file.size > 2 * 1024 * 1024) { // 2MB limit
+                    notify('error', `File "${file.name}" is too large (max 2MB).`);
+                    continue;
+                }
+
+                if (file.type.match('image.*')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const html = `
+                            <div class="image-preview-item">
+                                <img src="${e.target.result}" alt="Preview">
+                                <button type="button" class="remove-btn" data-file="${file.name}">&times;</button>
+                            </div>
+                        `;
+                        preview.append(html);
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                     notify('error', `File "${file.name}" is not a valid image type.`);
+                }
+            }
+        },
+
+        // --- Draft Management (Auto-Save/Clear) ---
+
+        triggerInputEvent: function() {
+            clearTimeout(this.saveDraftTimeout);
+            this.saveDraftTimeout = setTimeout(() => {
+                this.saveDraft();
+            }, 1500); // Wait 1.5 seconds after last input
+        },
+
+        startAutoSave: function() {
+             // Re-enable auto-save if it was stopped
+             this.triggerInputEvent();
+        },
+
+        stopAutoSave: function() {
+            clearTimeout(this.saveDraftTimeout);
+        },
+
+        saveDraft: function() {
+            if (this.isSaving) return;
+            this.isSaving = true;
+
+            const formData = new FormData($('#listingForm')[0]);
+            formData.append('current_stage', this.currentStep);
+            
+            // Only capture the files explicitly selected in step 6
+            const imageInput = $('#imageInput')[0];
+            if (imageInput.files.length > 0) {
+                 for (let i = 0; i < imageInput.files.length; i++) {
+                      formData.append('draft_images[]', imageInput.files[i]);
+                 }
+            }
+
+            $.ajax({
+                url: this.draftSaveUrl,
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                timeout: 15000,
+                beforeSend: function() {
+                    $('#draftStatusBadge').html('<i class="las la-spinner la-spin me-1"></i>Saving...');
+                },
+                success: function(response) {
+                    ListingFormController.isSaving = false;
+                    if (response.success) {
+                        $('#draftStatusBadge').html('<i class="las la-save me-1"></i>Draft Saved');
+                        $('#draftStatusBadge').removeClass('bg-warning bg-danger').addClass('bg-info');
+                    } else {
+                        $('#draftStatusBadge').html('<i class="las la-exclamation-triangle me-1"></i>Save Failed');
+                        $('#draftStatusBadge').removeClass('bg-info bg-warning').addClass('bg-danger');
+                        console.error('Draft save failed:', response.message);
+                    }
+                },
+                error: function(xhr) {
+                    ListingFormController.isSaving = false;
+                    $('#draftStatusBadge').html('<i class="las la-times-circle me-1"></i>Save Error');
+                    $('#draftStatusBadge').removeClass('bg-info bg-warning').addClass('bg-danger');
+                    console.error('Draft save error:', xhr.responseText);
+                }
+            });
+        },
+
+        clearDraft: function() {
+            const self = this;
+             if (!confirm('Are you sure you want to clear your saved draft? This action cannot be undone.')) {
+                 return;
+             }
+
+            $.ajax({
+                url: this.draftClearUrl,
+                method: 'POST',
+                data: { _token: '{{ csrf_token() }}' },
+                success: function(response) {
+                    if (response.success) {
+                        notify('success', 'Draft cleared successfully. Reloading page...');
+                        window.location.reload(); // Simplest way to reset the form state
+                    } else {
+                        notify('error', response.message || 'Failed to clear draft.');
+                    }
+                },
+                error: function() {
+                    notify('error', 'An error occurred while clearing the draft.');
+                }
+            });
+        }
+    };
+
+    /**
+     * Ownership Validation Logic (ValidationController)
+     * This module listens for changes and manages the verification process.
+     */
+    const ValidationController = {
+        verificationToken: $('#verificationTokenInput').val() || null,
+        selectedMethod: $('#verificationMethodInput').val() || null,
+        isVerified: $('#isVerifiedInput').val() === '1',
+        primaryAssetUrl: $('#verificationAssetInput').val() || null,
+        businessType: $('input[name="business_type"]:checked').val() || null,
+        instructions: null,
+        isLoadingMethods: false,
+        isGeneratingToken: false,
+        isValidating: false,
+        methodsCache: null,
+
+        init: function() {
+            this.bindEvents();
+            // Initial check on load, if we are on step 3
+            if (ListingFormController.currentStep >= 2) {
+                const assetInfo = ListingFormController.getCurrentAssetInfo();
+                this.handleAssetChange(assetInfo);
+            }
+        },
+
+        bindEvents: function() {
+            const self = this;
+            
+            // Listen for asset detail changes from the form controller
+            $(document).on('assetDetailChange', function(e, assetInfo) {
+                self.handleAssetChange(assetInfo);
+            });
+            
+            // Listen for step changes to display relevant UI
+            $(document).on('stepChange', function(e, step) {
+                 if (step === 3) {
+                     const assetInfo = ListingFormController.getCurrentAssetInfo();
+                     self.handleAssetChange(assetInfo);
+                 } else {
+                     // Hide validation UI when not on step 3
+                     $('#ownershipVerificationStep').hide();
+                 }
+            });
+
             // Generate token button
             $('#generateTokenBtn').on('click', function() {
                 self.generateToken();
             });
-            
+
             // Validate ownership button
             $('#validateOwnershipBtn').on('click', function() {
                 self.validateOwnership();
             });
-            
+
             // Method selection
             $(document).on('change', 'input[name="validation_method"]', function() {
                 self.selectedMethod = $(this).val();
-                
-                // Check if asset URL changed since token was generated (only for same business type)
-                const currentBusinessType = $('input[name="business_type"]:checked').val();
-                const sessionBusinessType = '{{ $ownershipValidationData['verification_business_type'] ?? '' }}';
-                const sessionAsset = '{{ $ownershipValidationData['verification_asset'] ?? '' }}';
-                
-                // Only check URL change if business type matches (same type)
-                if (self.verificationToken && sessionAsset && currentBusinessType === sessionBusinessType && sessionBusinessType) {
-                    const currentAssetUrl = self.getCurrentAssetUrl();
-                    const normalizeUrl = function(url) {
-                        if (!url) return '';
-                        return url.trim().toLowerCase().replace(/\/+$/, '');
-                    };
-                    
-                    const normalizedSession = normalizeUrl(sessionAsset);
-                    const normalizedCurrent = normalizeUrl(currentAssetUrl);
-                    
-                    // Only warn if URL changed for the SAME business type
-                    if (normalizedSession !== '' && normalizedCurrent !== '' && normalizedSession !== normalizedCurrent) {
-                        // Asset URL changed for same business type - need new token
-                        notify('warning', 'Asset URL has changed. Please generate a new verification token.');
-                        self.verificationToken = null;
-                        self.selectedMethod = null;
-                        $(this).prop('checked', false);
-                        $('#generateTokenBtn').show();
-                        $('#validateOwnershipBtn').hide();
-                        $('#validationInstructions').hide();
-                        return;
-                    }
-                } else if (currentBusinessType !== sessionBusinessType && sessionBusinessType) {
-                    // Business type changed - silently reset (no warning)
-                    self.verificationToken = null;
-                    self.selectedMethod = null;
-                    $(this).prop('checked', false);
-                    $('#generateTokenBtn').show();
-                    $('#validateOwnershipBtn').hide();
-                    $('#validationInstructions').hide();
-                    return;
-                }
-                
-                if (self.selectedMethod === 'oauth_login') {
-                    // For OAuth, show buttons immediately (no token needed)
-                    $('#generateTokenBtn').hide();
-                    $('#validateOwnershipBtn').hide();
-                    // Generate token for OAuth if not exists (needed for session)
-                    if (!self.verificationToken && self.primaryAssetUrl) {
-                        self.generateToken();
-                    } else {
-                        self.showInstructions();
-                    }
-                } else if (self.verificationToken) {
-                    // Token exists, show instructions and validate button
-                    self.showInstructions();
-                    $('#validateOwnershipBtn').show();
-                    $('#generateTokenBtn').hide();
+                self.renderActionButtons();
+                self.showInstructions();
+                // Update hidden field for draft saving
+                $('#verificationMethodInput').val(self.selectedMethod);
+                ListingFormController.triggerInputEvent();
+            });
+        },
+        
+        normalizeUrl: function(url) {
+             if (!url) return '';
+             return url.trim().toLowerCase().replace(/\/+$/, '');
+        },
+
+        handleAssetChange: function(assetInfo) {
+            const { businessType, primaryAssetUrl } = assetInfo;
+            const requiresValidation = ['domain', 'website', 'social_media_account'];
+            
+            // 1. Check if asset type or URL changed and requires reset
+            const typeChanged = this.businessType && this.businessType !== businessType;
+            const urlChanged = this.primaryAssetUrl && this.normalizeUrl(this.primaryAssetUrl) !== this.normalizeUrl(primaryAssetUrl);
+            const needsReset = (typeChanged || urlChanged) && requiresValidation.includes(this.businessType);
+
+            if (needsReset) {
+                this.clearValidationState(typeChanged ? 
+                    'Business type changed. Please verify ownership again.' : 
+                    'Asset URL changed. Please generate a new verification token.'
+                );
+            }
+            
+            // 2. Update current state
+            this.businessType = businessType;
+            this.primaryAssetUrl = primaryAssetUrl;
+            $('#verificationAssetInput').val(primaryAssetUrl);
+            
+            // 3. Render the UI for Step 3 if currently viewing it
+            if (ListingFormController.currentStep === 3) {
+                if (!requiresValidation.includes(businessType)) {
+                    $('#ownershipValidationSection').hide();
+                    $('#verificationNotRequiredMessage').show();
+                } else if (!primaryAssetUrl) {
+                    $('#ownershipValidationSection').show();
+                    $('#validationStatus').hide();
+                    $('#validationMethodsList').html('<div class="alert alert-warning">Please complete asset details in Step 2 first.</div>');
+                    $('#verificationNotRequiredMessage').hide();
                 } else {
-                    // No token yet - show generate token button
-                    $('#generateTokenBtn').show();
-                    $('#validateOwnershipBtn').hide();
-                    $('#validationInstructions').hide();
-                    if (self.primaryAssetUrl && self.primaryAssetUrl.trim()) {
-                        notify('info', 'Please generate a verification token first');
-                    }
+                    $('#ownershipValidationSection').show();
+                    $('#verificationNotRequiredMessage').hide();
+                    this.checkVerificationStatus();
                 }
-            });
-            
-            // Watch for platform changes to update OAuth buttons
-            $('select[name="platform"]').on('change', function() {
-                if (self.businessType === 'social_media_account' && self.selectedMethod === 'oauth_login') {
-                    self.loadValidationMethods();
-                }
-            });
-            
+            }
+        },
+
+        checkVerificationStatus: function() {
             // Check if already verified
             if (this.isVerified) {
                 this.showVerifiedStatus();
-            }
-        },
-        
-        restoreValidationState: function() {
-            const self = this;
-            
-            // If already verified, just show the status
-            if (this.isVerified) {
-                // Ensure validation section is visible
-                $('#ownershipValidationSection').show();
-                this.showVerifiedStatus();
                 return;
             }
             
-            // If we have token and business type, restore the validation UI
-            if (this.verificationToken && this.businessType) {
-                // Show validation section
-                $('#ownershipValidationSection').show();
-                
-                // Load validation methods
-                this.loadValidationMethods(function() {
-                    // After methods are loaded, restore selected method if exists
-                    if (self.selectedMethod) {
-                        const methodInput = $('input[name="validation_method"][value="' + self.selectedMethod + '"]');
-                        if (methodInput.length > 0) {
-                            methodInput.prop('checked', true).trigger('change');
-                            
-                            // If we have instructions stored, show them
-                            if (self.instructions) {
-                                self.showInstructions(self.instructions);
-                            }
-                            
-                            // Show validate button if token exists and not OAuth
-                            if (self.selectedMethod !== 'oauth_login') {
-                                $('#validateOwnershipBtn').show();
-                                $('#generateTokenBtn').hide();
-                            }
-                        }
-                    } else if (self.verificationToken && self.businessType !== 'social_media_account') {
-                        // Token exists but no method selected - show generate button as fallback
-                        $('#generateTokenBtn').show();
-                    }
-                });
-            } else if (this.businessType && this.primaryAssetUrl) {
-                // Have business type and asset URL but no token - show validation section
-                $('#ownershipValidationSection').show();
-                this.loadValidationMethods();
-            }
-        },
-        
-        checkIfValidationRequired: function() {
-            // Clear any pending timeout
-            if (this.loadTimeout) {
-                clearTimeout(this.loadTimeout);
-            }
-            
-            // Prevent multiple simultaneous calls
-            if (this.isLoading) {
-                return;
-            }
-            
-            const requiresValidation = ['domain', 'website', 'social_media_account'];
-            
-            // Get primary asset URL based on business type
-            let assetUrl = '';
-            let shouldShow = false;
-            
-            if (this.businessType === 'domain') {
-                assetUrl = $('#domainNameInput').val() || '';
-                shouldShow = !!assetUrl;
-            } else if (this.businessType === 'website') {
-                assetUrl = $('#websiteUrlInput').val() || '';
-                shouldShow = !!assetUrl;
-            } else if (this.businessType === 'social_media_account') {
-                const platform = $('select[name="platform"]').val();
-                const username = $('input[name="social_username"]').val();
-                const url = $('input[name="social_url"]').val();
-                assetUrl = url || (platform && username ? platform + '/' + username : '');
-                shouldShow = !!assetUrl;
-            }
-            
-            // Only check for URL changes if we have validation state AND business type matches session
-            const sessionBusinessType = '{{ $ownershipValidationData['verification_business_type'] ?? '' }}';
-            const sessionAsset = '{{ $ownershipValidationData['verification_asset'] ?? '' }}';
-            
-            // Only compare URLs if:
-            // 1. We have a token/verification
-            // 2. Current business type matches the session business type (same type)
-            // 3. We have both old and new URLs
-            if ((this.verificationToken || this.isVerified) && 
-                this.businessType === sessionBusinessType && 
-                sessionBusinessType && 
-                sessionAsset) {
-                
-                // Normalize URLs for comparison
-                const normalizeUrl = function(url) {
-                    if (!url) return '';
-                    return url.trim().toLowerCase().replace(/\/+$/, '');
-                };
-                
-                const normalizedNew = normalizeUrl(assetUrl);
-                const normalizedOld = normalizeUrl(sessionAsset);
-                
-                // Only clear if URL actually changed for the SAME business type
-                if (normalizedOld !== '' && normalizedNew !== '' && normalizedNew !== normalizedOld) {
-                    // Asset URL changed for the same business type - clear validation state
-                    this.clearValidationState('Asset URL changed. Please verify ownership for the new asset.');
-                }
-            }
-            
-            // Update primary asset URL
-            this.primaryAssetUrl = assetUrl;
-            
-            // Show/hide validation section (in Step 2 or Step 3)
-            // Check if we're currently on Step 2 or Step 3
-            const currentStep = ListingFormHandler.currentStep || 1;
-            if (currentStep === 2 || currentStep === 3) {
-                if (requiresValidation.includes(this.businessType)) {
-                    // Show validation section (but only if we're in Step 3, or if we have a URL in Step 2)
-                    if (currentStep === 3) {
-                        $('#ownershipValidationSection').show();
-                        $('#verificationNotRequiredMessage').hide();
-                        
-                        // Load methods if we have asset URL or if already verified
-                        if ((assetUrl && assetUrl.trim()) || this.isVerified) {
-                            // Debounce the load to prevent multiple calls (reduced delay)
-                            clearTimeout(this.loadTimeout);
-                            this.loadTimeout = setTimeout(() => {
-                                this.loadValidationMethods();
-                            }, 150); // Reduced from 300ms to 150ms
-                        }
-                    } else if (currentStep === 2 && assetUrl && assetUrl.trim()) {
-                        // In Step 2, only show validation section if URL is entered
-                        // This gives immediate feedback that verification will be needed
-                        // But don't load methods yet - wait until Step 3
-                        $('#ownershipValidationSection').show();
-                        $('#verificationNotRequiredMessage').hide();
-                        // Don't load methods in Step 2 - wait for Step 3
-                    } else if (currentStep === 2) {
-                        // Step 2 but no URL yet - hide validation section
-                        $('#ownershipValidationSection').hide();
-                        $('#verificationNotRequiredMessage').hide();
-                    }
-                } else {
-                    // Verification not required - show message only in Step 3
-                    if (currentStep === 3) {
-                        $('#ownershipValidationSection').hide();
-                        $('#verificationNotRequiredMessage').show();
-                    } else {
-                        $('#ownershipValidationSection').hide();
-                        $('#verificationNotRequiredMessage').hide();
-                    }
-                }
-            } else {
-                // Not on Step 2 or 3 - hide validation section
-                $('#ownershipValidationSection').hide();
-                $('#verificationNotRequiredMessage').hide();
-            }
+            // If not verified, load methods and set up UI
+            this.loadValidationMethods(() => {
+                // After methods load, check if token exists to determine button state
+                this.renderActionButtons();
+                this.showInstructions(); // Show instructions if method/token were restored
+            });
         },
         
         clearValidationState: function(message) {
-            const self = this;
-            
-            // Clear local state
             this.isVerified = false;
             this.verificationToken = null;
             this.selectedMethod = null;
             this.instructions = null;
+            $('#verificationTokenInput').val('');
+            $('#verificationMethodInput').val('');
+            $('#isVerifiedInput').val('0');
+
+            // Clear UI
+            $('#validationStatus').hide();
+            $('#validationMethodsList').html('<div class="text-center py-2"><i class="las la-spinner la-spin"></i> <small>Loading methods...</small></div>');
+            $('#validationInstructions').hide();
+            $('#validationResult').hide();
+            $('#oauthLoginButtons').hide().empty();
             
-            // Clear session
+            // Force reload methods to clear method list/cache
+            this.methodsCache = null;
+            
+            // Notify user and re-render action buttons
+            if (message) {
+                 notify('warning', message);
+            }
+            
+            this.renderActionButtons();
+
+            // Clear session via AJAX (fire and forget)
             $.ajax({
                 url: '{{ route("user.ownership.validation.clear") }}',
                 method: 'POST',
                 data: { _token: '{{ csrf_token() }}' },
-                success: function() {
-                    // Hide verified status
-                    $('#validationStatus').hide();
-                    $('#validationMethodsList').empty();
-                    $('#validationInstructions').hide();
-                    $('#validationResult').hide();
-                    
-                    // Show generate token button if we have asset URL
-                    if (self.primaryAssetUrl && self.primaryAssetUrl.trim()) {
-                        $('#generateTokenBtn').show();
-                    }
-                    
-                    // Show message if provided
-                    if (message) {
-                        notify('info', message);
-                    }
-                },
-                error: function() {
-                    // Even if AJAX fails, clear local state
-                    $('#validationStatus').hide();
-                    if (message) {
-                        notify('info', message);
-                    }
-                }
+                async: true
             });
         },
-        
+
         loadValidationMethods: function(callback) {
             const self = this;
-            
-            // Use cache if available and business type matches
+
+            // Use cache if available
             if (this.methodsCache && this.methodsCache.businessType === this.businessType) {
                 this.renderMethods(this.methodsCache.methods);
-                if (this.businessType !== 'social_media_account' && !this.verificationToken) {
-                    $('#generateTokenBtn').show();
-                }
                 if (callback) callback();
                 return;
             }
             
-            // Prevent duplicate simultaneous calls for same business type
-            const requestKey = this.businessType + '_' + Date.now();
-            if (this.lastMethodsRequest && this.lastMethodsRequest.businessType === this.businessType) {
-                // If request is less than 1 second old, wait for it
-                if (Date.now() - this.lastMethodsRequest.timestamp < 1000) {
-                    if (callback) {
-                        // Store callback to execute when request completes
-                        if (!this.lastMethodsRequest.callbacks) {
-                            this.lastMethodsRequest.callbacks = [];
-                        }
-                        this.lastMethodsRequest.callbacks.push(callback);
-                    }
-                    return;
-                }
-            }
-            
-            if (!this.businessType) {
+            if (this.isLoadingMethods || !this.businessType || !this.primaryAssetUrl) {
                 if (callback) callback();
                 return;
             }
             
-            this.isLoading = true;
-            this.lastMethodsRequest = {
-                businessType: this.businessType,
-                timestamp: Date.now(),
-                callbacks: callback ? [callback] : []
-            };
-            
-            // Show loading state only if container is empty
-            const container = $('#validationMethodsList');
-            if (container.children().length === 0) {
-                container.html('<div class="text-center py-2"><i class="las la-spinner la-spin"></i> <small>Loading methods...</small></div>');
-            }
+            this.isLoadingMethods = true;
+            $('#validationMethodsList').html('<div class="text-center py-2"><i class="las la-spinner la-spin"></i> <small>Loading methods...</small></div>');
             
             $.ajax({
                 url: '{{ route("user.ownership.validation.methods") }}',
                 method: 'GET',
                 data: { business_type: this.businessType },
-                timeout: 8000, // Reduced timeout for faster failure detection
-                cache: false, // Ensure fresh data
+                timeout: 8000, 
+                cache: false,
                 success: function(response) {
-                    self.isLoading = false;
+                    self.isLoadingMethods = false;
                     if (response.success && response.methods) {
-                        // Cache the methods
-                        self.methodsCache = {
-                            businessType: self.businessType,
-                            methods: response.methods
-                        };
+                        self.methodsCache = { businessType: self.businessType, methods: response.methods };
                         
-                        // Restore token and instructions from response if available
+                        // Restore state from response if possible
                         if (response.token && !self.verificationToken) {
                             self.verificationToken = response.token;
+                            $('#verificationTokenInput').val(response.token);
                         }
-                        if (response.instructions && !self.instructions) {
+                        if (response.instructions) {
                             self.instructions = response.instructions;
                         }
                         
                         self.renderMethods(response.methods);
-                        // Show generate token button when methods are loaded (for non-OAuth methods)
-                        if (self.businessType !== 'social_media_account' && !self.verificationToken) {
-                            $('#generateTokenBtn').show();
-                        }
-                        
-                        // Execute all callbacks
-                        if (self.lastMethodsRequest && self.lastMethodsRequest.callbacks) {
-                            self.lastMethodsRequest.callbacks.forEach(function(cb) {
-                                if (typeof cb === 'function') cb();
-                            });
-                        }
-                        if (callback && self.lastMethodsRequest.callbacks.indexOf(callback) === -1) {
-                            callback();
-                        }
                     } else {
-                        notify('error', 'Failed to load validation methods');
-                        container.html('<div class="alert alert-danger">Failed to load validation methods. <button class="btn btn-sm btn-outline-primary ms-2" onclick="ownershipValidation.loadValidationMethods()">Retry</button></div>');
-                        if (callback) callback();
+                        notify('error', 'Failed to load validation methods: ' + (response.message || 'Unknown error'));
+                        $('#validationMethodsList').html('<div class="alert alert-danger">Failed to load validation methods.</div>');
                     }
-                    self.lastMethodsRequest = null;
+                    if (callback) callback();
                 },
-                error: function(xhr, status, error) {
-                    self.isLoading = false;
-                    let message = 'Failed to load validation methods';
-                    if (status === 'timeout') {
-                        message = 'Request timed out. Please check your connection.';
-                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                        message = xhr.responseJSON.message;
-                    }
-                    notify('error', message);
-                    container.html('<div class="alert alert-danger">' + message + ' <button class="btn btn-sm btn-outline-primary ms-2" onclick="ownershipValidation.loadValidationMethods()">Retry</button></div>');
-                    
-                    // Execute callbacks even on error
-                    if (self.lastMethodsRequest && self.lastMethodsRequest.callbacks) {
-                        self.lastMethodsRequest.callbacks.forEach(function(cb) {
-                            if (typeof cb === 'function') cb();
-                        });
-                    }
-                    if (callback && (!self.lastMethodsRequest || self.lastMethodsRequest.callbacks.indexOf(callback) === -1)) {
-                        callback();
-                    }
-                    self.lastMethodsRequest = null;
+                error: function() {
+                    self.isLoadingMethods = false;
+                    notify('error', 'Failed to load validation methods. Server error or timeout.');
+                    $('#validationMethodsList').html('<div class="alert alert-danger">Failed to load validation methods.</div>');
+                    if (callback) callback();
                 }
             });
         },
-        
+
         renderMethods: function(methods) {
             const self = this;
             const container = $('#validationMethodsList');
             container.empty();
-            
-            if (!methods || Object.keys(methods).length === 0) {
-                container.html('<div class="alert alert-warning">No validation methods available for this business type.</div>');
-                return;
-            }
-            
+            $('#oauthLoginButtons').empty().hide();
+
+            if (this.isVerified) return;
+
             $.each(methods, function(key, method) {
                 if (key === 'oauth_login') {
-                    // For OAuth, show login buttons instead of radio
-                    const platform = $('select[name="platform"]').val();
-                    const oauthButtonsHtml = self.renderOAuthButtons(platform);
-                    container.append(oauthButtonsHtml);
+                    // Show OAuth login buttons if platform is selected
+                    const platform = ListingFormController.getCurrentAssetInfo().platform;
+                    if (platform) {
+                         const oauthButtonsHtml = self.renderOAuthButtons(platform);
+                         $('#oauthLoginButtons').html(oauthButtonsHtml).show();
+                    }
                 } else {
                     const isChecked = (self.selectedMethod === key) ? 'checked' : '';
                     const methodHtml = `
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="radio" name="validation_method" 
-                                   id="method_${key}" value="${key}" ${isChecked}>
+                                    id="method_${key}" value="${key}" ${isChecked}>
                             <label class="form-check-label" for="method_${key}">
                                 <strong>${method.name}</strong>
                                 <small class="d-block text-muted">${method.description}</small>
@@ -1547,99 +1586,74 @@ $(document).ready(function() {
                 }
             });
             
-            // If token already exists and a method is selected, show instructions and validate button
-            if (self.verificationToken && self.selectedMethod && self.selectedMethod !== 'oauth_login') {
-                // Trigger change to show instructions
-                $('input[name="validation_method"][value="' + self.selectedMethod + '"]').trigger('change');
-            }
+             // Re-select method if it was restored from draft/session
+             if (this.selectedMethod) {
+                 $(`input[name="validation_method"][value="${this.selectedMethod}"]`).prop('checked', true);
+             }
         },
         
         renderOAuthButtons: function(platform) {
-            const self = this;
-            
-            if (!platform) {
-                return '<div class="alert alert-warning">Please select a platform first</div>';
-            }
-            
-            let buttonsHtml = '<div class="oauth-buttons-container mb-3">';
-            buttonsHtml += '<p class="mb-2"><strong>Login with your ' + (platform || 'Social Media') + ' account to verify ownership:</strong></p>';
-            buttonsHtml += '<div class="d-flex gap-2 flex-wrap">';
-            
-            // Use the original platform name in the URL (backend will map it to provider)
-            const oauthUrl = '{{ route("user.ownership.validation.oauth.redirect", ":platform") }}'.replace(':platform', platform.toLowerCase());
-            buttonsHtml += `
-                <a href="${oauthUrl}?business_type=${self.businessType}&handle=${encodeURIComponent($('input[name="social_username"]').val() || '')}&token=${self.verificationToken || ''}&asset_url=${encodeURIComponent(self.primaryAssetUrl || '')}" 
-                   class="btn btn-primary">
-                    <i class="las la-sign-in-alt me-1"></i>Login with ${platform}
-                </a>
-            `;
-            
-            buttonsHtml += '</div></div>';
-            return buttonsHtml;
+             const self = this;
+             const assetInfo = ListingFormController.getCurrentAssetInfo();
+             const oauthUrl = '{{ route("user.ownership.validation.oauth.redirect", ":platform") }}'.replace(':platform', platform.toLowerCase());
+             
+             return `
+                 <div class="alert alert-info d-flex align-items-center mb-3">
+                     <i class="lab la-${platform.toLowerCase()} me-2 fs-4"></i>
+                     <div>@lang('Use the button below to securely login and verify your account.')</div>
+                 </div>
+                 <a href="${oauthUrl}?business_type=${self.businessType}&handle=${encodeURIComponent(assetInfo.primaryAssetUrl)}&token=${self.verificationToken || ''}&asset_url=${encodeURIComponent(assetInfo.primaryAssetUrl)}" 
+                     class="btn btn-primary btn-lg">
+                      <i class="las la-sign-in-alt me-1"></i>@lang('Login with') ${platform}
+                 </a>
+             `;
         },
-        
+
+        renderActionButtons: function() {
+            if (this.isVerified) {
+                $('#generateTokenBtn, #validateOwnershipBtn').hide();
+                return;
+            }
+
+            if (!this.selectedMethod) {
+                // If no method selected, only show token button if asset is ready
+                if (this.primaryAssetUrl) {
+                    $('#generateTokenBtn').show();
+                    $('#validateOwnershipBtn').hide();
+                } else {
+                    $('#generateTokenBtn, #validateOwnershipBtn').hide();
+                }
+            } else if (this.selectedMethod === 'oauth_login') {
+                 // For OAuth, the action is the large login button which is controlled by renderMethods/oauthLoginButtons
+                 $('#generateTokenBtn, #validateOwnershipBtn').hide();
+            } else if (this.verificationToken) {
+                $('#generateTokenBtn').hide();
+                $('#validateOwnershipBtn').show();
+            } else {
+                $('#generateTokenBtn').show();
+                $('#validateOwnershipBtn').hide();
+            }
+        },
+
         generateToken: function() {
             const self = this;
-            
-            // Prevent duplicate requests
-            if (this.isGeneratingToken) {
+            if (this.isGeneratingToken || !this.businessType || !this.primaryAssetUrl) {
+                notify('error', 'Please ensure all required details are entered and wait for any ongoing process to finish.');
                 return;
             }
             
-            // Ensure business type is set from form
-            if (!this.businessType) {
-                this.businessType = $('input[name="business_type"]:checked').val();
+            // Check if URL changed since last token (if token existed)
+            if (this.verificationToken && this.normalizeUrl(this.primaryAssetUrl) !== this.normalizeUrl($('#verificationAssetInput').val())) {
+                 this.clearValidationState('Asset URL changed. Generating new token.');
+                 // The recursive call will run the generation now
             }
             
-            if (!this.businessType) {
-                notify('error', 'Please select a business type first');
-                return;
-            }
-            
-            // Get current asset URL from form (in case it changed)
-            const currentAssetUrl = this.getCurrentAssetUrl();
-            
-            // Update primary asset URL
-            this.primaryAssetUrl = currentAssetUrl;
-            
-            if (!this.primaryAssetUrl || !this.primaryAssetUrl.trim()) {
-                // Provide more specific error message
-                let fieldName = 'primary asset URL';
-                if (this.businessType === 'domain') {
-                    fieldName = 'domain name';
-                } else if (this.businessType === 'website') {
-                    fieldName = 'website URL';
-                } else if (this.businessType === 'social_media_account') {
-                    fieldName = 'social media account details';
-                }
-                notify('error', `Please enter the ${fieldName} first`);
-                return;
-            }
-            
-            // If we already have a token for a different URL, clear it first
-            const normalizeUrl = function(url) {
-                if (!url) return '';
-                return url.trim().toLowerCase().replace(/\/+$/, '');
-            };
-            
-            const sessionAsset = '{{ $ownershipValidationData['verification_asset'] ?? '' }}';
-            if (this.verificationToken && sessionAsset) {
-                const normalizedSession = normalizeUrl(sessionAsset);
-                const normalizedCurrent = normalizeUrl(this.primaryAssetUrl);
-                if (normalizedSession !== normalizedCurrent) {
-                    // Different URL - clear old token
-                    this.verificationToken = null;
-                    this.selectedMethod = null;
-                    this.instructions = null;
-                }
-            }
-            
-            // Optimistic UI update - show loading immediately
+            this.isGeneratingToken = true;
             const btn = $('#generateTokenBtn');
             const originalHtml = btn.html();
             btn.prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i>Generating...');
-            this.isGeneratingToken = true;
-            
+            $('#validationResult').hide();
+
             $.ajax({
                 url: '{{ route("user.ownership.validation.generate.token") }}',
                 method: 'POST',
@@ -1648,149 +1662,95 @@ $(document).ready(function() {
                     primary_asset_url: this.primaryAssetUrl,
                     _token: '{{ csrf_token() }}'
                 },
-                timeout: 10000, // Reduced timeout for faster failure detection
+                timeout: 10000,
                 success: function(response) {
                     self.isGeneratingToken = false;
                     btn.prop('disabled', false).html(originalHtml);
+
                     if (response.success) {
                         self.verificationToken = response.token;
-                        if (response.instructions) {
-                            self.instructions = response.instructions;
+                        self.instructions = response.instructions;
+                        $('#verificationTokenInput').val(response.token);
+                        
+                        // Re-render to update instructions and buttons
+                        self.renderMethods(self.methodsCache.methods);
+                        self.renderActionButtons();
+                        
+                        notify('success', 'Verification token generated. Please select a verification method and follow instructions.');
+                        
+                        // Try to automatically show instructions if a method was pre-selected
+                        if (self.selectedMethod) {
+                            self.showInstructions();
                         }
                         
-                        // Clear any previous method selection since we have a new token
-                        $('input[name="validation_method"]').prop('checked', false);
-                        self.selectedMethod = null;
-                        
-                        // For social media OAuth, don't show validate button
-                        if (self.businessType === 'social_media_account') {
-                            // OAuth buttons are rendered in renderMethods
-                            self.loadValidationMethods();
-                        } else {
-                            // Hide generate button, show validate button
-                            $('#generateTokenBtn').hide();
-                            $('#validateOwnershipBtn').hide(); // Hide until method is selected
-                            $('#validationInstructions').hide();
-                            
-                            // Reload methods to get fresh list
-                            self.loadValidationMethods();
-                        }
-                        notify('success', 'Verification token generated. Please select a verification method.');
                     } else {
                         notify('error', response.message || 'Failed to generate token');
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function(xhr) {
                     self.isGeneratingToken = false;
                     btn.prop('disabled', false).html(originalHtml);
-                    let message = 'Failed to generate token';
-                    if (status === 'timeout') {
-                        message = 'Request timed out. Please check your connection.';
-                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                        message = xhr.responseJSON.message;
-                    }
+                    const message = xhr.responseJSON ? xhr.responseJSON.message : 'Server error while generating token.';
                     notify('error', message);
                 }
             });
         },
-        
-        showInstructions: function(instructions) {
-            if (!this.selectedMethod) {
+
+        showInstructions: function() {
+            if (!this.selectedMethod || !this.instructions) {
                 $('#validationInstructions').hide();
                 return;
             }
             
-            // Use passed instructions or stored instructions
-            const inst = instructions || this.instructions;
-            
-            if (inst && inst[this.selectedMethod]) {
-                const methodInstructions = inst[this.selectedMethod];
+            const methodInstructions = this.instructions[this.selectedMethod];
+            if (methodInstructions && this.verificationToken) {
                 let stepsHtml = '<ol class="mb-0">';
                 methodInstructions.steps.forEach(function(step) {
-                    stepsHtml += '<li>' + step + '</li>';
-                });
+                    // Replace placeholder with actual token
+                    let finalStep = step.replace(/{TOKEN}/g, this.verificationToken);
+                    stepsHtml += `<li>${finalStep}</li>`;
+                }.bind(this)); // Bind 'this' to access verificationToken
                 stepsHtml += '</ol>';
                 
-                $('#instructionsContent').html('<h6>' + methodInstructions.title + '</h6>' + stepsHtml);
+                $('#instructionsContent').html(`<h6>${methodInstructions.title}</h6>${stepsHtml}`);
                 $('#validationInstructions').show();
             } else {
                 $('#validationInstructions').hide();
             }
         },
-        
+
         validateOwnership: function() {
             const self = this;
-            
-            // Prevent duplicate validation requests
-            if (this.isValidating) {
+            if (this.isValidating || !this.verificationToken || !this.selectedMethod || this.selectedMethod === 'oauth_login') {
+                notify('error', 'Cannot validate. Check token, method selection, and asset URL.');
                 return;
             }
-            
-            // Get current business type and asset URL from form
-            const currentBusinessType = $('input[name="business_type"]:checked').val();
-            const currentAssetUrl = this.getCurrentAssetUrl();
-            const sessionBusinessType = '{{ $ownershipValidationData['verification_business_type'] ?? '' }}';
-            const sessionAsset = '{{ $ownershipValidationData['verification_asset'] ?? '' }}';
-            
-            // Only check URL change if business type matches (same type)
-            if (this.verificationToken && sessionAsset && currentBusinessType === sessionBusinessType && sessionBusinessType) {
-                const normalizeUrl = function(url) {
-                    if (!url) return '';
-                    return url.trim().toLowerCase().replace(/\/+$/, '');
-                };
-                
-                const normalizedSession = normalizeUrl(sessionAsset);
-                const normalizedCurrent = normalizeUrl(currentAssetUrl);
-                
-                // Only error if URL changed for the SAME business type
-                if (normalizedSession !== '' && normalizedCurrent !== '' && normalizedSession !== normalizedCurrent) {
-                    notify('error', 'Asset URL has changed. Please generate a new verification token for the current asset.');
-                    return;
-                }
-            } else if (currentBusinessType !== sessionBusinessType && sessionBusinessType) {
-                // Business type changed - need to verify for new type
-                notify('error', 'Business type has changed. Please generate a new verification token for the selected business type.');
-                return;
-            }
-            
-            // Update primary asset URL
-            this.primaryAssetUrl = currentAssetUrl;
-            
-            if (!this.primaryAssetUrl || !this.primaryAssetUrl.trim()) {
-                notify('error', 'Please enter the primary asset URL first');
-                return;
-            }
-            
-            if (!this.verificationToken) {
-                notify('error', 'Please generate a verification token first');
-                return;
-            }
-            
-            if (!this.selectedMethod) {
-                notify('error', 'Please select a validation method');
-                return;
-            }
-            
-            // For OAuth login, redirect happens via button click, not AJAX
-            if (this.selectedMethod === 'oauth_login') {
-                notify('info', 'Please click the OAuth login button above');
-                return;
-            }
-            
-            const additionalData = {};
-            if (this.businessType === 'social_media_account') {
-                additionalData.platform = $('select[name="platform"]').val();
-                additionalData.handle = $('input[name="social_username"]').val();
-            } else if (this.selectedMethod === 'file_upload') {
-                additionalData.filename = prompt('Enter the filename (default: marketplace-verification.txt):', 'marketplace-verification.txt') || 'marketplace-verification.txt';
-            }
-            
-            // Optimistic UI update
+
+            this.isValidating = true;
             const btn = $('#validateOwnershipBtn');
             const originalHtml = btn.html();
             btn.prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i>Validating...');
-            this.isValidating = true;
+            $('#validationResult').hide().empty();
             
+            // Collect additional data if needed (e.g., social media handle or specific filename)
+            const additionalData = {};
+            if (this.businessType === 'social_media_account') {
+                additionalData.platform = $('#socialPlatformSelect').val();
+                additionalData.handle = $('#socialUsernameInput').val();
+            }
+            
+            // Quick prompt for filename for the file_upload method
+            if (this.selectedMethod === 'file_upload') {
+                const filename = prompt('Enter the filename you uploaded (default: marketplace-verification.txt):', 'marketplace-verification.txt');
+                if (!filename || filename.trim() === '') {
+                     this.isValidating = false;
+                     btn.prop('disabled', false).html(originalHtml);
+                     notify('error', 'Filename is required for file upload verification.');
+                     return;
+                }
+                additionalData.filename = filename.trim();
+            }
+
             $.ajax({
                 url: '{{ route("user.ownership.validation.validate") }}',
                 method: 'POST',
@@ -1802,127 +1762,59 @@ $(document).ready(function() {
                     additional_data: additionalData,
                     _token: '{{ csrf_token() }}'
                 },
-                timeout: 25000, // 25 second timeout for validation (reduced from 30)
+                timeout: 25000,
                 success: function(response) {
                     self.isValidating = false;
+                    btn.prop('disabled', false).html(originalHtml);
+
                     if (response.success) {
                         self.isVerified = true;
+                        $('#isVerifiedInput').val('1');
                         self.showVerifiedStatus();
                         notify('success', response.message || 'Ownership verified successfully!');
                     } else {
+                        self.isVerified = false;
+                        $('#isVerifiedInput').val('0');
+                        $('#validationResult').html(`<div class="alert alert-danger">${response.message || 'Ownership verification failed'}</div>`).show();
                         notify('error', response.message || 'Ownership verification failed');
-                        $('#validationResult').html('<div class="alert alert-danger">' + response.message + '</div>').show();
-                        btn.prop('disabled', false).html(originalHtml);
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function(xhr) {
                     self.isValidating = false;
-                    let message = 'Validation failed';
-                    if (status === 'timeout') {
-                        message = 'Validation request timed out. Please check your connection.';
-                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                        message = xhr.responseJSON.message;
-                    }
-                    notify('error', message);
-                    $('#validationResult').html('<div class="alert alert-danger">' + message + '</div>').show();
                     btn.prop('disabled', false).html(originalHtml);
+                    const message = xhr.responseJSON ? xhr.responseJSON.message : 'Server error or timeout during validation.';
+                    $('#validationResult').html(`<div class="alert alert-danger">${message}</div>`).show();
+                    notify('error', message);
                 }
             });
         },
         
-        getCurrentAssetUrl: function() {
-            // First, try to get business type from form if not set
-            if (!this.businessType) {
-                this.businessType = $('input[name="business_type"]:checked').val() || null;
-            }
-            
-            // Priority: Check visible input sections first (most reliable)
-            if ($('#domainInputSection').is(':visible')) {
-                const domainValue = $('#domainNameInput').val() || '';
-                if (domainValue.trim()) {
-                    if (!this.businessType) this.businessType = 'domain';
-                    return domainValue.trim();
-                }
-            }
-            
-            if ($('#websiteInputSection').is(':visible')) {
-                const websiteValue = $('#websiteUrlInput').val() || '';
-                if (websiteValue.trim()) {
-                    if (!this.businessType) this.businessType = 'website';
-                    return websiteValue.trim();
-                }
-            }
-            
-            // Fallback: Get URL based on business type if set
-            if (this.businessType === 'domain') {
-                const domainValue = $('#domainNameInput').val() || '';
-                return domainValue.trim();
-            } else if (this.businessType === 'website') {
-                const websiteValue = $('#websiteUrlInput').val() || '';
-                return websiteValue.trim();
-            } else if (this.businessType === 'social_media_account') {
-                const platform = $('select[name="platform"]').val();
-                const username = $('input[name="social_username"]').val();
-                const url = $('input[name="social_url"]').val();
-                return (url || (platform && username ? platform + '/' + username : '')).trim();
-            }
-            
-            return '';
-        },
-        
         showVerifiedStatus: function() {
-            $('#validationStatus').show();
-            $('#generateTokenBtn, #validateOwnershipBtn').hide();
-            $('#validationInstructions, #validationResult').hide();
-            $('#validationMethodsList').html('<div class="alert alert-success"><i class="las la-check-circle me-2"></i>Ownership has been verified.</div>');
-            $('#step1ContinueBtn').prop('disabled', false);
+             $('#validationStatus').show();
+             $('#generateTokenBtn, #validateOwnershipBtn, #validationInstructions, #validationResult, #oauthLoginButtons').hide();
+             $('#validationMethodsList').html('<div class="alert alert-success"><i class="las la-check-circle me-2"></i>Ownership has been verified.</div>');
         }
     };
-    
-    // Initialize ownership validation
-    ownershipValidation.init();
-    
-    // Handle Step 2 to Step 3 navigation (conditional skip for apps)
-    // Note: Validation is handled by ListingFormHandler.validateStep(2) before this
-    $('#step2ContinueBtn').on('click', function(e) {
-        const businessType = $('input[name="business_type"]:checked').val();
-        const requiresValidation = ['domain', 'website', 'social_media_account'];
-        
-        // If verification not required, skip Step 3 and go to Step 4
-        if (!requiresValidation.includes(businessType)) {
-            e.preventDefault();
-            e.stopPropagation();
-            // Skip Step 3, go directly to Step 4
-            ListingFormHandler.showStep(4);
-            return false;
-        }
-        // Otherwise, proceed to Step 3 normally (validation already checked by validateStep)
-    });
-    
-    // Handle Step 3 to Step 4 navigation (check verification)
-    $('#step3ContinueBtn').on('click', function(e) {
-        const businessType = $('input[name="business_type"]:checked').val();
-        const requiresValidation = ['domain', 'website', 'social_media_account'];
-        
-        if (requiresValidation.includes(businessType)) {
-            // Instant check - no delay
-            if (!ownershipValidation.isVerified) {
-                e.preventDefault();
-                e.stopPropagation();
-                // Scroll to validation section if not visible
-                const validationSection = $('#ownershipValidationSection');
-                if (validationSection.length && !validationSection.is(':visible')) {
-                    validationSection.show();
-                }
-                $('html, body').animate({
-                    scrollTop: validationSection.offset().top - 100
-                }, 300);
-                notify('error', 'Please verify ownership before continuing');
-                return false;
-            }
-        }
-    });
 
-});
+    $(document).ready(function() {
+        // 1. Initialize core form controller
+        ListingFormController.init();
+        
+        // 2. Initialize validation controller
+        ValidationController.init();
+        
+        // 3. Setup global step change listener for the progress bar
+        $(document).on('stepChange', function(e, step) {
+             $(`.progress-steps .step`).removeClass('active completed');
+             for (let i = 1; i <= ListingFormController.maxStep; i++) {
+                 const stepElement = $(`.progress-steps .step[data-step="${i}"]`);
+                 if (i < step) {
+                     stepElement.addClass('completed');
+                 } else if (i === step) {
+                     stepElement.addClass('active');
+                 }
+             }
+        });
+    });
 </script>
 @endpush
