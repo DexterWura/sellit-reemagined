@@ -1726,8 +1726,10 @@
         loadValidationMethods: function(callback) {
             const self = this;
 
-            // Use cache if available
-            if (this.methodsCache && this.methodsCache.businessType === this.businessType) {
+            // Use cache if available and URL matches
+            if (this.methodsCache && this.methodsCache.businessType === this.businessType && 
+                this.methodsCache.primaryAssetUrl && 
+                this.normalizeUrl(this.methodsCache.primaryAssetUrl) === this.normalizeUrl(this.primaryAssetUrl)) {
                 this.renderMethods(this.methodsCache.methods);
                 if (callback) callback();
                 return;
@@ -1744,21 +1746,37 @@
             $.ajax({
                 url: '{{ route("user.ownership.validation.methods") }}',
                 method: 'GET',
-                data: { business_type: this.businessType },
+                data: { 
+                    business_type: this.businessType,
+                    primary_asset_url: this.primaryAssetUrl
+                },
                 timeout: 8000, 
                 cache: false,
                 success: function(response) {
                     self.isLoadingMethods = false;
                     if (response.success && response.methods) {
-                        self.methodsCache = { businessType: self.businessType, methods: response.methods };
+                        // Cache methods with current asset URL
+                        self.methodsCache = { 
+                            businessType: self.businessType, 
+                            methods: response.methods,
+                            primaryAssetUrl: self.primaryAssetUrl
+                        };
                         
-                        // Restore state from response if possible
-                        if (response.token && !self.verificationToken) {
+                        // Only restore state from response if URL matches current asset URL
+                        const responseUrlMatches = !response.instructions || 
+                            (response.token && self.normalizeUrl(self.primaryAssetUrl) === self.normalizeUrl($('#verificationAssetInput').val()));
+                        
+                        if (response.token && responseUrlMatches && !self.verificationToken) {
                             self.verificationToken = response.token;
                             $('#verificationTokenInput').val(response.token);
                         }
-                        if (response.instructions) {
+                        if (response.instructions && responseUrlMatches) {
                             self.instructions = response.instructions;
+                        } else if (!responseUrlMatches) {
+                            // URL doesn't match, clear old instructions
+                            self.instructions = null;
+                            self.verificationToken = null;
+                            $('#verificationTokenInput').val('');
                         }
                         
                         self.renderMethods(response.methods);

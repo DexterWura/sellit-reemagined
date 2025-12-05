@@ -44,7 +44,8 @@ class OwnershipValidationController extends Controller
     public function getMethods(Request $request)
     {
         $request->validate([
-            'business_type' => 'required|in:domain,website,social_media_account,mobile_app,desktop_app'
+            'business_type' => 'required|in:domain,website,social_media_account,mobile_app,desktop_app',
+            'primary_asset_url' => 'nullable|string|max:500'
         ]);
         
         $methods = $this->validationService->getAvailableMethods($request->business_type);
@@ -59,8 +60,20 @@ class OwnershipValidationController extends Controller
             'methods' => $methods
         ];
         
-        // If we have token and asset URL, include instructions
-        if ($token && $assetUrl && $businessType === $request->business_type) {
+        // Normalize URLs for comparison
+        $normalizeUrl = function($url) {
+            if (!$url) return '';
+            return rtrim(strtolower(trim($url)), '/');
+        };
+        
+        // Only return token and instructions if:
+        // 1. Token exists in session
+        // 2. Business type matches
+        // 3. Asset URL matches (if provided in request)
+        $requestAssetUrl = $request->input('primary_asset_url');
+        $urlMatches = !$requestAssetUrl || $normalizeUrl($assetUrl) === $normalizeUrl($requestAssetUrl);
+        
+        if ($token && $assetUrl && $businessType === $request->business_type && $urlMatches) {
             $response['token'] = $token;
             $response['instructions'] = $this->getInstructions($businessType, $token, $assetUrl);
         }
