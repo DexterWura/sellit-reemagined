@@ -771,33 +771,6 @@
 
 @push('style')
 <link rel="stylesheet" href="{{ asset('assets/templates/basic/css/listing-form.css') }}">
-{{-- Custom CSS for better UI (as per original intent) --}}
-<style>
-    .listing-progress .progress-steps { display: flex; justify-content: space-between; align-items: center; background: #fff; border-radius: 8px; padding: 15px; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075); }
-    .listing-progress .step { flex: 1; text-align: center; position: relative; color: #6c757d; cursor: pointer; }
-    .listing-progress .step:not(:last-child)::after { content: ''; position: absolute; top: 18px; left: 50%; right: -50%; height: 2px; background: #e9ecef; z-index: 0; }
-    .listing-progress .step.active .step-number { background-color: #007bff; color: #fff; box-shadow: 0 0 0 5px rgba(0, 123, 255, 0.5); }
-    .listing-progress .step.active ~ .step .step-number { background-color: #6c757d; }
-    .listing-progress .step.active::after, .listing-progress .step.completed::after { background: #007bff !important; }
-    .listing-progress .step.completed .step-number { background-color: #10b981; color: #fff; }
-    .listing-progress .step-number { width: 36px; height: 36px; line-height: 36px; border-radius: 50%; background: #e9ecef; display: inline-block; font-weight: 700; position: relative; z-index: 1; margin-bottom: 5px; }
-    .business-type-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
-    .business-type-card, .sale-type-card { display: block; border: 2px solid #e9ecef; border-radius: 8px; cursor: pointer; transition: all 0.3s; position: relative; }
-    .business-type-card .card-inner, .sale-type-card .card-inner { padding: 20px; text-align: center; }
-    .business-type-card input:checked + .card-inner, .sale-type-card input:checked + .card-inner { border-color: #007bff; box-shadow: 0 0 0 2px #007bff20; }
-    .business-type-card input, .sale-type-card input { display: none; }
-    .type-icon, .sale-icon { width: 50px; height: 50px; line-height: 50px; border-radius: 50%; font-size: 1.5rem; margin: 0 auto 10px; }
-    .check-mark { position: absolute; top: 5px; right: 5px; color: #10b981; font-size: 1.25rem; display: none; }
-    .business-type-card input:checked + .card-inner .check-mark, .sale-type-card input:checked + .card-inner .check-mark { display: block; }
-
-    .image-upload-section { border: 2px dashed #ddd; border-radius: 8px; padding: 30px; text-align: center; transition: background-color 0.3s; cursor: pointer; }
-    .image-upload-section:hover { background-color: #f8f9fa; }
-    .upload-placeholder i { font-size: 3rem; color: #007bff; margin-bottom: 10px; }
-    .image-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
-    .image-preview-item { position: relative; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; height: 100px; }
-    .image-preview-item img { width: 100%; height: 100%; object-fit: cover; }
-    .image-preview-item .remove-btn { position: absolute; top: 5px; right: 5px; background: rgba(255, 0, 0, 0.7); color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8rem; padding: 2px 5px; }
-</style>
 @endpush
 
 @push('script')
@@ -839,18 +812,23 @@
         isSaving: false,
         
         init: function() {
-            // Restore draft data on first load if applicable
-            this.showStep(this.currentStep, false);
+            // Bind events first
             this.bindEvents();
             this.initConfidentialityToggle();
             this.initSaleTypeToggle();
-            this.initAssetTypeFields();
             this.initImageUpload();
-
-            // Auto-save logic
-            if (this.currentStep > 1) {
-                this.startAutoSave();
-            }
+            
+            // Show the current step after DOM is ready
+            requestAnimationFrame(() => {
+                this.showStep(this.currentStep, false);
+                // Initialize asset type fields after step is shown
+                this.initAssetTypeFields();
+                
+                // Auto-save logic
+                if (this.currentStep > 1) {
+                    this.startAutoSave();
+                }
+            });
         },
 
         bindEvents: function() {
@@ -984,13 +962,47 @@
         },
 
         showStep: function(step, animate = true) {
-            $('.form-step').addClass('d-none');
-            const targetStep = $(`.form-step[data-step="${step}"]`);
-            if (animate) {
-                targetStep.fadeIn(300);
-            } else {
-                targetStep.removeClass('d-none');
+            // Validate step number
+            if (isNaN(step) || step < 1 || step > this.maxStep) {
+                console.error('Invalid step number:', step);
+                return;
             }
+            
+            // Hide all steps first - use both methods to ensure they're hidden
+            $('.form-step').each(function() {
+                $(this).addClass('d-none').hide().css('display', 'none');
+            });
+            
+            // Find target step
+            const targetStep = $(`.form-step[data-step="${step}"]`);
+            
+            if (targetStep.length === 0) {
+                console.error('Step not found:', step);
+                return;
+            }
+            
+            // Remove d-none class and show the step
+            targetStep.removeClass('d-none');
+            
+            // Force display immediately
+            targetStep.css({
+                'display': 'block',
+                'opacity': '1',
+                'visibility': 'visible'
+            });
+            
+            // Use requestAnimationFrame to ensure DOM is ready, then show child elements
+            requestAnimationFrame(() => {
+                // Ensure all child elements are visible
+                targetStep.find('.step-header, .step-actions').css({
+                    'display': '',
+                    'opacity': '',
+                    'visibility': ''
+                });
+                
+                // Trigger a reflow to ensure styles are applied
+                targetStep[0].offsetHeight;
+            });
 
             // Update progress bar
             $('.progress-steps .step').removeClass('active completed');
@@ -1006,40 +1018,46 @@
             // Trigger step change event for other controllers
             $(document).trigger('stepChange', step);
 
-            // Handle conditional field display (business type fields)
+            // Handle conditional field display based on step
             const businessType = $('input[name="business_type"]:checked').val();
-            if (businessType) {
+            
+            // Step 2: Show appropriate asset fields
+            if (step === 2 && businessType) {
                 this.handleAssetTypeChange(businessType);
             }
             
-            // Handle sale type display (only on Step 5)
+            // Step 5: Handle sale type display
             if (step === 5) {
                 const saleType = $('input[name="sale_type"]:checked').val() || 'fixed_price';
                 this.handleSaleTypeChange(saleType);
             }
             
-            // Handle Step 3 (Verification) content based on type
+            // Step 3: Handle verification content
             if (step === 3) {
                 const assetInfo = this.getCurrentAssetInfo();
                 $(document).trigger('assetDetailChange', assetInfo);
             }
 
-            // Handle Step 6 (Media) content based on type
+            // Step 6: Handle media content based on type
             if (step === 6) {
-                const businessType = $('input[name="business_type"]:checked').val();
                 if (businessType === 'domain') {
-                    $('.domain-info-message').removeClass('d-none');
-                    $('.image-upload-section').hide();
+                    $('.domain-info-message').removeClass('d-none').show();
+                    $('.image-upload-section').hide().addClass('d-none');
                 } else {
-                    $('.domain-info-message').addClass('d-none');
-                    $('.image-upload-section').show();
+                    $('.domain-info-message').addClass('d-none').hide();
+                    $('.image-upload-section').removeClass('d-none').show();
                 }
             }
             
-            // Scroll to top of card body
-            $('html, body').animate({
-                scrollTop: $('#listingForm').closest('.card').offset().top - 20
-            }, 300);
+            // Scroll to top of card body after a brief delay to ensure content is rendered
+            setTimeout(() => {
+                const card = $('#listingForm').closest('.card');
+                if (card.length && card.offset()) {
+                    $('html, body').animate({
+                        scrollTop: card.offset().top - 20
+                    }, 300);
+                }
+            }, 100);
         },
 
         validateStep: function(step) {
@@ -1183,21 +1201,56 @@
         // --- Conditional Field & Input Management ---
 
         handleAssetTypeChange: function(selectedType) {
-            // Hide all business field sections
-            $('.business-fields').hide();
-            $('#domainInputSection').hide();
-            $('#websiteInputSection').hide();
-            
-            if (selectedType) {
-                // Show the appropriate section based on type
-                if (selectedType === 'domain') {
-                    $('#domainInputSection').fadeIn(300);
-                } else if (selectedType === 'website') {
-                    $('#websiteInputSection').fadeIn(300);
-                } else {
-                    $(`.business-fields.${selectedType}-fields`).fadeIn(300);
-                }
+            if (!selectedType) {
+                // No type selected - hide all
+                $('.business-fields').hide().addClass('d-none');
+                $('#domainInputSection').hide().addClass('d-none');
+                $('#websiteInputSection').hide().addClass('d-none');
+                return;
             }
+            
+            // Hide all business field sections first
+            $('.business-fields').each(function() {
+                $(this).hide().addClass('d-none').css('display', 'none');
+            });
+            $('#domainInputSection').hide().addClass('d-none').css('display', 'none');
+            $('#websiteInputSection').hide().addClass('d-none').css('display', 'none');
+            
+            // Show the appropriate section based on type
+            requestAnimationFrame(() => {
+                if (selectedType === 'domain') {
+                    const domainSection = $('#domainInputSection');
+                    domainSection.removeClass('d-none');
+                    domainSection.css({
+                        'display': 'block',
+                        'opacity': '1',
+                        'visibility': 'visible'
+                    });
+                    // Force reflow
+                    if (domainSection[0]) domainSection[0].offsetHeight;
+                } else if (selectedType === 'website') {
+                    const websiteSection = $('#websiteInputSection');
+                    websiteSection.removeClass('d-none');
+                    websiteSection.css({
+                        'display': 'block',
+                        'opacity': '1',
+                        'visibility': 'visible'
+                    });
+                    // Force reflow
+                    if (websiteSection[0]) websiteSection[0].offsetHeight;
+                } else {
+                    // Social media, mobile app, desktop app
+                    const targetFields = $(`.business-fields.${selectedType}-fields`);
+                    targetFields.removeClass('d-none');
+                    targetFields.css({
+                        'display': 'block',
+                        'opacity': '1',
+                        'visibility': 'visible'
+                    });
+                    // Force reflow
+                    if (targetFields[0]) targetFields[0].offsetHeight;
+                }
+            });
         },
         
         initAssetTypeFields: function() {
@@ -1215,14 +1268,32 @@
             }
             
             // Hide all pricing fields
-            $('.pricing-fields').hide();
+            $('.pricing-fields').each(function() {
+                $(this).hide().css('display', 'none');
+            });
             
             // Show relevant pricing fields
-            if (selectedSaleType === 'fixed_price') {
-                $('.fixed-price-fields').fadeIn(300);
-            } else if (selectedSaleType === 'auction') {
-                $('.auction-fields').fadeIn(300);
-            }
+            requestAnimationFrame(() => {
+                if (selectedSaleType === 'fixed_price') {
+                    const fixedPriceFields = $('.fixed-price-fields');
+                    fixedPriceFields.css({
+                        'display': 'block',
+                        'opacity': '1',
+                        'visibility': 'visible'
+                    });
+                    // Force reflow
+                    if (fixedPriceFields[0]) fixedPriceFields[0].offsetHeight;
+                } else if (selectedSaleType === 'auction') {
+                    const auctionFields = $('.auction-fields');
+                    auctionFields.css({
+                        'display': 'block',
+                        'opacity': '1',
+                        'visibility': 'visible'
+                    });
+                    // Force reflow
+                    if (auctionFields[0]) auctionFields[0].offsetHeight;
+                }
+            });
             
             // Update required attributes
             $('#askingPriceInput, #startingBidInput, #bidIncrementInput, #auctionDurationSelect').prop('required', false);
@@ -1245,31 +1316,6 @@
             $('#requiresNda').on('change', function() {
                  ListingFormController.triggerInputEvent();
             });
-        },
-
-        handleSaleTypeChange: function(selectedSaleType) {
-            if (!selectedSaleType) {
-                // Default to fixed_price if nothing selected
-                selectedSaleType = 'fixed_price';
-            }
-            
-            // Hide all pricing fields
-            $('.pricing-fields').hide();
-            
-            // Show relevant pricing fields
-            if (selectedSaleType === 'fixed_price') {
-                $('.fixed-price-fields').fadeIn(300);
-            } else if (selectedSaleType === 'auction') {
-                $('.auction-fields').fadeIn(300);
-            }
-            
-            // Update required attributes
-            $('#askingPriceInput, #startingBidInput, #bidIncrementInput, #auctionDurationSelect').prop('required', false);
-            if (selectedSaleType === 'fixed_price') {
-                $('#askingPriceInput').prop('required', true);
-            } else if (selectedSaleType === 'auction') {
-                $('#startingBidInput, #bidIncrementInput, #auctionDurationSelect').prop('required', true);
-            }
         },
         
         initSaleTypeToggle: function() {
