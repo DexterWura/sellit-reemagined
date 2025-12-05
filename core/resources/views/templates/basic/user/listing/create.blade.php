@@ -1954,6 +1954,12 @@
                     btn.prop('disabled', false).html(originalHtml);
 
                     if (response.success) {
+                        console.log('Token generated successfully', {
+                            token: response.token,
+                            instructions: response.instructions,
+                            selectedMethod: self.selectedMethod
+                        });
+                        
                         self.verificationToken = response.token;
                         self.instructions = response.instructions;
                         $('#verificationTokenInput').val(response.token);
@@ -1968,8 +1974,11 @@
                         // (renderMethods will also call showInstructions if method is selected)
                         if (self.selectedMethod) {
                             setTimeout(() => {
+                                console.log('Calling showInstructions after token generation');
                                 self.showInstructions();
                             }, 100);
+                        } else {
+                            console.log('No method selected yet, instructions will show when method is selected');
                         }
                         
                     } else {
@@ -1986,23 +1995,35 @@
         },
 
         showInstructions: function() {
+            console.log('showInstructions called', {
+                selectedMethod: this.selectedMethod,
+                hasInstructions: !!this.instructions,
+                hasToken: !!this.verificationToken,
+                instructions: this.instructions
+            });
+            
             // Check prerequisites
             if (!this.selectedMethod) {
+                console.log('No method selected');
                 $('#validationInstructions').hide();
                 return;
             }
             
             if (!this.instructions || typeof this.instructions !== 'object') {
+                console.log('No instructions object');
                 $('#validationInstructions').hide();
                 return;
             }
             
             if (!this.verificationToken) {
+                console.log('No verification token');
                 $('#validationInstructions').hide();
                 return;
             }
             
             const methodInstructions = this.instructions[this.selectedMethod];
+            console.log('Method instructions:', methodInstructions);
+            
             if (methodInstructions && methodInstructions.steps && Array.isArray(methodInstructions.steps)) {
                 let stepsHtml = '<ol class="mb-0">';
                 methodInstructions.steps.forEach(function(step) {
@@ -2012,10 +2033,14 @@
                 }.bind(this)); // Bind 'this' to access verificationToken
                 stepsHtml += '</ol>';
                 
+                // Update the existing heading with the method title, then add steps
                 const title = methodInstructions.title || 'Verification Instructions';
-                $('#instructionsContent').html(`<h6>${title}</h6>${stepsHtml}`);
+                $('#validationInstructions .alert-heading').text(title);
+                $('#instructionsContent').html(stepsHtml);
                 $('#validationInstructions').show();
+                console.log('Instructions displayed');
             } else {
+                console.log('Invalid method instructions structure');
                 $('#validationInstructions').hide();
             }
         },
