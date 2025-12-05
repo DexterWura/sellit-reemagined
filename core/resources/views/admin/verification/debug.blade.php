@@ -33,25 +33,41 @@
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <h3>Admin Settings (VerificationSetting Model)</h3>
+                    <h3>Marketplace Settings (Controlled by Admin/Marketplace/Config)</h3>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-bordered">
                             <tbody>
                                 <tr>
-                                    <td><strong>Require Verification:</strong></td>
+                                    <td><strong>Require Domain Verification:</strong></td>
                                     <td>
-                                        <span class="badge {{ $debug['admin_settings']['require_verification'] ? 'bg-success' : 'bg-danger' }}">
-                                            {{ $debug['admin_settings']['require_verification'] ? 'YES' : 'NO' }}
+                                        <span class="badge {{ $debug['marketplace_settings']['require_domain_verification'] ? 'bg-success' : 'bg-danger' }}">
+                                            {{ $debug['marketplace_settings']['require_domain_verification'] ? 'ENABLED' : 'DISABLED' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Require Website Verification:</strong></td>
+                                    <td>
+                                        <span class="badge {{ $debug['marketplace_settings']['require_website_verification'] ? 'bg-success' : 'bg-danger' }}">
+                                            {{ $debug['marketplace_settings']['require_website_verification'] ? 'ENABLED' : 'DISABLED' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Require Social Media Verification:</strong></td>
+                                    <td>
+                                        <span class="badge {{ $debug['marketplace_settings']['require_social_media_verification'] ? 'bg-success' : 'bg-danger' }}">
+                                            {{ $debug['marketplace_settings']['require_social_media_verification'] ? 'ENABLED' : 'DISABLED' }}
                                         </span>
                                     </td>
                                 </tr>
                                 <tr>
                                     <td><strong>Allowed Methods:</strong></td>
                                     <td>
-                                        @if($debug['admin_settings']['allowed_methods'])
-                                            @foreach($debug['admin_settings']['allowed_methods'] as $method)
+                                        @if($debug['marketplace_settings']['domain_verification_methods'])
+                                            @foreach($debug['marketplace_settings']['domain_verification_methods'] as $method)
                                                 <span class="badge bg-info">{{ $method }}</span>
                                             @endforeach
                                         @else
@@ -59,14 +75,6 @@
                                         @endif
                                     </td>
                                 </tr>
-                                <tr>
-                                    <td><strong>Max Attempts:</strong></td>
-                                    <td>{{ $debug['admin_settings']['max_attempts'] }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Timeout (seconds):</strong></td>
-                                    <td>{{ $debug['admin_settings']['timeout'] }}</td>
-                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -79,62 +87,7 @@
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <h3>VerificationSetting Static Methods</h3>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <tbody>
-                                <tr>
-                                    <td><strong>isRequired():</strong></td>
-                                    <td>
-                                        <span class="badge {{ $debug['verification_setting_methods']['isRequired'] ? 'bg-success' : 'bg-danger' }}">
-                                            {{ $debug['verification_setting_methods']['isRequired'] ? 'TRUE' : 'FALSE' }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>getAllowedMethods():</strong></td>
-                                    <td>
-                                        @if($debug['verification_setting_methods']['getAllowedMethods'])
-                                            @foreach($debug['verification_setting_methods']['getAllowedMethods'] as $method)
-                                                <span class="badge bg-info">{{ $method }}</span>
-                                            @endforeach
-                                        @else
-                                            <span class="text-muted">Empty array</span>
-                                        @endif
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>isMethodAllowed('file'):</strong></td>
-                                    <td>
-                                        <span class="badge {{ $debug['verification_setting_methods']['isMethodAllowed_file'] ? 'bg-success' : 'bg-danger' }}">
-                                            {{ $debug['verification_setting_methods']['isMethodAllowed_file'] ? 'ALLOWED' : 'NOT ALLOWED' }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>isMethodAllowed('dns'):</strong></td>
-                                    <td>
-                                        <span class="badge {{ $debug['verification_setting_methods']['isMethodAllowed_dns'] ? 'bg-success' : 'bg-danger' }}">
-                                            {{ $debug['verification_setting_methods']['isMethodAllowed_dns'] ? 'ALLOWED' : 'NOT ALLOWED' }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Marketplace Settings (Different System)</h3>
-                    <small class="text-muted">Note: These are separate from admin verification settings</small>
+                    <h3>MarketplaceSetting Static Methods</h3>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -143,25 +96,33 @@
                                 <tr>
                                     <td><strong>requireDomainVerification():</strong></td>
                                     <td>
-                                        <span class="badge {{ $debug['marketplace_settings']['require_domain_verification'] ? 'bg-success' : 'bg-danger' }}">
-                                            {{ $debug['marketplace_settings']['require_domain_verification'] ? 'TRUE' : 'FALSE' }}
+                                        <span class="badge {{ $debug['marketplace_setting_methods']['requireDomainVerification'] ? 'bg-success' : 'bg-danger' }}">
+                                            {{ $debug['marketplace_setting_methods']['requireDomainVerification'] ? 'TRUE' : 'FALSE' }}
                                         </span>
                                     </td>
                                 </tr>
                                 <tr>
                                     <td><strong>requireWebsiteVerification():</strong></td>
                                     <td>
-                                        <span class="badge {{ $debug['marketplace_settings']['require_website_verification'] ? 'bg-success' : 'bg-danger' }}">
-                                            {{ $debug['marketplace_settings']['require_website_verification'] ? 'TRUE' : 'FALSE' }}
+                                        <span class="badge {{ $debug['marketplace_setting_methods']['requireWebsiteVerification'] ? 'bg-success' : 'bg-danger' }}">
+                                            {{ $debug['marketplace_setting_methods']['requireWebsiteVerification'] ? 'TRUE' : 'FALSE' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>requireSocialMediaVerification():</strong></td>
+                                    <td>
+                                        <span class="badge {{ $debug['marketplace_setting_methods']['requireSocialMediaVerification'] ? 'bg-success' : 'bg-danger' }}">
+                                            {{ $debug['marketplace_setting_methods']['requireSocialMediaVerification'] ? 'TRUE' : 'FALSE' }}
                                         </span>
                                     </td>
                                 </tr>
                                 <tr>
                                     <td><strong>getDomainVerificationMethods():</strong></td>
                                     <td>
-                                        @if($debug['marketplace_settings']['domain_verification_methods'])
-                                            @foreach($debug['marketplace_settings']['domain_verification_methods'] as $method)
-                                                <span class="badge bg-warning">{{ $method }}</span>
+                                        @if($debug['marketplace_setting_methods']['getDomainVerificationMethods'])
+                                            @foreach($debug['marketplace_setting_methods']['getDomainVerificationMethods'] as $method)
+                                                <span class="badge bg-info">{{ $method }}</span>
                                             @endforeach
                                         @else
                                             <span class="text-muted">Empty array</span>
@@ -175,6 +136,7 @@
             </div>
         </div>
     </div>
+
 
     <div class="row mt-4">
         <div class="col-md-12">
@@ -232,19 +194,20 @@
                     <div class="alert alert-info">
                         <h5><i class="ik ik-info"></i> How to Use This Debug Page</h5>
                         <ul class="mb-0">
-                            <li><strong>Admin Settings</strong> should show what you configured in the admin panel</li>
-                            <li><strong>VerificationSetting Methods</strong> show if the code can read the settings correctly</li>
-                            <li><strong>Marketplace Settings</strong> are a separate system - these may not match admin settings</li>
-                            <li><strong>Statistics</strong> show actual verification activity</li>
+                            <li><strong>Marketplace Settings</strong> show verification requirements configured in Admin → Marketplace → Config</li>
+                            <li><strong>MarketplaceSetting Methods</strong> show if the code can read the settings correctly</li>
+                            <li><strong>Statistics</strong> show actual verification activity in your system</li>
+                            <li><strong>All verification is controlled by the marketplace config page</strong></li>
                         </ul>
                     </div>
 
                     <div class="alert alert-warning">
                         <h5><i class="ik ik-alert-triangle"></i> Common Issues</h5>
                         <ul class="mb-0">
-                            <li>If admin settings show "NO" but you enabled them, check database</li>
+                            <li>If settings show disabled but should be enabled, check Admin → Marketplace → Config</li>
                             <li>If static methods return wrong values, cache may need clearing</li>
-                            <li>If marketplace settings don't match admin settings, they're separate systems</li>
+                            <li>Verification is automatically enabled by default for new installations</li>
+                            <li>Make sure to run database migrations if tables are missing</li>
                         </ul>
                     </div>
                 </div>

@@ -28,6 +28,7 @@ return new class extends Migration
             ['key' => 'min_auction_days', 'value' => '1'],
             ['key' => 'require_domain_verification', 'value' => '1'],
             ['key' => 'require_website_verification', 'value' => '1'],
+            ['key' => 'require_social_media_verification', 'value' => '1'],
             ['key' => 'domain_verification_methods', 'value' => '["txt_file","dns_record"]'],
             ['key' => 'listing_approval_required', 'value' => '1'],
             ['key' => 'max_images_per_listing', 'value' => '10'],

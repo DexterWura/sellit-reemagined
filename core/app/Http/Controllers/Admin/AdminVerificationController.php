@@ -11,35 +11,6 @@ use Illuminate\Support\Facades\DB;
 
 class AdminVerificationController extends Controller
 {
-    public function settings()
-    {
-        $pageTitle = 'Domain Verification Settings';
-        $settings = VerificationSetting::current();
-
-        return view('admin.verification.settings', compact('pageTitle', 'settings'));
-    }
-
-    public function updateSettings(Request $request)
-    {
-        $request->validate([
-            'require_verification' => 'boolean',
-            'allowed_methods' => 'array',
-            'allowed_methods.*' => 'in:file,dns',
-            'max_verification_attempts' => 'integer|min:1|max:20',
-            'verification_timeout_seconds' => 'integer|min:30|max:3600',
-        ]);
-
-        $settings = VerificationSetting::current();
-        $settings->update([
-            'require_verification' => $request->boolean('require_verification'),
-            'allowed_methods' => $request->allowed_methods ?? ['file', 'dns'],
-            'max_verification_attempts' => $request->max_verification_attempts ?? 5,
-            'verification_timeout_seconds' => $request->verification_timeout_seconds ?? 300,
-        ]);
-
-        $notify[] = ['success', 'Verification settings updated successfully'];
-        return back()->withNotify($notify);
-    }
 
     public function verifications(Request $request)
     {
@@ -155,28 +126,24 @@ class AdminVerificationController extends Controller
 
     public function debug()
     {
-        $settings = VerificationSetting::current();
-
         $debug = [
-            'admin_settings' => [
-                'require_verification' => $settings->require_verification,
-                'allowed_methods' => $settings->allowed_methods,
-                'max_attempts' => $settings->max_verification_attempts,
-                'timeout' => $settings->verification_timeout_seconds,
-            ],
-            'verification_setting_methods' => [
-                'isRequired' => VerificationSetting::isRequired(),
-                'getAllowedMethods' => VerificationSetting::getAllowedMethods(),
-                'isMethodAllowed_file' => VerificationSetting::isMethodAllowed('file'),
-                'isMethodAllowed_dns' => VerificationSetting::isMethodAllowed('dns'),
-            ],
             'marketplace_settings' => [
                 'require_domain_verification' => \App\Models\MarketplaceSetting::requireDomainVerification(),
                 'require_website_verification' => \App\Models\MarketplaceSetting::requireWebsiteVerification(),
+                'require_social_media_verification' => \App\Models\MarketplaceSetting::requireSocialMediaVerification(),
                 'domain_verification_methods' => \App\Models\MarketplaceSetting::getDomainVerificationMethods(),
+            ],
+            'marketplace_setting_methods' => [
+                'requireDomainVerification' => \App\Models\MarketplaceSetting::requireDomainVerification(),
+                'requireWebsiteVerification' => \App\Models\MarketplaceSetting::requireWebsiteVerification(),
+                'requireSocialMediaVerification' => \App\Models\MarketplaceSetting::requireSocialMediaVerification(),
+                'getDomainVerificationMethods' => \App\Models\MarketplaceSetting::getDomainVerificationMethods(),
             ],
             'total_verifications' => DomainVerification::count(),
             'pending_verifications' => DomainVerification::where('status', DomainVerification::STATUS_PENDING)->count(),
+            'verified_domains' => DomainVerification::where('status', DomainVerification::STATUS_VERIFIED)->count(),
+            'failed_verifications' => DomainVerification::where('status', DomainVerification::STATUS_FAILED)->count(),
+            'expired_verifications' => DomainVerification::where('status', DomainVerification::STATUS_EXPIRED)->count(),
         ];
 
         return view('admin.verification.debug', compact('debug'));
