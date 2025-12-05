@@ -753,11 +753,14 @@ $(document).ready(function() {
             // Watch for business type changes
             $('input[name="business_type"]').on('change', function() {
                 self.businessType = $(this).val();
-                self.checkIfValidationRequired();
+                // Delay to ensure ListingFormHandler has shown/hidden input sections first
+                setTimeout(function() {
+                    self.checkIfValidationRequired();
+                }, 200);
             });
             
-            // Watch for domain/website URL changes
-            $('#domainNameInput, #websiteUrlInput').on('blur', function() {
+            // Watch for domain/website URL changes (on input and blur)
+            $('#domainNameInput, #websiteUrlInput').on('input blur', function() {
                 self.checkIfValidationRequired();
             });
             
@@ -765,6 +768,30 @@ $(document).ready(function() {
             $('input[name="social_url"], input[name="social_username"]').on('blur', function() {
                 self.checkIfValidationRequired();
             });
+            
+            // Also watch for when input sections become visible using MutationObserver
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                        const target = $(mutation.target);
+                        if (target.is('#domainInputSection, #websiteInputSection') && target.is(':visible')) {
+                            setTimeout(function() {
+                                self.checkIfValidationRequired();
+                            }, 100);
+                        }
+                    }
+                });
+            });
+            
+            // Observe domain and website input sections for visibility changes
+            const domainSection = document.getElementById('domainInputSection');
+            const websiteSection = document.getElementById('websiteInputSection');
+            if (domainSection) {
+                observer.observe(domainSection, { attributes: true, attributeFilter: ['style'] });
+            }
+            if (websiteSection) {
+                observer.observe(websiteSection, { attributes: true, attributeFilter: ['style'] });
+            }
             
             // Generate token button
             $('#generateTokenBtn').on('click', function() {
@@ -818,23 +845,47 @@ $(document).ready(function() {
                 return;
             }
             
-            // Get primary asset URL
+            // Get primary asset URL based on business type
             if (this.businessType === 'domain') {
-                this.primaryAssetUrl = $('#domainNameInput').val();
+                // Check if domain input section is visible
+                if ($('#domainInputSection').is(':visible')) {
+                    this.primaryAssetUrl = $('#domainNameInput').val() || '';
+                    // Show validation section as soon as domain input section is visible
+                    // User can generate token even if input is empty (they'll need to enter domain first)
+                    $('#ownershipValidationSection').show();
+                    if (this.primaryAssetUrl && this.primaryAssetUrl.trim()) {
+                        this.loadValidationMethods();
+                    }
+                } else {
+                    this.primaryAssetUrl = '';
+                    $('#ownershipValidationSection').hide();
+                }
             } else if (this.businessType === 'website') {
-                this.primaryAssetUrl = $('#websiteUrlInput').val();
+                // Check if website input section is visible
+                if ($('#websiteInputSection').is(':visible')) {
+                    this.primaryAssetUrl = $('#websiteUrlInput').val() || '';
+                    // Show validation section as soon as website input section is visible
+                    $('#ownershipValidationSection').show();
+                    if (this.primaryAssetUrl && this.primaryAssetUrl.trim()) {
+                        this.loadValidationMethods();
+                    }
+                } else {
+                    this.primaryAssetUrl = '';
+                    $('#ownershipValidationSection').hide();
+                }
             } else if (this.businessType === 'social_media_account') {
                 const platform = $('select[name="platform"]').val();
                 const username = $('input[name="social_username"]').val();
                 const url = $('input[name="social_url"]').val();
                 this.primaryAssetUrl = url || (platform && username ? platform + '/' + username : null);
-            }
-            
-            if (this.primaryAssetUrl && this.primaryAssetUrl.trim()) {
-                $('#ownershipValidationSection').show();
-                this.loadValidationMethods();
-            } else {
-                $('#ownershipValidationSection').hide();
+                
+                // Show validation section if we have platform/username or URL
+                if (this.primaryAssetUrl && this.primaryAssetUrl.trim()) {
+                    $('#ownershipValidationSection').show();
+                    this.loadValidationMethods();
+                } else {
+                    $('#ownershipValidationSection').hide();
+                }
             }
         },
         
