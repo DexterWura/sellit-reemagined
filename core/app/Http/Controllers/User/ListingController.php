@@ -201,6 +201,19 @@ class ListingController extends Controller
             $requiresVerification = true;
         }
 
+        // If verification is required, check if it was completed
+        if ($requiresVerification) {
+            if (!$request->has('domain_verified') || $request->domain_verified != '1') {
+                $notify[] = ['error', 'You must verify ownership of your ' . str_replace('_', ' ', $businessType) . ' before submitting the listing.'];
+                return back()->withInput()->withNotify($notify);
+            }
+
+            if (!$request->has('verification_token') || empty($request->verification_token)) {
+                $notify[] = ['error', 'Verification token is required.'];
+                return back()->withInput()->withNotify($notify);
+            }
+        }
+
         // Extract domain/website info
         $domain = null;
         $url = null;
@@ -288,30 +301,29 @@ class ListingController extends Controller
         $listing->meta_title = $request->meta_title ?? $title;
         $listing->meta_description = $request->meta_description ?? Str::limit(strip_tags($request->description), 160);
 
-        // Set status based on verification requirements
-        if ($requiresVerification) {
-            // Verification required - set to draft until verified
-            $listing->status = Status::LISTING_DRAFT;
-            $listing->requires_verification = true;
-            $listing->is_verified = false;
+        // Set status based on verification requirements and completion
+        if ($requiresVerification && $request->domain_verified == '1') {
+            // Verification was completed during creation - set to pending
+            $listing->status = Status::LISTING_PENDING;
+            $listing->requires_verification = false;
+            $listing->is_verified = true;
 
-            // Create verification record
-            try {
-                $verification = \App\Models\DomainVerification::createForListing($listing);
-                if ($verification) {
-                    \Log::info('Verification created for listing', [
-                        'listing_id' => $listing->id,
-                        'verification_id' => $verification->id,
-                        'domain' => $verification->domain,
-                        'method' => $verification->verification_method
-                    ]);
-                }
-            } catch (\Exception $e) {
-                \Log::error('Failed to create verification for listing', [
-                    'listing_id' => $listing->id,
-                    'error' => $e->getMessage()
-                ]);
-            }
+            // Store verification details
+            $listing->verification_token = $request->verification_token;
+            $listing->verification_method = $request->verification_method ?? 'file';
+            $listing->verification_filename = $request->verification_filename;
+            $listing->verification_dns_name = $request->verification_dns_name;
+            $listing->verified_at = now();
+
+            \Log::info('Listing created with verification completed', [
+                'listing_id' => $listing->id,
+                'domain' => $domain,
+                'verification_method' => $listing->verification_method
+            ]);
+        } elseif ($requiresVerification) {
+            // This shouldn't happen since we check verification above, but just in case
+            $notify[] = ['error', 'Verification is required but was not completed.'];
+            return back()->withInput()->withNotify($notify);
         } else {
             // No verification required - can go directly to pending
             $listing->status = Status::LISTING_PENDING;
@@ -355,14 +367,11 @@ class ListingController extends Controller
         // Set flag to indicate successful submission (so create page knows to clear draft on next visit)
         session()->put('listing_submitted_successfully', true);
 
+        $notify[] = ['success', 'Listing created successfully and submitted for review!'];
         if ($requiresVerification) {
-            $notify[] = ['success', 'Listing created successfully! However, you need to verify ownership of your ' . str_replace('_', ' ', $businessType) . ' before it can be published.'];
-            $notify[] = ['info', 'Please check your verification section to complete the verification process.'];
-            return redirect()->route('user.verification.index')->withNotify($notify);
-        } else {
-            $notify[] = ['success', 'Listing created successfully and submitted for review!'];
-            return redirect()->route('user.listing.index')->withNotify($notify);
+            $notify[] = ['info', 'Domain verification was completed successfully.'];
         }
+        return redirect()->route('user.listing.index')->withNotify($notify);
         } catch (\Exception $e) {
             \Log::error('Listing creation failed: ' . $e->getMessage(), [
                 'user_id' => auth()->id(),

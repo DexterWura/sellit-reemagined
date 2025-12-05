@@ -144,11 +144,6 @@
                                                 <i class="las la-shield-alt"></i>
                                             </a>
                                         @endif
-                                        @if($listing->requires_verification && !$listing->is_verified)
-                                            <a href="{{ route('user.verification.index') }}" class="btn btn-sm btn-outline-warning" title="@lang('Verify Ownership')">
-                                                <i class="las la-shield-alt"></i>
-                                            </a>
-                                        @endif
                                         @if(in_array($listing->status, [\App\Constants\Status::LISTING_DRAFT, \App\Constants\Status::LISTING_PENDING, \App\Constants\Status::LISTING_REJECTED]))
                                             <a href="{{ route('user.listing.edit', $listing->id) }}" class="btn btn-sm btn-outline-secondary" title="@lang('Edit')">
                                                 <i class="las la-edit"></i>

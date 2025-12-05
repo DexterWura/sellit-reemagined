@@ -1,6 +1,12 @@
 @extends($activeTemplate . 'layouts.frontend')
 
 @section('content')
+@push('breadcrumb')
+<li class="breadcrumb-item">
+    <a href="{{ route('user.home') }}">@lang('Dashboard')</a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">@lang('Domain Verifications')</li>
+@endpush
 <section class="section bg--light">
 <div class="container">
     <div class="card custom--card">

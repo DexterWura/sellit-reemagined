@@ -183,7 +183,8 @@
                                     </div>
                                 </div>
                                 
-                                {{-- All verification sections removed --}}
+                                {{-- Website/Domain Verification --}}
+                                @include($activeTemplate . 'user.listing.partials.website-verification')
                                 
                                 <div class="step-actions mt-4 d-flex justify-content-between">
                                     <div></div>
@@ -696,6 +697,174 @@ $(document).ready(function() {
         hasDraft: {{ !empty($draftData) ? 'true' : 'false' }},
         currentStage: {{ $currentStage ?? 1 }}
     });
+
+    // Website/Domain Verification Handler
+    @if(\App\Models\MarketplaceSetting::requireWebsiteVerification() || \App\Models\MarketplaceSetting::requireDomainVerification())
+    window.WebsiteVerificationHandler = {
+        init: function() {
+            this.bindEvents();
+            this.checkVerificationRequirement();
+        },
+
+        bindEvents: function() {
+            // Method change
+            $('#websiteVerificationMethod').on('change', this.onMethodChange.bind(this));
+
+            // Verify button
+            $('#verifyWebsiteBtn').on('click', this.verifyWebsite.bind(this));
+
+            // Download file button
+            $('#downloadWebsiteTxtFile').on('click', this.downloadTxtFile.bind(this));
+
+            // Business type change
+            $('input[name="business_type"]').on('change', this.checkVerificationRequirement.bind(this));
+
+            // Website/Domain URL change
+            $('#website_url, #domain_name').on('input', this.checkVerificationRequirement.bind(this));
+        },
+
+        checkVerificationRequirement: function() {
+            var businessType = $('input[name="business_type"]:checked').val();
+            var hasUrl = false;
+
+            if (businessType === 'website') {
+                hasUrl = $('#website_url').val().trim() !== '';
+            } else if (businessType === 'domain') {
+                hasUrl = $('#domain_name').val().trim() !== '';
+            }
+
+            var requiresVerification = false;
+            @if(\App\Models\MarketplaceSetting::requireDomainVerification())
+                if (businessType === 'domain') requiresVerification = true;
+            @endif
+            @if(\App\Models\MarketplaceSetting::requireWebsiteVerification())
+                if (businessType === 'website') requiresVerification = true;
+            @endif
+
+            if (requiresVerification && hasUrl) {
+                $('#websiteVerificationSection').show();
+                this.generateVerificationData();
+            } else {
+                $('#websiteVerificationSection').hide();
+                $('#websiteVerified').val('0');
+            }
+        },
+
+        generateVerificationData: function() {
+            var businessType = $('input[name="business_type"]:checked').val();
+            var url = businessType === 'website' ? $('#website_url').val() : $('#domain_name').val();
+
+            if (!url) return;
+
+            // Generate verification token and filename
+            $.ajax({
+                url: '{{ route("user.verification.start") }}',
+                method: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    domain: url,
+                    method: $('#websiteVerificationMethod').val() || 'file'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $('#websiteVerificationToken').val(response.verification_id);
+                        this.updateVerificationUI(response);
+                    }
+                }.bind(this),
+                error: function(xhr) {
+                    console.error('Verification data generation failed:', xhr.responseText);
+                }
+            });
+        },
+
+        updateVerificationUI: function(data) {
+            var method = data.method;
+
+            if (method === 'file') {
+                $('#websiteTxtFileName').text(data.instructions.download_filename);
+                $('#websiteTxtFileLocation').text('https://' + data.domain + '/');
+                $('#websiteTxtFileContent').text(data.instructions.download_content);
+                $('#websiteTxtFileUrl').text(data.instructions.expected_url);
+                $('#websiteVerificationFilename').val(data.instructions.download_filename);
+            } else if (method === 'dns') {
+                $('#websiteDnsRecordName').text(data.instructions.steps[0].match(/<code>(.*?)<\/code>/)[1]);
+                $('#websiteDnsRecordValue').text(data.instructions.download_content);
+                $('#websiteVerificationDnsName').val(data.instructions.steps[0].match(/<code>(.*?)<\/code>/)[1]);
+            }
+        },
+
+        onMethodChange: function() {
+            var method = $('#websiteVerificationMethod').val();
+
+            $('.verification-method-content').hide();
+            $('#websiteVerified').val('0');
+
+            if (method === 'txt_file') {
+                $('#websiteTxtFileMethod').show();
+            } else if (method === 'dns_record') {
+                $('#websiteDnsRecordMethod').show();
+            }
+
+            this.generateVerificationData();
+        },
+
+        verifyWebsite: function() {
+            var verificationId = $('#websiteVerificationToken').val();
+            var method = $('#websiteVerificationMethod').val();
+
+            if (!verificationId) {
+                this.showStatus('Please select a verification method first.', 'danger');
+                return;
+            }
+
+            $('#verifyWebsiteBtn').prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i>Verifying...');
+            this.showStatus('Verifying ownership...', 'info');
+
+            $.ajax({
+                url: '{{ route("user.verification.check", ":id") }}'.replace(':id', verificationId),
+                method: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    domain: $('input[name="business_type"]:checked').val() === 'website' ? $('#website_url').val() : $('#domain_name').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $('#websiteVerified').val('1');
+                        this.showStatus('Domain ownership verified successfully!', 'success');
+                        $('#verifyWebsiteBtn').html('<i class="las la-check-circle me-1"></i>Verified');
+                        $('#verifyWebsiteBtn').removeClass('btn--base').addClass('btn-success');
+                    } else {
+                        this.showStatus(response.message, 'danger');
+                        $('#verifyWebsiteBtn').prop('disabled', false).html('<i class="las la-check-circle me-1"></i>Verify Ownership');
+                    }
+                }.bind(this),
+                error: function(xhr) {
+                    var response = xhr.responseJSON;
+                    var message = response && response.message ? response.message : 'Verification failed. Please try again.';
+                    this.showStatus(message, 'danger');
+                    $('#verifyWebsiteBtn').prop('disabled', false).html('<i class="las la-check-circle me-1"></i>Verify Ownership');
+                }.bind(this)
+            });
+        },
+
+        downloadTxtFile: function() {
+            var token = $('#websiteVerificationToken').val();
+            if (token) {
+                window.open('{{ route("user.verification.download", ":id") }}'.replace(':id', token), '_blank');
+            }
+        },
+
+        showStatus: function(message, type) {
+            var statusEl = $('#websiteVerificationStatus');
+            statusEl.removeClass('text-success text-danger text-info text-warning');
+            statusEl.addClass('text-' + type);
+            statusEl.html('<i class="las la-info-circle me-1"></i>' + message);
+        }
+    };
+
+    // Initialize verification handler
+    window.WebsiteVerificationHandler.init();
+    @endif
 });
 </script>
 @endpush

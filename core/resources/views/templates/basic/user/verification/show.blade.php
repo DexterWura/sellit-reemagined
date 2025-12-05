@@ -1,6 +1,15 @@
 @extends($activeTemplate . 'layouts.frontend')
 
 @section('content')
+@push('breadcrumb')
+<li class="breadcrumb-item">
+    <a href="{{ route('user.home') }}">@lang('Dashboard')</a>
+</li>
+<li class="breadcrumb-item">
+    <a href="{{ route('user.verification.index') }}">@lang('Domain Verifications')</a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">@lang('Verify: :domain', ['domain' => $verification->domain])</li>
+@endpush
 <section class="section bg--light">
 <div class="container">
     <div class="row justify-content-center">
