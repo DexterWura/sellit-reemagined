@@ -8,6 +8,38 @@
                 </a>
             </div>
             
+            <!-- Filters -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form action="" method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <select name="status" class="form-select">
+                                <option value="">@lang('All Status')</option>
+                                <option value="{{ \App\Constants\Status::OFFER_PENDING }}" @selected(request('status') == \App\Constants\Status::OFFER_PENDING)>@lang('Pending')</option>
+                                <option value="{{ \App\Constants\Status::OFFER_ACCEPTED }}" @selected(request('status') == \App\Constants\Status::OFFER_ACCEPTED)>@lang('Accepted')</option>
+                                <option value="{{ \App\Constants\Status::OFFER_REJECTED }}" @selected(request('status') == \App\Constants\Status::OFFER_REJECTED)>@lang('Rejected')</option>
+                                <option value="{{ \App\Constants\Status::OFFER_COUNTERED }}" @selected(request('status') == \App\Constants\Status::OFFER_COUNTERED)>@lang('Countered')</option>
+                                <option value="{{ \App\Constants\Status::OFFER_EXPIRED }}" @selected(request('status') == \App\Constants\Status::OFFER_EXPIRED)>@lang('Expired')</option>
+                                <option value="{{ \App\Constants\Status::OFFER_CANCELLED }}" @selected(request('status') == \App\Constants\Status::OFFER_CANCELLED)>@lang('Cancelled')</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" name="search" class="form-control" value="{{ request('search') }}" placeholder="@lang('Search by listing title...')">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn--base w-100"><i class="las la-filter"></i> @lang('Filter')</button>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            @if(request()->has('status') || request()->has('search'))
+                                <a href="{{ route('user.offer.index') }}" class="btn btn-outline-secondary w-100">
+                                    <i class="las la-times"></i> @lang('Clear')
+                                </a>
+                            @endif
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
             <div class="card b-radius--10">
                 <div class="card-body p-0">
                     <div class="table-responsive--md table-responsive">

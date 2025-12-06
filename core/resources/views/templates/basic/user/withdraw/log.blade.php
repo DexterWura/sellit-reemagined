@@ -2,8 +2,8 @@
 @section('panel')
     <div class="row justify-content-center">
         <div class="col-lg-12">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <a href="{{ route('user.withdraw') }}" class="btn btn--base">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <a href="{{ route('user.withdraw') }}" class="btn btn--base btn-sm">
                     <i class="las la-plus"></i> @lang('Withdraw Money')
                 </a>
                 <x-search-form btn="btn--base" />

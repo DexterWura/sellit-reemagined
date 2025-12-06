@@ -27,6 +27,11 @@ class OfferController extends Controller
             ->when($request->status, function ($q, $status) {
                 return $q->where('status', $status);
             })
+            ->when($request->search, function ($q, $search) {
+                return $q->whereHas('listing', function ($query) use ($search) {
+                    $query->where('title', 'like', "%{$search}%");
+                });
+            })
             ->orderBy('created_at', 'desc')
             ->paginate(getPaginate());
 
@@ -45,6 +50,11 @@ class OfferController extends Controller
             ->with(['listing.images', 'buyer'])
             ->when($request->status, function ($q, $status) {
                 return $q->where('status', $status);
+            })
+            ->when($request->search, function ($q, $search) {
+                return $q->whereHas('listing', function ($query) use ($search) {
+                    $query->where('title', 'like', "%{$search}%");
+                });
             })
             ->orderBy('created_at', 'desc')
             ->paginate(getPaginate());
