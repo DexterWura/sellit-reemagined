@@ -1,10 +1,3 @@
-@php
-    $sideBarLinks = json_decode($sidenav ?? '{}', false);
-    if (!$sideBarLinks || !is_object($sideBarLinks)) {
-        $sideBarLinks = (object)[];
-    }
-@endphp
-
 <div class="sidebar bg--dark">
     <button class="res-sidebar-close-btn"><i class="las la-times"></i></button>
     <div class="sidebar__inner">
@@ -13,72 +6,105 @@
         </div>
         <div class="sidebar__menu-wrapper">
             <ul class="sidebar__menu">
-                @if($sideBarLinks && is_object($sideBarLinks))
-                @foreach($sideBarLinks as $key => $data)
-                    @if (@$data->header)
-                        <li class="sidebar__menu-header">{{ __($data->header) }}</li>
-                    @endif
-                    @if(@$data->submenu)
-                        <li class="sidebar-menu-item sidebar-dropdown">
-                            <a href="javascript:void(0)" class="{{ menuActive(@$data->menu_active, 3) }}">
-                                <i class="menu-icon {{ @$data->icon }}"></i>
-                                <span class="menu-title">{{ __(@$data->title) }}</span>
-                                @foreach(@$data->counters ?? [] as $counter)
-                                    @if($$counter > 0)
-                                        <span class="menu-badge menu-badge-level-one bg--warning ms-auto">
-                                            <i class="fas fa-exclamation"></i>
-                                        </span>
-                                        @break
-                                    @endif
-                                @endforeach
-                            </a>
-                            <div class="sidebar-submenu {{ menuActive(@$data->menu_active, 2) }} ">
-                                <ul>
-                                    @foreach($data->submenu as $menu)
-                                    @php
-                                        $submenuParams = null;
-                                        if (@$menu->params) {
-                                            foreach ($menu->params as $submenuParamVal) {
-                                                $submenuParams[] = array_values((array)$submenuParamVal)[0];
-                                            }
-                                        }
-                                    @endphp
-                                        <li class="sidebar-menu-item {{ menuActive(@$menu->menu_active) }} ">
-                                            <a href="{{ route(@$menu->route_name,$submenuParams) }}" class="nav-link">
-                                                <i class="menu-icon las la-dot-circle"></i>
-                                                <span class="menu-title">{{ __($menu->title) }}</span>
-                                                @php $counter = @$menu->counter; @endphp
-                                                @if(@$$counter)
-                                                    <span class="menu-badge bg--info ms-auto">{{ @$$counter }}</span>
-                                                @endif
-                                            </a>
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            </div>
-                        </li>
-                    @else
-                        @php
-                            $mainParams = null;
-                            if (@$data->params) {
-                                foreach ($data->params as $paramVal) {
-                                    $mainParams[] = array_values((array)$paramVal)[0];
-                                }
-                            }
-                        @endphp
-                        <li class="sidebar-menu-item {{ menuActive(@$data->menu_active) }}">
-                            <a href="{{ route(@$data->route_name,$mainParams) }}" class="nav-link ">
-                                <i class="menu-icon {{ $data->icon }}"></i>
-                                <span class="menu-title">{{ __(@$data->title) }}</span>
-                                @php $counter = @$data->counter; @endphp
-                                @if (@$$counter)
-                                    <span class="menu-badge bg--info ms-auto">{{ @$$counter }}</span>
-                                @endif
-                            </a>
-                        </li>
-                    @endif
-                @endforeach
-                @endif
+                <li class="sidebar-menu-item {{ menuActive('user.home') }}">
+                    <a href="{{ route('user.home') }}" class="nav-link">
+                        <i class="menu-icon las la-home"></i>
+                        <span class="menu-title">@lang('Dashboard')</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item {{ menuActive('user.listing*') }}">
+                    <a href="{{ route('user.listing.index') }}" class="nav-link">
+                        <i class="menu-icon las la-store"></i>
+                        <span class="menu-title">@lang('My Listings')</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item {{ menuActive('user.bid*') }}">
+                    <a href="{{ route('user.bid.index') }}" class="nav-link">
+                        <i class="menu-icon las la-gavel"></i>
+                        <span class="menu-title">@lang('My Bids')</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item {{ menuActive('user.offer*') }}">
+                    <a href="{{ route('user.offer.index') }}" class="nav-link">
+                        <i class="menu-icon las la-handshake"></i>
+                        <span class="menu-title">@lang('My Offers')</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item {{ menuActive('user.watchlist*') }}">
+                    <a href="{{ route('user.watchlist.index') }}" class="nav-link">
+                        <i class="menu-icon las la-heart"></i>
+                        <span class="menu-title">@lang('Watchlist')</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item {{ menuActive('user.escrow*') }}">
+                    <a href="{{ route('user.escrow.index') }}" class="nav-link">
+                        <i class="menu-icon las la-shopping-cart"></i>
+                        <span class="menu-title">@lang('My Purchases')</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item {{ menuActive('user.transactions') }}">
+                    <a href="{{ route('user.transactions') }}" class="nav-link">
+                        <i class="menu-icon las la-exchange-alt"></i>
+                        <span class="menu-title">@lang('Transactions')</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item {{ menuActive('user.deposit*') }}">
+                    <a href="{{ route('user.deposit.history') }}" class="nav-link">
+                        <i class="menu-icon las la-file-invoice-dollar"></i>
+                        <span class="menu-title">@lang('Deposits')</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item {{ menuActive('user.withdraw*') }}">
+                    <a href="{{ route('user.withdraw.history') }}" class="nav-link">
+                        <i class="menu-icon la la-bank"></i>
+                        <span class="menu-title">@lang('Withdrawals')</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item {{ menuActive('user.profile*') }}">
+                    <a href="{{ route('user.profile.setting') }}" class="nav-link">
+                        <i class="menu-icon las la-user-circle"></i>
+                        <span class="menu-title">@lang('Profile Settings')</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item sidebar-dropdown {{ menuActive('user.twofactor,user.kyc*', 3) }}">
+                    <a href="javascript:void(0)" class="{{ menuActive('user.twofactor,user.kyc*', 3) }}">
+                        <i class="menu-icon las la-shield-alt"></i>
+                        <span class="menu-title">@lang('Security')</span>
+                    </a>
+                    <div class="sidebar-submenu {{ menuActive('user.twofactor,user.kyc*', 2) }}">
+                        <ul>
+                            <li class="sidebar-menu-item {{ menuActive('user.twofactor') }}">
+                                <a href="{{ route('user.twofactor') }}" class="nav-link">
+                                    <i class="menu-icon las la-dot-circle"></i>
+                                    <span class="menu-title">@lang('2FA Security')</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-menu-item {{ menuActive('user.kyc*') }}">
+                                <a href="{{ route('user.kyc.form') }}" class="nav-link">
+                                    <i class="menu-icon las la-dot-circle"></i>
+                                    <span class="menu-title">@lang('KYC Verification')</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+
+                <li class="sidebar-menu-item {{ menuActive('ticket*') }}">
+                    <a href="{{ route('ticket.index') }}" class="nav-link">
+                        <i class="menu-icon la la-ticket"></i>
+                        <span class="menu-title">@lang('Support')</span>
+                    </a>
+                </li>
             </ul>
         </div>
         <div class="version-info text-center text-uppercase">
