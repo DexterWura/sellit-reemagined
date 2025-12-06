@@ -53,7 +53,8 @@
                         @forelse($userNotifications as $notification)
                             <a href="{{ $notification->data['click_url'] ?? '#' }}"
                                 class="dropdown-menu__item"
-                                onclick="markNotificationAsRead('{{ $notification->id }}')">
+                                id="notification-{{ $notification->id }}"
+                                onclick="markNotificationAsRead('{{ $notification->id }}', event)">
                                 <div class="navbar-notifi">
                                     <div class="navbar-notifi__right">
                                         <h6 class="notifi__title">{{ __($notification->data['title'] ?? 'Notification') }}</h6>
@@ -71,6 +72,11 @@
                         @endforelse
                     </div>
                     <div class="dropdown-menu__footer">
+                        @if($userNotificationCount > 0)
+                            <button type="button" class="btn btn-sm btn-outline--primary w-100 mb-2" onclick="markAllNotificationsAsRead()">
+                                <i class="las la-check-double"></i> @lang('Mark All as Read')
+                            </button>
+                        @endif
                         <a href="{{ route('user.transactions') }}"
                             class="view-all-message">@lang('View all notifications')</a>
                     </div>
@@ -146,14 +152,101 @@
 
 @push('script')
 <script>
-    function markNotificationAsRead(notificationId) {
+    function markNotificationAsRead(notificationId, event) {
+        if (event) {
+            event.preventDefault();
+        }
+        
         fetch('{{ route("user.notification.read", ":id") }}'.replace(':id', notificationId), {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Content-Type': 'application/json',
             },
-        }).catch(err => console.error('Error marking notification as read:', err));
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const notificationElement = document.getElementById('notification-' + notificationId);
+                if (notificationElement) {
+                    notificationElement.remove();
+                }
+                updateNotificationCount();
+                checkEmptyState();
+                
+                if (event && event.target.closest('a').href && event.target.closest('a').href !== '#') {
+                    window.location.href = event.target.closest('a').href;
+                }
+            }
+        })
+        .catch(err => console.error('Error marking notification as read:', err));
+    }
+    
+    function markAllNotificationsAsRead() {
+        fetch('{{ route("user.notification.read.all") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const notificationItems = document.querySelectorAll('.dropdown-menu__item[id^="notification-"]');
+                notificationItems.forEach(item => item.remove());
+                updateNotificationCount();
+                checkEmptyState();
+            }
+        })
+        .catch(err => console.error('Error marking all notifications as read:', err));
+    }
+    
+    function updateNotificationCount() {
+        const remainingNotifications = document.querySelectorAll('.dropdown-menu__item[id^="notification-"]').length;
+        const countElement = document.querySelector('.notification-count');
+        const bellIcon = document.querySelector('.notification-bell i');
+        const headerText = document.querySelector('.dropdown-menu__header p');
+        
+        if (remainingNotifications === 0) {
+            if (countElement) countElement.remove();
+            if (bellIcon) bellIcon.classList.remove('icon-left-right');
+            if (headerText) {
+                headerText.textContent = '@lang("You have 0 unread notification")';
+            }
+        } else {
+            if (countElement) {
+                countElement.textContent = remainingNotifications <= 9 ? remainingNotifications : '9+';
+            } else {
+                const bell = document.querySelector('.notification-bell');
+                if (bell) {
+                    const span = document.createElement('span');
+                    span.className = 'notification-count';
+                    span.textContent = remainingNotifications <= 9 ? remainingNotifications : '9+';
+                    bell.appendChild(span);
+                }
+            }
+            if (bellIcon) bellIcon.classList.add('icon-left-right');
+            if (headerText) {
+                headerText.textContent = `@lang("You have") ${remainingNotifications} @lang("unread notification")`;
+            }
+        }
+    }
+    
+    function checkEmptyState() {
+        const body = document.querySelector('.dropdown-menu__body');
+        const hasNotifications = document.querySelectorAll('.dropdown-menu__item[id^="notification-"]').length > 0;
+        
+        if (!hasNotifications && body) {
+            if (!body.querySelector('.empty-notification')) {
+                body.innerHTML = `
+                    <div class="empty-notification text-center">
+                        <img src="{{ getImage('assets/images/empty_list.png') }}" alt="empty">
+                        <p class="mt-3">@lang('No unread notification found')</p>
+                    </div>
+                `;
+            }
+        }
     }
 </script>
 @endpush

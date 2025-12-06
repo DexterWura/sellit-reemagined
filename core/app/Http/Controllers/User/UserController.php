@@ -228,6 +228,12 @@ class UserController extends Controller
         return response()->json(['success' => false], 404);
     }
 
+    public function markAllNotificationsAsRead()
+    {
+        auth()->user()->unreadNotifications->markAsRead();
+        return response()->json(['success' => true, 'message' => 'All notifications marked as read']);
+    }
+
     public function userData()
     {
         $user = auth()->user();

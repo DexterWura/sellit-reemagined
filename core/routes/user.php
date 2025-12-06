@@ -211,5 +211,6 @@ Route::middleware('auth')->name('user.')->group(function () {
         
         // Notifications
         Route::post('notification/read/{id}', 'UserController@notificationRead')->name('notification.read');
+        Route::post('notification/read-all', 'UserController@markAllNotificationsAsRead')->name('notification.read.all');
     });
 });
