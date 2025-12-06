@@ -435,6 +435,10 @@ class ListingController extends Controller
                     return '@' . $username;
                 }
                 return ucfirst($request->platform ?? 'Social Media Account');
+            case 'mobile_app':
+                return $request->mobile_app_name ?? 'Mobile App';
+            case 'desktop_app':
+                return $request->desktop_app_name ?? 'Desktop App';
             default:
                 return ucfirst(str_replace('_', ' ', $request->business_type));
         }
