@@ -37,6 +37,7 @@ class Handler extends ExceptionHandler
         'current_password',
         'password',
         'password_confirmation',
+        'images',
     ];
 
     /**
@@ -172,5 +173,34 @@ class Handler extends ExceptionHandler
         }
 
         return null; // Let Laravel handle it normally
+    }
+
+    /**
+     * Convert a validation exception into a response.
+     * Override to ensure files are never flashed to session.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Illuminate\Validation\ValidationException  $exception
+     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+     */
+    protected function invalid($request, \Illuminate\Validation\ValidationException $exception)
+    {
+        // Exclude files from input before flashing
+        $input = $request->except(['images']);
+        
+        // Also remove any UploadedFile instances that might be in the input
+        foreach ($input as $key => $value) {
+            if (is_array($value)) {
+                $input[$key] = array_filter($value, function($item) {
+                    return !($item instanceof \Illuminate\Http\UploadedFile);
+                });
+            } elseif ($value instanceof \Illuminate\Http\UploadedFile) {
+                unset($input[$key]);
+            }
+        }
+
+        return redirect($exception->redirectTo ?? url()->previous())
+                    ->withInput($input)
+                    ->withErrors($exception->errors(), $request->input('_error_bag', $exception->errorBag));
     }
 }

@@ -445,7 +445,7 @@ class ListingController extends Controller
 
         $minDescription = MarketplaceSetting::minListingDescription();
         
-        $request->validate([
+        $validator = \Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'description' => 'required|string|min:' . $minDescription,
             'asking_price' => 'required_if:sale_type,fixed_price|nullable|numeric|min:1',
@@ -456,7 +456,14 @@ class ListingController extends Controller
         ], [
             'domain_name.url' => 'Please enter a valid domain URL (e.g., https://example.com)',
             'website_url.url' => 'Please enter a valid website URL (e.g., https://example.com)',
+            'images.*.image' => 'The uploaded file must be an image (JPEG, PNG, JPG, or GIF).',
+            'images.*.mimes' => 'The image must be a file of type: JPEG, PNG, JPG, or GIF. Your file type is not supported.',
+            'images.*.max' => 'Each image must not be larger than 2MB (2048 KB).',
         ]);
+
+        if ($validator->fails()) {
+            return back()->withInput($request->except(['images']))->withErrors($validator)->withNotify([['error', 'Please correct the errors below.']]);
+        }
         
         // Check for duplicate domains/websites (excluding current listing)
         if ($listing->business_type === 'domain' && $request->domain_name) {
