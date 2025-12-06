@@ -18,20 +18,19 @@ class CleanSessionFiles
         return $next($request);
     }
 
-    /**
-     * Handle tasks after the response has been sent to the browser.
-     * This runs before session is saved, so we can clean files here.
-     */
     public function terminate($request, $response)
     {
-        // Clean UploadedFile instances from session before it's saved
         if ($request->hasSession()) {
             $session = $request->session();
-            $attributes = $session->all();
+            $reflection = new \ReflectionClass($session);
+            $attributesProp = $reflection->getProperty('attributes');
+            $attributesProp->setAccessible(true);
+            $attributes = $attributesProp->getValue($session);
             $cleaned = $this->removeFilesFromArray($attributes);
             
-            // Replace all session data with cleaned version
-            $session->replace($cleaned);
+            if ($cleaned !== $attributes) {
+                $attributesProp->setValue($session, $cleaned);
+            }
         }
     }
 
