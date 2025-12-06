@@ -884,13 +884,23 @@
                 nextArrow.style.display = index === imageUrls.length - 1 ? 'none' : 'block';
             }
 
-            // Auto-scroll thumbnail into view
+            // Auto-scroll thumbnail into view (only within thumbnail container, not the page)
             const activeThumbnail = document.querySelector('.thumbnail-item.active');
-            if (activeThumbnail) {
-                activeThumbnail.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'nearest',
-                    inline: 'center'
+            if (activeThumbnail && thumbnailStrip) {
+                const thumbnailRect = activeThumbnail.getBoundingClientRect();
+                const containerRect = thumbnailStrip.getBoundingClientRect();
+                const thumbnailLeft = activeThumbnail.offsetLeft;
+                const thumbnailWidth = activeThumbnail.offsetWidth;
+                const containerWidth = thumbnailStrip.offsetWidth;
+                const scrollLeft = thumbnailStrip.scrollLeft;
+                
+                // Calculate the position to center the thumbnail in the container
+                const targetScroll = thumbnailLeft - (containerWidth / 2) + (thumbnailWidth / 2);
+                
+                // Smooth scroll only the thumbnail container, not the page
+                thumbnailStrip.scrollTo({
+                    left: targetScroll,
+                    behavior: 'smooth'
                 });
             }
         }
