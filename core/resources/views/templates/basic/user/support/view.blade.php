@@ -1,52 +1,52 @@
-@extends($activeTemplate . 'layouts.' . $layout)
-@section('content')
-    <div class="section bg--light">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-md-12">
-                    <div class="card custom--card">
-                        <div class="bg-white p-4  d-flex flex-wrap justify-content-between align-items-center">
-                            <h5 class="card-title">
-                                @php echo $myTicket->statusBadge; @endphp
-                                [@lang('Ticket')#{{ $myTicket->ticket }}] {{ $myTicket->subject }}
-                            </h5>
-                            @if ($myTicket->status != Status::TICKET_CLOSE && $myTicket->user)
-                                <button class="btn btn-danger close-button btn-sm confirmationBtn" type="button"
-                                    data-question="@lang('Are you sure to close this ticket?')"
-                                    data-action="{{ route('ticket.close', $myTicket->id) }}"><i
-                                        class="la la-lg la-times-circle"></i>
-                                </button>
-                            @endif
-                        </div>
-                        <div class="card-body">
-                            <form method="post" class="disableSubmission" action="{{ route('ticket.reply', $myTicket->id) }}" enctype="multipart/form-data">
-                                @csrf
-                                <div class="row justify-content-between">
-                                    <div class="col-md-12">
-                                        <div class="form-group">
-                                            <textarea name="message" class="form-control form--control" cols="4" rows="4" required>{{ old('message') }}</textarea>
-                                        </div>
-                                    </div>
-    
-                                    <div class="col-md-9">
-                                        <button type="button" class="btn btn--base btn--sm addAttachment my-2"> <i class="fas fa-plus"></i> @lang('Add Attachment') </button>
-                                        <p class="mb-2"><span class="text--info">@lang('Max 5 files can be uploaded | Maximum upload size is '.convertToReadableSize(ini_get('upload_max_filesize')) .' | Allowed File Extensions: .jpg, .jpeg, .png, .pdf, .doc, .docx')</span></p>
-                                        <div class="row fileUploadsContainer">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <button class="btn btn--base btn--sm w-100 my-2" type="submit"><i class="la la-fw la-lg la-reply"></i> @lang('Reply')
-                                        </button>
-                                    </div>
-    
-                                </div>
-                            </form>
-                        </div>
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="row justify-content-center">
+        <div class="col-md-12">
+            <div class="card b-radius--10">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+                        <h5 class="card-title mb-0">
+                            @php echo $myTicket->statusBadge; @endphp
+                            [@lang('Ticket')#{{ $myTicket->ticket }}] {{ $myTicket->subject }}
+                        </h5>
+                        @if ($myTicket->status != Status::TICKET_CLOSE && $myTicket->user)
+                            <button class="btn btn--danger close-button btn-sm confirmationBtn fw-bold" type="button"
+                                data-question="@lang('Are you sure to close this ticket?')"
+                                data-action="{{ route('ticket.close', $myTicket->id) }}"><i
+                                    class="la la-lg la-times-circle"></i> @lang('Close Ticket')
+                            </button>
+                        @endif
                     </div>
+                    <form method="post" class="disableSubmission" action="{{ route('ticket.reply', $myTicket->id) }}" enctype="multipart/form-data">
+                        @csrf
+                        <div class="row justify-content-between">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label class="form-label">@lang('Reply Message')</label>
+                                    <textarea name="message" class="form-control form--control" cols="4" rows="4" required>{{ old('message') }}</textarea>
+                                </div>
+                            </div>
 
-                    <div class="card mt-4">
-                        <div class="card-body">
-                            @foreach ($messages as $message)
+                            <div class="col-md-9">
+                                <button type="button" class="btn btn--base btn--sm addAttachment my-2 fw-bold"> <i class="fas fa-plus"></i> @lang('Add Attachment') </button>
+                                <p class="mb-2"><span class="text--info">@lang('Max 5 files can be uploaded | Maximum upload size is '.convertToReadableSize(ini_get('upload_max_filesize')) .' | Allowed File Extensions: .jpg, .jpeg, .png, .pdf, .doc, .docx')</span></p>
+                                <div class="row fileUploadsContainer">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn--base btn--sm w-100 my-2 fw-bold" type="submit"><i class="la la-fw la-lg la-reply"></i> @lang('Reply')
+                                </button>
+                            </div>
+
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card b-radius--10 mt-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">@lang('Conversation History')</h5>
+                    @foreach ($messages as $message)
                                 @if ($message->admin_id == 0)
                                     <div class="row border border-primary border-radius-3 my-3 py-3 mx-2">
                                         <div class="col-md-3 border-end text-end">
@@ -93,10 +93,7 @@
                                         </div>
                                     </div>
                                 @endif
-                            @endforeach
-                        </div>
-                    </div>
-
+                    @endforeach
                 </div>
             </div>
         </div>
@@ -118,6 +115,18 @@
     }
     .form--control{
         height: unset;
+    }
+    .btn--base {
+        background: #{{ gs('base_color', '4bea76') }} !important;
+        color: #fff !important;
+        font-weight: 600 !important;
+        border: none !important;
+    }
+    .btn--base:hover {
+        background: #{{ gs('base_color', '4bea76') }} !important;
+        opacity: 0.9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(75, 234, 118, 0.3);
     }
 </style>
 @endpush

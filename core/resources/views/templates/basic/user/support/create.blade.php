@@ -40,7 +40,7 @@
                                     </div>
                                 </div>
                                 <div class="col-md-3">
-                                    <button class="btn btn--base w-100 btn--sm my-2" type="submit"><i
+                                    <button class="btn btn--base w-100 btn--sm my-2 fw-bold" type="submit"><i
                                             class="las la-paper-plane"></i> @lang('Submit')
                                     </button>
                                 </div>
@@ -59,6 +59,18 @@
     }
     .form--control{
         height: unset;
+    }
+    .btn--base {
+        background: #{{ gs('base_color', '4bea76') }} !important;
+        color: #fff !important;
+        font-weight: 600 !important;
+        border: none !important;
+    }
+    .btn--base:hover {
+        background: #{{ gs('base_color', '4bea76') }} !important;
+        opacity: 0.9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(75, 234, 118, 0.3);
     }
 </style>
 @endpush

@@ -164,7 +164,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@lang('Cancel')</button>
-                    <button type="submit" class="btn btn--base">@lang('Send Counter Offer')</button>
+                    <button type="submit" class="btn btn--base fw-bold">@lang('Send Counter Offer')</button>
                 </div>
             </form>
         </div>
@@ -197,6 +197,23 @@
     </div>
 </div>
 @endsection
+
+@push('style')
+<style>
+    .btn--base {
+        background: #{{ gs('base_color', '4bea76') }} !important;
+        color: #fff !important;
+        font-weight: 600 !important;
+        border: none !important;
+    }
+    .btn--base:hover {
+        background: #{{ gs('base_color', '4bea76') }} !important;
+        opacity: 0.9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(75, 234, 118, 0.3);
+    }
+</style>
+@endpush
 
 @push('script')
 <script>

@@ -750,7 +750,7 @@
                                         <button type="button" class="btn btn-outline--secondary btn-prev" data-step="5">
                                             <i class="las la-arrow-left me-2"></i> @lang('Back')
                                         </button>
-                                        <button type="submit" class="btn btn--base" id="submitListingBtn">
+                                        <button type="submit" class="btn btn--base fw-bold" id="submitListingBtn">
                                             <i class="las la-check-circle me-1"></i> @lang('Submit Listing')
                                         </button>
                                     </div>
