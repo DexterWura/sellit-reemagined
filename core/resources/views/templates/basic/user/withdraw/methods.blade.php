@@ -9,7 +9,14 @@
                         <div class="gateway-card">
                             <div class="row justify-content-center gy-sm-4 gy-3">
                                 <div class="col-12">
-                                    <h5 class="payment-card-title">@lang('Withdraw')</h5>
+                                    <h5 class="payment-card-title">
+                                        @lang('Withdraw')
+                                        <span id="selectedGatewayName" class="text--base">
+                                            @if($withdrawMethod->first())
+                                                @lang('with') {{ __($withdrawMethod->first()->name) }}
+                                            @endif
+                                        </span>
+                                    </h5>
                                 </div>
                                 <div class="col-lg-6">
                                     <div class="payment-system-list is-scrollable gateway-option-list">
@@ -219,6 +226,11 @@
                 $('.payment-item').removeClass('active');
                 // Add active class to selected payment item
                 $(this).closest('.payment-item').addClass('active');
+                
+                // Update title with selected gateway name
+                const gatewayName = $(this).closest('.payment-item').find('.payment-item__name').text().trim();
+                $('#selectedGatewayName').text('@lang("with") ' + gatewayName);
+                
                 gatewayChange();
             });
             
@@ -241,6 +253,10 @@
                     $(".withdraw-form button[type=submit]").prop('disabled', true).addClass('disabled');
                     return;
                 }
+                
+                // Update title with selected gateway name
+                const gatewayName = gatewayElement.closest('.payment-item').find('.payment-item__name').text().trim();
+                $('#selectedGatewayName').text('@lang("with") ' + gatewayName);
                 
                 // Get min/max from gateway object directly, not from data attributes
                 minAmount = parseFloat(gateway.min_limit || 0);
