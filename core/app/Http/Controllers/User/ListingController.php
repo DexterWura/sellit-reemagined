@@ -136,17 +136,17 @@ class ListingController extends Controller
         // Basic validations
         if (!MarketplaceSetting::allowBusinessType($businessType)) {
             $notify[] = ['error', 'Selling ' . str_replace('_', ' ', $businessType) . 's is currently disabled'];
-            return back()->withInput($request->except(['images']))->withNotify($notify);
+            return back()->withInput($request->input())->withNotify($notify);
         }
 
         if ($saleType === 'auction' && !MarketplaceSetting::allowAuctions()) {
             $notify[] = ['error', 'Auctions are currently disabled'];
-            return back()->withInput($request->except(['images']))->withNotify($notify);
+            return back()->withInput($request->input())->withNotify($notify);
         }
 
         if ($saleType === 'fixed_price' && !MarketplaceSetting::allowFixedPrice()) {
             $notify[] = ['error', 'Fixed price sales are currently disabled'];
-            return back()->withInput($request->except(['images']))->withNotify($notify);
+            return back()->withInput($request->input())->withNotify($notify);
         }
 
         $minDescription = MarketplaceSetting::minListingDescription();
@@ -168,14 +168,19 @@ class ListingController extends Controller
 
         if ($recentListings >= 10) { // Max 10 listings per 24 hours
             $notify[] = ['error', 'You have reached the maximum number of listings you can create per day. Please try again tomorrow.'];
-            return back()->withInput($request->except(['images']))->withNotify($notify);
+            return back()->withInput($request->input())->withNotify($notify);
         }
 
         // Sanitize and validate input data
         $this->sanitizeListingInput($request);
 
         // Comprehensive validation with business logic
-        $validator = \Validator::make($request->all(), [
+        // Use input() instead of all() to exclude files, then merge files separately for validation
+        $input = $request->input();
+        if ($request->hasFile('images')) {
+            $input['images'] = $request->file('images');
+        }
+        $validator = \Validator::make($input, [
             'title' => 'nullable|string|max:255|regex:/^[a-zA-Z0-9\s\-\.\,\&\(\)\[\]]+$/',
             'tagline' => 'nullable|string|max:200',
             'description' => 'required|string|min:' . $minDescription . '|max:10000',
@@ -204,7 +209,7 @@ class ListingController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return back()->withInput($request->except(['images']))->withErrors($validator)->withNotify([['error', 'Please correct the errors below.']]);
+            return back()->withInput($request->input())->withErrors($validator)->withNotify([['error', 'Please correct the errors below.']]);
         }
 
         // Business logic validation
@@ -221,7 +226,7 @@ class ListingController extends Controller
             $domain = extractDomain($url);
             if (!$domain) {
                 $notify[] = ['error', 'Invalid domain format.'];
-                return back()->withInput($request->except(['images']))->withNotify($notify);
+                return back()->withInput($request->input())->withNotify($notify);
             }
             // Check duplicates
             $existing = Listing::where('domain_name', $domain)
@@ -230,7 +235,7 @@ class ListingController extends Controller
                 ->first();
             if ($existing) {
                 $notify[] = ['error', 'A listing for this domain already exists.'];
-                return back()->withInput($request->except(['images']))->withNotify($notify);
+                return back()->withInput($request->input())->withNotify($notify);
             }
         }
 
@@ -239,7 +244,7 @@ class ListingController extends Controller
             $domain = extractDomain($url);
             if (!$domain) {
                 $notify[] = ['error', 'Invalid website URL format.'];
-                return back()->withInput($request->except(['images']))->withNotify($notify);
+                return back()->withInput($request->input())->withNotify($notify);
             }
             // Check duplicates
             $existing = Listing::where('url', $url)
@@ -248,7 +253,7 @@ class ListingController extends Controller
                 ->first();
             if ($existing) {
                 $notify[] = ['error', 'A listing for this website already exists.'];
-                return back()->withInput($request->except(['images']))->withNotify($notify);
+                return back()->withInput($request->input())->withNotify($notify);
             }
         }
 
@@ -258,7 +263,7 @@ class ListingController extends Controller
         
         if ($requiresVerification && !$ownerVerified) {
             $notify[] = ['error', 'Ownership could not be verified. Please verify ownership before creating a listing.'];
-            return back()->withInput($request->except(['images']))->withNotify($notify);
+            return back()->withInput($request->input())->withNotify($notify);
         }
         
         // Get primary asset URL
@@ -382,7 +387,7 @@ class ListingController extends Controller
             ]);
 
             $notify[] = ['error', 'An error occurred while creating your listing. Please try again.'];
-            return back()->withInput($request->except(['images']))->withNotify($notify);
+            return back()->withInput($request->input())->withNotify($notify);
         }
     }
 
@@ -462,7 +467,7 @@ class ListingController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return back()->withInput($request->except(['images']))->withErrors($validator)->withNotify([['error', 'Please correct the errors below.']]);
+            return back()->withInput($request->input())->withErrors($validator)->withNotify([['error', 'Please correct the errors below.']]);
         }
         
         // Check for duplicate domains/websites (excluding current listing)
@@ -476,7 +481,7 @@ class ListingController extends Controller
             
             if ($existingListing) {
                 $notify[] = ['error', 'A listing for this domain already exists. Each domain can only be listed once.'];
-                return back()->withInput($request->except(['images']))->withNotify($notify);
+                return back()->withInput($request->input())->withNotify($notify);
             }
         }
         
@@ -490,7 +495,7 @@ class ListingController extends Controller
             
             if ($existingListing) {
                 $notify[] = ['error', 'A listing for this website already exists. Each website can only be listed once.'];
-                return back()->withInput($request->except(['images']))->withNotify($notify);
+                return back()->withInput($request->input())->withNotify($notify);
             }
         }
 
@@ -516,17 +521,17 @@ class ListingController extends Controller
             // Common sense validations (same as create)
             if ($listing->buy_now_price > 0 && $listing->reserve_price > $listing->buy_now_price) {
                 $notify[] = ['error', 'Reserve price cannot be higher than Buy Now price'];
-                return back()->withInput($request->except(['images']))->withNotify($notify);
+                return back()->withInput($request->input())->withNotify($notify);
             }
             
             if ($listing->reserve_price > 0 && $listing->reserve_price < $listing->starting_bid) {
                 $notify[] = ['error', 'Reserve price cannot be lower than starting bid'];
-                return back()->withInput($request->except(['images']))->withNotify($notify);
+                return back()->withInput($request->input())->withNotify($notify);
             }
             
             if ($listing->buy_now_price > 0 && $listing->buy_now_price < $listing->starting_bid) {
                 $notify[] = ['error', 'Buy Now price cannot be lower than starting bid'];
-                return back()->withInput($request->except(['images']))->withNotify($notify);
+                return back()->withInput($request->input())->withNotify($notify);
             }
         }
 
@@ -588,7 +593,7 @@ class ListingController extends Controller
             ]);
 
             $notify[] = ['error', 'An error occurred while updating your listing. Please try again.'];
-            return back()->withInput($request->except(['images']))->withNotify($notify);
+            return back()->withInput($request->input())->withNotify($notify);
         }
     }
 

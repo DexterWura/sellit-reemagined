@@ -185,10 +185,10 @@ class Handler extends ExceptionHandler
      */
     protected function invalid($request, \Illuminate\Validation\ValidationException $exception)
     {
-        // Exclude files from input before flashing
-        $input = $request->except(['images']);
+        // Use input() which excludes files by default, then filter out any UploadedFile instances that might slip through
+        $input = $request->input();
         
-        // Also remove any UploadedFile instances that might be in the input
+        // Also remove any UploadedFile instances that might be in the input (safety check)
         foreach ($input as $key => $value) {
             if (is_array($value)) {
                 $input[$key] = array_filter($value, function($item) {
