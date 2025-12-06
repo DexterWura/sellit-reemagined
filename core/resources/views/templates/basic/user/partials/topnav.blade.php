@@ -80,7 +80,7 @@
                 <button type="button" data-bs-toggle="dropdown" data-display="static" aria-haspopup="true"
                     aria-expanded="false">
                     <span class="navbar-user">
-                        <span class="navbar-user__thumb">
+                        <span class="navbar-user__thumb" style="width: 35px; height: 35px; flex-shrink: 0; display: inline-block; overflow: hidden;">
                             @if($user->image && file_exists(getFilePath('userProfile').'/'. $user->image))
                                 <img src="{{ getImage(getFilePath('userProfile').'/'. $user->image,getFileSize('userProfile'))}}" alt="image">
                             @else
@@ -106,7 +106,7 @@
                                     $colorIndex = abs($hash) % count($colors);
                                     $bgColor = $colors[$colorIndex];
                                 @endphp
-                                <span class="user-initials" style="background-color: {{ $bgColor }}; color: #fff; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 600; font-size: 14px; text-transform: uppercase;">
+                                <span class="user-initials" style="background-color: {{ $bgColor }}; color: #fff; width: 35px; height: 35px; min-width: 35px; min-height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 600; font-size: 14px; text-transform: uppercase; flex-shrink: 0;">
                                     {{ $initials }}
                                 </span>
                             @endif
