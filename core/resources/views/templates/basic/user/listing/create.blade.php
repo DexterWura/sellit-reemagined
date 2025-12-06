@@ -739,12 +739,12 @@
                                         </div>
                                         
                                         <div class="alert alert-light border mt-4">
-                                            <h6 class="mb-2"><i class="las la-lightbulb text-warning me-2"></i>@lang('Tips for Great Images')</h6>
+                                            <h6 class="mb-2"><i class="las la-lightbulb text-warning me-2"></i>@lang('Image Tips')</h6>
                                             <ul class="mb-0 small">
-                                                <li>@lang('Include screenshots of traffic stats and analytics')</li>
-                                                <li>@lang('Show revenue/earnings proof if applicable')</li>
-                                                <li>@lang('Capture the homepage and key pages')</li>
-                                                <li>@lang('NB : First image will be used as the thumbnail')</li>
+                                                <li><strong>@lang('The first image will be used as the listing thumbnail')</strong> - @lang('choose your best, most eye-catching image first')</li>
+                                                <li>@lang('Recommended dimensions: 1920x1080px (16:9) or 1600x900px. Images will be automatically resized to fit display cards (200px height)')</li>
+                                                <li>@lang('Include screenshots of traffic stats, revenue proof, and key features')</li>
+                                                <li>@lang('Use high-resolution images for crisp display on all devices')</li>
                                             </ul>
                                         </div>
                                     </div>
