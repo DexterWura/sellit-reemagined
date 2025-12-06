@@ -1,9 +1,9 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-    <div class="section bg--light">
-        <div class="container ">
-            <div class="row justify-content-center">
-                <div class="col-lg-9">
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="card b-radius--10">
+                <div class="card-body">
                     <form action="{{ route('user.deposit.insert') }}" method="post" class="deposit-form">
                         @csrf
                         <input type="hidden" name="currency">

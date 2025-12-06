@@ -51,29 +51,31 @@
                                 <td>@php echo $offer->offerStatus @endphp</td>
                                 <td>{{ $offer->created_at->format('M d, Y') }}</td>
                                 <td>
-                                    @if($offer->status == \App\Constants\Status::OFFER_COUNTERED)
-                                        <form action="{{ route('user.offer.accept.counter', $offer->id) }}" method="POST" class="d-inline">
-                                            @csrf
-                                            <button type="submit" class="btn btn-sm btn-success" 
-                                                    onclick="return confirm('@lang('Accept counter offer of') {{ showAmount($offer->counter_amount) }}?')">
-                                                <i class="las la-check"></i> @lang('Accept')
-                                            </button>
-                                        </form>
-                                    @endif
-                                    @if(in_array($offer->status, [\App\Constants\Status::OFFER_PENDING, \App\Constants\Status::OFFER_COUNTERED]))
-                                        <form action="{{ route('user.offer.cancel', $offer->id) }}" method="POST" class="d-inline">
-                                            @csrf
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" 
-                                                    onclick="return confirm('@lang('Cancel this offer?')')">
-                                                <i class="las la-times"></i>
-                                            </button>
-                                        </form>
-                                    @endif
-                                    @if($offer->status == \App\Constants\Status::OFFER_ACCEPTED && $offer->escrow_id)
-                                        <a href="{{ route('user.escrow.details', $offer->escrow_id) }}" class="btn btn-sm btn--base">
-                                            <i class="las la-hand-holding-usd"></i> @lang('Pay')
-                                        </a>
-                                    @endif
+                                    <div class="button--group">
+                                        @if($offer->status == \App\Constants\Status::OFFER_COUNTERED)
+                                            <form action="{{ route('user.offer.accept.counter', $offer->id) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline--success" 
+                                                        onclick="return confirm('@lang('Accept counter offer of') {{ showAmount($offer->counter_amount) }}?')">
+                                                    <i class="las la-check"></i> @lang('Accept')
+                                                </button>
+                                            </form>
+                                        @endif
+                                        @if(in_array($offer->status, [\App\Constants\Status::OFFER_PENDING, \App\Constants\Status::OFFER_COUNTERED]))
+                                            <form action="{{ route('user.offer.cancel', $offer->id) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline--danger" 
+                                                        onclick="return confirm('@lang('Cancel this offer?')')">
+                                                    <i class="las la-times"></i>
+                                                </button>
+                                            </form>
+                                        @endif
+                                        @if($offer->status == \App\Constants\Status::OFFER_ACCEPTED && $offer->escrow_id)
+                                            <a href="{{ route('user.escrow.details', $offer->escrow_id) }}" class="btn btn-sm btn-outline--primary">
+                                                <i class="las la-hand-holding-usd"></i> @lang('Pay')
+                                            </a>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty

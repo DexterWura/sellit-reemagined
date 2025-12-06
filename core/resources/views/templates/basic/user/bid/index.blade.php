@@ -68,14 +68,14 @@
                                 <td>@php echo $bid->bidStatus @endphp</td>
                                 <td>
                                     <a href="{{ route('marketplace.listing.show', $bid->listing->slug) }}" 
-                                       class="btn btn-sm btn-outline-primary">
-                                        <i class="las la-eye"></i> @lang('View')
+                                       class="btn btn-sm btn-outline--primary">
+                                        <i class="las la-desktop"></i> @lang('View')
                                     </a>
                                     @if(in_array($bid->status, [\App\Constants\Status::BID_ACTIVE, \App\Constants\Status::BID_WINNING]))
                                         @if($bid->listing->auction_end && $bid->listing->auction_end->diffInHours(now()) >= 24)
                                             <form action="{{ route('user.bid.cancel', $bid->id) }}" method="POST" class="d-inline">
                                                 @csrf
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                <button type="submit" class="btn btn-sm btn-outline--danger" 
                                                         onclick="return confirm('@lang('Are you sure?')')">
                                                     <i class="las la-times"></i>
                                                 </button>

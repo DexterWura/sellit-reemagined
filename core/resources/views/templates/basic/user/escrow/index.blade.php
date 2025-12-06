@@ -57,8 +57,9 @@
                                         @php echo $escrow->escrowStatus @endphp
                                     </td>
                                     <td>
-                                        <a href="{{ route('user.escrow.details', $escrow->id) }}" class="btn btn-base--outline btn-sm detailBtn "><i
-                                                class="la la-desktop"></i> @lang('View')</a>
+                                        <a href="{{ route('user.escrow.details', $escrow->id) }}" class="btn btn-sm btn-outline--primary">
+                                            <i class="las la-desktop"></i> @lang('View')
+                                        </a>
                                     </td>
                                 </tr>
                             @empty

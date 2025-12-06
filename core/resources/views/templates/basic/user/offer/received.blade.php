@@ -57,29 +57,29 @@
                                 <td>@php echo $offer->offerStatus @endphp</td>
                                 <td>{{ $offer->created_at->format('M d, Y') }}</td>
                                 <td>
-                                    @if($offer->status == \App\Constants\Status::OFFER_PENDING)
-                                        <div class="btn-group-vertical btn-group-sm">
+                                    <div class="button--group">
+                                        @if($offer->status == \App\Constants\Status::OFFER_PENDING)
                                             <form action="{{ route('user.offer.accept', $offer->id) }}" method="POST" class="d-inline">
                                                 @csrf
-                                                <button type="submit" class="btn btn-sm btn-success w-100 mb-1" 
+                                                <button type="submit" class="btn btn-sm btn-outline--success" 
                                                         onclick="return confirm('@lang('Accept this offer for') {{ showAmount($offer->amount) }}?')">
                                                     <i class="las la-check"></i> @lang('Accept')
                                                 </button>
                                             </form>
-                                            <button type="button" class="btn btn-sm btn-info w-100 mb-1 counterBtn"
+                                            <button type="button" class="btn btn-sm btn-outline--info counterBtn"
                                                     data-id="{{ $offer->id }}" data-amount="{{ $offer->amount }}">
                                                 <i class="las la-exchange-alt"></i> @lang('Counter')
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-danger w-100 rejectBtn"
+                                            <button type="button" class="btn btn-sm btn-outline--danger rejectBtn"
                                                     data-id="{{ $offer->id }}">
                                                 <i class="las la-times"></i> @lang('Reject')
                                             </button>
-                                        </div>
-                                    @elseif($offer->status == \App\Constants\Status::OFFER_ACCEPTED && $offer->escrow_id)
-                                        <a href="{{ route('user.escrow.details', $offer->escrow_id) }}" class="btn btn-sm btn--base">
-                                            <i class="las la-hand-holding-usd"></i> @lang('View Escrow')
-                                        </a>
-                                    @endif
+                                        @elseif($offer->status == \App\Constants\Status::OFFER_ACCEPTED && $offer->escrow_id)
+                                            <a href="{{ route('user.escrow.details', $offer->escrow_id) }}" class="btn btn-sm btn-outline--primary">
+                                                <i class="las la-hand-holding-usd"></i> @lang('View Escrow')
+                                            </a>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty

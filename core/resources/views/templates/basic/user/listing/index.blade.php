@@ -111,19 +111,19 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <div class="btn-group">
-                                        <a href="{{ route('user.listing.show', $listing->id) }}" class="btn btn-sm btn-outline-primary" title="@lang('View')">
-                                            <i class="las la-eye"></i>
+                                    <div class="button--group">
+                                        <a href="{{ route('user.listing.show', $listing->id) }}" class="btn btn-sm btn-outline--primary" title="@lang('View')">
+                                            <i class="las la-desktop"></i>
                                         </a>
                                         @if(in_array($listing->status, [\App\Constants\Status::LISTING_DRAFT, \App\Constants\Status::LISTING_PENDING, \App\Constants\Status::LISTING_REJECTED]))
-                                            <a href="{{ route('user.listing.edit', $listing->id) }}" class="btn btn-sm btn-outline-secondary" title="@lang('Edit')">
+                                            <a href="{{ route('user.listing.edit', $listing->id) }}" class="btn btn-sm btn-outline--info" title="@lang('Edit')">
                                                 <i class="las la-edit"></i>
                                             </a>
                                         @endif
                                         @if(in_array($listing->status, [\App\Constants\Status::LISTING_DRAFT, \App\Constants\Status::LISTING_PENDING, \App\Constants\Status::LISTING_ACTIVE]))
                                             <form action="{{ route('user.listing.cancel', $listing->id) }}" method="POST" class="d-inline">
                                                 @csrf
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                <button type="submit" class="btn btn-sm btn-outline--danger" 
                                                         onclick="return confirm('@lang('Are you sure?')')" title="@lang('Cancel')">
                                                     <i class="las la-times"></i>
                                                 </button>

@@ -41,8 +41,8 @@
                                     <td>{{ diffForHumans($support->last_reply) }} </td>
 
                                     <td>
-                                        <a href="{{ route('ticket.view', $support->ticket) }}" class="btn btn-base--outline btn-sm">
-                                            <i class="la la-desktop"></i> @lang('View Ticket')
+                                        <a href="{{ route('ticket.view', $support->ticket) }}" class="btn btn-sm btn-outline--primary">
+                                            <i class="las la-desktop"></i> @lang('View Ticket')
                                         </a>
                                     </td>
                                 </tr>

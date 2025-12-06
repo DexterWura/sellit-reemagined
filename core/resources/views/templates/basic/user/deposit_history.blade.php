@@ -2,11 +2,14 @@
 @section('panel')
     <div class="row justify-content-center">
         <div class="col-md-12">
-                    <div class="d-flex justify-content-end mb-3">
-                        <x-search-form btn="btn--base" />
-                    </div>
+            <div class="d-flex justify-content-end mb-3">
+                <x-search-form btn="btn--base" />
+            </div>
 
-                    <table class="table custom--table table-responsive--md">
+            <div class="card b-radius--10">
+                <div class="card-body p-0">
+                    <div class="table-responsive--md table-responsive">
+                        <table class="table table--light style--two">
                         <thead>
                             <tr>
                                 <th>@lang('Gateway | Transaction')</th>
@@ -64,17 +67,17 @@
 
                                     <td>
                                         @if($deposit->method_code >= 1000 && $deposit->method_code <= 5000)
-                                        <a href="javascript:void(0)" class="btn btn--base btn-sm detailBtn" data-info="{{ json_encode($details) }}"
+                                        <a href="javascript:void(0)" class="btn btn-sm btn-outline--primary detailBtn" data-info="{{ json_encode($details) }}"
                                             @if ($deposit->status == Status::PAYMENT_REJECT)
                                             data-admin_feedback="{{ $deposit->admin_feedback }}"
                                             @endif
                                             >
-                                            <i class="fas fa-desktop"></i>
+                                            <i class="las la-desktop"></i>
                                         </a>
                                         @else
                                     
-                                        <button type="button"  class="btn btn--success btn-sm" data-bs-toggle="tooltip" title="@lang('Automatically processed')">
-                                             <i class="fas fa-check-circle"></i>
+                                        <button type="button"  class="btn btn-sm btn-outline--success" data-bs-toggle="tooltip" title="@lang('Automatically processed')">
+                                             <i class="las la-check-circle"></i>
                                         </button>
                                         @endif
                                     </td>

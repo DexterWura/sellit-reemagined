@@ -82,7 +82,7 @@
                             <td>
                                 @if($bid->listing && $bid->listing->escrow_id)
                                     <a href="{{ route('user.escrow.details', $bid->listing->escrow_id) }}" 
-                                       class="btn btn--sm btn--primary">
+                                       class="btn btn-sm btn-outline--primary">
                                         <i class="las la-handshake"></i> @lang('View Escrow')
                                     </a>
                                 @endif
