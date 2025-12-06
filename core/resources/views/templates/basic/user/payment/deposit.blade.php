@@ -119,7 +119,7 @@
                                         <div class="d-none crypto-message mb-3">
                                             @lang('Conversion with') <span class="gateway-currency"></span> @lang('and final value will Show on next step')
                                         </div>
-                                        <button type="submit" class="btn btn--base w-100 mt-3" disabled>
+                                        <button type="submit" class="btn btn--primary w-100 mt-3 fw-bold" disabled>
                                             <i class="las la-check-circle"></i> @lang('Confirm Deposit')
                                         </button>
                                         <div class="info-text pt-3">

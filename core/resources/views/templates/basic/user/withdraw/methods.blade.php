@@ -108,7 +108,7 @@
                                                 </p>
                                             </div>
                                         </div>
-                                        <button type="submit" class="btn btn--base w-100 mt-3" disabled>
+                                        <button type="submit" class="btn btn--primary w-100 mt-3 fw-bold" disabled>
                                             <i class="las la-check-circle"></i> @lang('Confirm Withdraw')
                                         </button>
                                         <div class="info-text pt-3">

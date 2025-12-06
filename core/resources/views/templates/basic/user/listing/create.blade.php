@@ -90,7 +90,7 @@
                                     
                                     <div class="step-actions mt-4 d-flex justify-content-end">
                                         <button type="button" class="btn btn--base btn-next" data-step="2" id="step1ContinueBtn">
-                                            @lang('Continue') <i class="las la-arrow-right ms-1"></i>
+                                            @lang('Continue') <i class="las la-arrow-right ms-2"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -348,11 +348,11 @@
                                     </div>
                                     
                                     <div class="step-actions mt-4 d-flex justify-content-between">
-                                        <button type="button" class="btn btn-outline-secondary btn-prev" data-step="1">
-                                            <i class="las la-arrow-left me-1"></i> @lang('Back')
+                                        <button type="button" class="btn btn-outline--secondary btn-prev" data-step="1">
+                                            <i class="las la-arrow-left me-2"></i> @lang('Back')
                                         </button>
                                         <button type="button" class="btn btn--base btn-next" data-step="3" id="step2ContinueBtn">
-                                            @lang('Continue') <i class="las la-arrow-right ms-1"></i>
+                                            @lang('Continue') <i class="las la-arrow-right ms-2"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -423,11 +423,11 @@
                                     </div>
                                     
                                     <div class="step-actions mt-4 d-flex justify-content-between">
-                                        <button type="button" class="btn btn-outline-secondary btn-prev" data-step="2">
-                                            <i class="las la-arrow-left me-1"></i> @lang('Back')
+                                        <button type="button" class="btn btn-outline--secondary btn-prev" data-step="2">
+                                            <i class="las la-arrow-left me-2"></i> @lang('Back')
                                         </button>
                                         <button type="button" class="btn btn--base btn-next" data-step="4" id="step3ContinueBtn">
-                                            @lang('Continue') <i class="las la-arrow-right ms-1"></i>
+                                            @lang('Continue') <i class="las la-arrow-right ms-2"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -539,11 +539,11 @@
                                     </div>
                                     
                                     <div class="step-actions mt-4 d-flex justify-content-between">
-                                        <button type="button" class="btn btn-outline-secondary btn-prev" data-step="3">
-                                            <i class="las la-arrow-left me-1"></i> @lang('Back')
+                                        <button type="button" class="btn btn-outline--secondary btn-prev" data-step="3">
+                                            <i class="las la-arrow-left me-2"></i> @lang('Back')
                                         </button>
                                         <button type="button" class="btn btn--base btn-next" data-step="5">
-                                            @lang('Continue') <i class="las la-arrow-right ms-1"></i>
+                                            @lang('Continue') <i class="las la-arrow-right ms-2"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -670,11 +670,11 @@
                                     </div>
                                     
                                     <div class="step-actions mt-4 d-flex justify-content-between">
-                                        <button type="button" class="btn btn-outline-secondary btn-prev" data-step="4">
-                                            <i class="las la-arrow-left me-1"></i> @lang('Back')
+                                        <button type="button" class="btn btn-outline--secondary btn-prev" data-step="4">
+                                            <i class="las la-arrow-left me-2"></i> @lang('Back')
                                         </button>
                                         <button type="button" class="btn btn--base btn-next" data-step="6">
-                                            @lang('Continue') <i class="las la-arrow-right ms-1"></i>
+                                            @lang('Continue') <i class="las la-arrow-right ms-2"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -747,8 +747,8 @@
                                     </div>
                                     
                                     <div class="step-actions mt-4 d-flex justify-content-between">
-                                        <button type="button" class="btn btn-outline-secondary btn-prev" data-step="5">
-                                            <i class="las la-arrow-left me-1"></i> @lang('Back')
+                                        <button type="button" class="btn btn-outline--secondary btn-prev" data-step="5">
+                                            <i class="las la-arrow-left me-2"></i> @lang('Back')
                                         </button>
                                         <button type="submit" class="btn btn--base" id="submitListingBtn">
                                             <i class="las la-check-circle me-1"></i> @lang('Submit Listing')
