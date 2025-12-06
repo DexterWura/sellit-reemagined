@@ -202,14 +202,14 @@
                                         </td>
                                         <td>
                                             <span class="fw-bold @if($trx->trx_type == '+') text--success @else text--danger @endif">
-                                                {{ $trx->trx_type == '+' ? '+' : '-' }}{{ showAmount($trx->amount) }} {{ __($general->cur_text) }}
+                                                {{ $trx->trx_type == '+' ? '+' : '-' }}{{ showAmount($trx->amount) }} {{ __(gs('cur_text')) }}
                                             </span>
                                         </td>
                                         <td>
                                             <span>{{ __($trx->details) }}</span>
                                         </td>
                                         <td>
-                                            <span>{{ showAmount($trx->post_balance) }} {{ __($general->cur_text) }}</span>
+                                            <span>{{ showAmount($trx->post_balance) }} {{ __(gs('cur_text')) }}</span>
                                         </td>
                                     </tr>
                                 @empty
