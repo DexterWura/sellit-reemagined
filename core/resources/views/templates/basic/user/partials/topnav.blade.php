@@ -80,7 +80,37 @@
                 <button type="button" data-bs-toggle="dropdown" data-display="static" aria-haspopup="true"
                     aria-expanded="false">
                     <span class="navbar-user">
-                        <span class="navbar-user__thumb"><img src="{{ getImage(getFilePath('userProfile').'/'. $user->image,getFileSize('userProfile'))}}" alt="image"></span>
+                        <span class="navbar-user__thumb">
+                            @if($user->image && file_exists(getFilePath('userProfile').'/'. $user->image))
+                                <img src="{{ getImage(getFilePath('userProfile').'/'. $user->image,getFileSize('userProfile'))}}" alt="image">
+                            @else
+                                @php
+                                    $fullname = trim($user->firstname . ' ' . $user->lastname);
+                                    if(empty($fullname) || $fullname == ' ') {
+                                        $fullname = $user->username;
+                                    }
+                                    $words = array_filter(explode(' ', $fullname));
+                                    $initials = '';
+                                    if(count($words) >= 2) {
+                                        $initials = strtoupper(substr($words[0], 0, 1) . substr(end($words), 0, 1));
+                                    } else {
+                                        $name = trim($fullname);
+                                        if(strlen($name) >= 2) {
+                                            $initials = strtoupper(substr($name, 0, 2));
+                                        } else {
+                                            $initials = strtoupper(str_pad($name, 2, $name));
+                                        }
+                                    }
+                                    $colors = ['#4bea76', '#4634ff', '#28c76f', '#ff9f43', '#ea5455', '#00cfe8', '#7367f0', '#ff6b6b', '#51cf66', '#339af0', '#f59f00', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+                                    $hash = crc32($user->username . $user->id);
+                                    $colorIndex = abs($hash) % count($colors);
+                                    $bgColor = $colors[$colorIndex];
+                                @endphp
+                                <span class="user-initials" style="background-color: {{ $bgColor }}; color: #fff; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 600; font-size: 14px; text-transform: uppercase;">
+                                    {{ $initials }}
+                                </span>
+                            @endif
+                        </span>
                         <span class="navbar-user__info">
                             <span class="navbar-user__name">{{ $user->username }}</span>
                         </span>
