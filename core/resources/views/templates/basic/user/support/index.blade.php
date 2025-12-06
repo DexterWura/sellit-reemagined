@@ -1,9 +1,7 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-    <section class="section bg--light">
-        <div class="container">
-            <div class="row gy-4">
-                <div class="col-md-12">
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="row gy-4">
+        <div class="col-md-12">
                     <div class="text-end">
                         <a href="{{ route('ticket.open') }}" class="btn btn-sm btn--base mb-3">
                             <i class="las la-plus"></i> @lang('New Ticket')
@@ -58,7 +56,6 @@
                         {{ $supports->links() }}
                     </div>
                 @endif
-            </div>
         </div>
-    </section>
+    </div>
 @endsection

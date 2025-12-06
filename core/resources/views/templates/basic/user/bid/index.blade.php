@@ -1,8 +1,6 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-<section class="section bg--light">
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="mb-0">@lang('My Bids')</h4>
             <a href="{{ route('user.bid.won') }}" class="btn btn--base btn-sm">
                 <i class="las la-trophy"></i> @lang('Won Auctions')
@@ -103,7 +101,5 @@
         @if($bids->hasPages())
             <div class="mt-4">{{ $bids->links() }}</div>
         @endif
-    </div>
-</section>
 @endsection
 

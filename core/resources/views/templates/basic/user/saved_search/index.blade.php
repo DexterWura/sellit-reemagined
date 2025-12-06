@@ -1,8 +1,6 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-<section class="section bg--light">
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="mb-0">@lang('Saved Searches')</h4>
             <a href="{{ route('marketplace.browse') }}" class="btn btn-sm btn-outline-primary">
                 <i class="las la-search"></i> @lang('Browse Listings')
@@ -155,8 +153,6 @@
                 </a>
             </div>
         @endif
-    </div>
-</section>
 @endsection
 
 @push('breadcrumb')

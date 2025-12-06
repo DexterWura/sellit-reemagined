@@ -1,8 +1,6 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-<section class="section bg--light">
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="mb-0">@lang('My Watchlist')</h4>
         </div>
         
@@ -90,7 +88,5 @@
                 </a>
             </div>
         @endif
-    </div>
-</section>
 @endsection
 

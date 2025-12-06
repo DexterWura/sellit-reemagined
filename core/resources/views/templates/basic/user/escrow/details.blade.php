@@ -1,8 +1,6 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-    <section class="section bg--light">
-        <div class="container">
-            <div class="row gy-4">
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="row gy-4">
 
                 @if($escrow->listing)
                 <div class="col-md-12 mb-4">

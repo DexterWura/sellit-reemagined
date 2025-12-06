@@ -1,9 +1,7 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-    <section class="section bg--light">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-md-12">
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="row justify-content-center">
+        <div class="col-md-12">
                     <div class="alert alert-info mb-4">
                         <i class="las la-info-circle"></i> 
                         <strong>@lang('Note'):</strong> 
@@ -79,7 +77,6 @@
                         {{ $escrows->links() }}
                     </div>
                 @endif
-            </div>
         </div>
-    </section>
+    </div>
 @endsection

@@ -1,8 +1,6 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-<section class="section bg--light">
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="mb-0">@lang('My Listings')</h4>
             <a href="{{ route('user.listing.create') }}" class="btn btn--base">
                 <i class="las la-plus"></i> @lang('Create Listing')
@@ -153,7 +151,5 @@
                 {{ $listings->links() }}
             </div>
         @endif
-    </div>
-</section>
 @endsection
 

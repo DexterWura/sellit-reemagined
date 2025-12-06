@@ -1,6 +1,6 @@
-@extends($activeTemplate . 'layouts.master')
+@extends($activeTemplate . 'user.layouts.app')
 
-@section('content')
+@section('panel')
 <div class="dashboard-body-part">
     <div class="card custom--card">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-3">

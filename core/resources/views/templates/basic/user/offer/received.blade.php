@@ -1,8 +1,6 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-<section class="section bg--light">
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="mb-0">@lang('Received Offers')</h4>
             <a href="{{ route('user.offer.index') }}" class="btn btn--base btn-sm">
                 <i class="las la-paper-plane"></i> @lang('Offers Made')
