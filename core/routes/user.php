@@ -57,6 +57,10 @@ Route::middleware('auth')->name('user.')->group(function () {
             Route::controller('UserController')->group(function () {
                 Route::get('dashboard', 'home')->name('home');
                 Route::get('download-attachments/{file_hash}', 'downloadAttachment')->name('download.attachment');
+                
+                // Notifications
+                Route::post('notification/read/{id}', 'notificationRead')->name('notification.read');
+                Route::post('notification/read-all', 'markAllNotificationsAsRead')->name('notification.read.all');
 
                 //2FA
                 Route::get('twofactor', 'show2faForm')->name('twofactor');
@@ -208,9 +212,5 @@ Route::middleware('auth')->name('user.')->group(function () {
             Route::post('manual', 'manualDepositUpdate')->name('manual.update');
             Route::any('/{type?}', 'deposit')->name('index');
         });
-        
-        // Notifications
-        Route::post('notification/read/{id}', 'UserController@notificationRead')->name('notification.read');
-        Route::post('notification/read-all', 'UserController@markAllNotificationsAsRead')->name('notification.read.all');
     });
 });

@@ -230,7 +230,8 @@ class UserController extends Controller
 
     public function markAllNotificationsAsRead()
     {
-        auth()->user()->unreadNotifications->markAsRead();
+        $user = auth()->user();
+        $user->unreadNotifications()->update(['read_at' => now()]);
         return response()->json(['success' => true, 'message' => 'All notifications marked as read']);
     }
 

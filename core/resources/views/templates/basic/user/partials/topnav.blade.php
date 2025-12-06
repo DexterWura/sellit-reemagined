@@ -77,8 +77,7 @@
                                 <i class="las la-check-double"></i> @lang('Mark All as Read')
                             </button>
                         @endif
-                        <a href="{{ route('user.transactions') }}"
-                            class="view-all-message">@lang('View all notifications')</a>
+                        <a href="{{ route('user.transactions') }}" class="view-all-message">@lang('View all notifications')</a>
                     </div>
                 </div>
             </li>
@@ -188,18 +187,28 @@
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
             },
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok: ' + response.status);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 const notificationItems = document.querySelectorAll('.dropdown-menu__item[id^="notification-"]');
                 notificationItems.forEach(item => item.remove());
                 updateNotificationCount();
                 checkEmptyState();
+            } else {
+                console.error('Failed to mark all as read:', data);
             }
         })
-        .catch(err => console.error('Error marking all notifications as read:', err));
+        .catch(err => {
+            console.error('Error marking all notifications as read:', err);
+        });
     }
     
     function updateNotificationCount() {
