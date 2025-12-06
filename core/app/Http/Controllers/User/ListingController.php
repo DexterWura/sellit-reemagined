@@ -91,9 +91,15 @@ class ListingController extends Controller
     {
         $user = auth()->user();
         
-        // Get all form data except files and CSRF token
-        $draftData = $request->except(['_token', 'images', '_method']);
+        // Get all form data using input() which excludes files by default
+        $draftData = $request->input();
         $currentStage = $request->input('current_stage', 1);
+
+        // Remove CSRF token and any other unwanted fields
+        unset($draftData['_token'], $draftData['_method']);
+        
+        // Recursively remove any UploadedFile instances that might have slipped through
+        $draftData = $this->removeFilesFromArray($draftData);
 
         // Store in session
         session([
@@ -107,6 +113,31 @@ class ListingController extends Controller
             'message' => 'Draft saved successfully',
             'stage' => $currentStage
         ]);
+    }
+
+    /**
+     * Recursively remove UploadedFile instances from an array
+     */
+    private function removeFilesFromArray($data)
+    {
+        if (!is_array($data)) {
+            return $data;
+        }
+
+        $cleaned = [];
+        foreach ($data as $key => $value) {
+            if ($value instanceof \Illuminate\Http\UploadedFile) {
+                // Skip UploadedFile instances
+                continue;
+            } elseif (is_array($value)) {
+                // Recursively clean arrays
+                $cleaned[$key] = $this->removeFilesFromArray($value);
+            } else {
+                $cleaned[$key] = $value;
+            }
+        }
+
+        return $cleaned;
     }
 
     /**
