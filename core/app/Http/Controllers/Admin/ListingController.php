@@ -203,7 +203,7 @@ class ListingController extends Controller
 
     private function getListings($request)
     {
-        return Listing::with(['user', 'listingCategory', 'images', 'domainVerification'])
+        return Listing::with(['user', 'listingCategory', 'images'])
             ->when($request->search, function ($q, $search) {
                 return $q->where(function ($query) use ($search) {
                     $query->where('title', 'LIKE', "%{$search}%")
