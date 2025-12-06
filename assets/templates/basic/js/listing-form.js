@@ -349,13 +349,14 @@ const ListingFormHandler = {
             return false;
         }
         
-        // Check minimum length (usually 100 characters)
-        const minLength = 100;
+        // Check minimum length from data attribute (set by admin)
+        const $descriptionField = $('textarea[name="description"]');
+        const minLength = parseInt($descriptionField.data('min-length') || 100);
         if (description.trim().length < minLength) {
             if (typeof notify === 'function') {
                 notify('error', this.translate('Description must be at least ' + minLength + ' characters'));
             }
-            $('textarea[name="description"]').focus();
+            $descriptionField.focus();
             return false;
         }
         

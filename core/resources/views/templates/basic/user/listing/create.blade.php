@@ -462,8 +462,9 @@
                                         <div class="col-12">
                                             <label class="form-label fw-semibold">@lang('Description') <span class="text-danger">*</span></label>
                                             <textarea name="description" class="form-control" rows="6" required
+                                                     data-min-length="{{ $marketplaceSettings['min_listing_description'] ?? 100 }}"
                                                      placeholder="@lang('Describe your business in detail. Include information about traffic sources, monetization methods, growth potential, and what is included in the sale...')">{{ old('description', $draftData['description'] ?? '') }}</textarea>
-                                            <small class="text-muted">@lang('Minimum 100 characters. Be detailed to attract serious buyers.')</small>
+                                            <small class="text-muted">@lang('Minimum') {{ $marketplaceSettings['min_listing_description'] ?? 100 }} @lang('characters. Be detailed to attract serious buyers.')</small>
                                         </div>
                                     </div>
                                     
