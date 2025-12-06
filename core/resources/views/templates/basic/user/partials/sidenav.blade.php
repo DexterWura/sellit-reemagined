@@ -94,11 +94,27 @@
                     </div>
                 </li>
 
-                <li class="sidebar-menu-item {{ menuActive('user.withdraw*') }}">
-                    <a href="{{ route('user.withdraw.history') }}" class="nav-link">
+                <li class="sidebar-menu-item sidebar-dropdown {{ menuActive('user.withdraw*', 3) }}">
+                    <a href="javascript:void(0)" class="{{ menuActive('user.withdraw*', 3) }}">
                         <i class="menu-icon la la-bank"></i>
                         <span class="menu-title">@lang('Withdrawals')</span>
                     </a>
+                    <div class="sidebar-submenu {{ menuActive('user.withdraw*', 2) }}">
+                        <ul>
+                            <li class="sidebar-menu-item {{ menuActive('user.withdraw') }}">
+                                <a href="{{ route('user.withdraw') }}" class="nav-link">
+                                    <i class="menu-icon las la-dot-circle"></i>
+                                    <span class="menu-title">@lang('Withdraw Money')</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-menu-item {{ menuActive('user.withdraw.history') }}">
+                                <a href="{{ route('user.withdraw.history') }}" class="nav-link">
+                                    <i class="menu-icon las la-dot-circle"></i>
+                                    <span class="menu-title">@lang('Withdrawal History')</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </li>
 
                 <li class="sidebar-menu-item {{ menuActive('user.profile*') }}">

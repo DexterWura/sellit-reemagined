@@ -140,6 +140,49 @@
     <link rel="stylesheet" href="{{ asset('assets/global/css/select2.min.css') }}">
 @endpush
 
+@push('style')
+<style>
+    .payment-item {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .payment-item:hover {
+        background-color: rgba(var(--base-rgb, 70, 52, 255), 0.05);
+    }
+    
+    .payment-item.active {
+        background-color: rgba(var(--base-rgb, 70, 52, 255), 0.1) !important;
+        border-left: 3px solid rgb(var(--base)) !important;
+        border-color: rgb(var(--base)) !important;
+        box-shadow: 0 2px 8px rgba(var(--base-rgb, 70, 52, 255), 0.15);
+    }
+    
+    .payment-item.active .payment-item__check {
+        border: 3px solid rgb(var(--base)) !important;
+        background-color: rgb(var(--base)) !important;
+        position: relative;
+    }
+    
+    .payment-item.active .payment-item__check::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 6px;
+        height: 6px;
+        background-color: #fff;
+        border-radius: 50%;
+    }
+    
+    .payment-item.active .payment-item__name {
+        font-weight: 600;
+        color: rgb(var(--base));
+    }
+</style>
+@endpush
+
 @push('script-lib')
     <script src="{{ asset('assets/global/js/select2.min.js') }}"></script>
 @endpush
@@ -160,9 +203,15 @@
             });
 
             $('.gateway-input').on('change', function(e) {
-
+                // Remove active class from all payment items
+                $('.payment-item').removeClass('active');
+                // Add active class to selected payment item
+                $(this).closest('.payment-item').addClass('active');
                 gatewayChange();
             });
+            
+            // Initialize active state on page load
+            $('.gateway-input:checked').closest('.payment-item').addClass('active');
 
             function gatewayChange() {
                 let gatewayElement = $('.gateway-input:checked');

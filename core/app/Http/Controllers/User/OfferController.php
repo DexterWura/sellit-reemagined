@@ -147,14 +147,13 @@ class OfferController extends Controller
         notify($listing->seller, 'NEW_OFFER_RECEIVED', [
             'listing_title' => $listing->title,
             'offer_amount' => showAmount($request->amount),
-        ]);
-        
-        // Send database notification
-        $listing->seller->notify(new \App\Notifications\NewOfferReceived($offer, $listing));
             'asking_price' => showAmount($listing->asking_price),
             'buyer' => $user->username,
             'message' => $request->message ?? 'No message',
         ]);
+        
+        // Send database notification
+        $listing->seller->notify(new \App\Notifications\NewOfferReceived($offer, $listing));
 
         $notify[] = ['success', 'Offer submitted successfully'];
         return back()->withNotify($notify);
