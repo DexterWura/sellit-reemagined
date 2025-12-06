@@ -1,14 +1,10 @@
-@extends($activeTemplate . 'layouts.frontend')
+@extends($activeTemplate . 'user.layouts.app')
 
-@section('content')
-<section class="section bg--light">
-    <div class="py-5">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-10">
-                    
-                    {{-- Progress Steps --}}
-                    <div class="listing-progress mb-4">
+@section('panel')
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            {{-- Progress Steps --}}
+            <div class="listing-progress mb-4">
                         <div class="progress-steps" id="progressSteps">
                             <div class="step active" data-step="1"><span class="step-number">1</span><span class="step-text">@lang('Type')</span></div>
                             <div class="step" data-step="2"><span class="step-number">2</span><span class="step-text">@lang('Asset')</span></div>
@@ -19,13 +15,13 @@
                         </div>
                     </div>
 
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-white border-bottom py-3">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">
-                                    <i class="las la-plus-circle text--base me-2"></i>
-                                    @lang('Create New Listing')
-                                </h5>
+            <div class="card b-radius--10">
+                <div class="card-header bg-white border-bottom py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="las la-plus-circle text--base me-2"></i>
+                            @lang('Create New Listing')
+                        </h5>
                                 @if(!empty($draftData))
                                     <div class="draft-indicator">
                                         <span class="badge bg-info" id="draftStatusBadge">
@@ -767,7 +763,6 @@
             </div>
         </div>
     </div>
-</section>
 @endsection
 
 @push('style')

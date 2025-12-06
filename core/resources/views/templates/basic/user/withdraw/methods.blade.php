@@ -108,8 +108,8 @@
                                                 </p>
                                             </div>
                                         </div>
-                                        <button type="submit" class="btn btn--base h-45 w-100 mt-3" disabled>
-                                            @lang('Confirm Withdraw')
+                                        <button type="submit" class="btn btn--base w-100 mt-3" disabled>
+                                            <i class="las la-check-circle"></i> @lang('Confirm Withdraw')
                                         </button>
                                         <div class="info-text pt-3">
                                             <p class="text">@lang('Safely withdraw your funds using our highly secure process and various withdrawal method')</p>
@@ -207,19 +207,33 @@
 
             function gatewayChange() {
                 let gatewayElement = $('.gateway-input:checked');
+                
+                if (!gatewayElement.length) {
+                    $(".withdraw-form button[type=submit]").prop('disabled', true);
+                    return;
+                }
+                
                 let methodCode = gatewayElement.val();
 
                 gateway = gatewayElement.data('gateway');
-                minAmount = gatewayElement.data('min-amount');
-                maxAmount = gatewayElement.data('max-amount');
+                
+                if (!gateway) {
+                    $(".withdraw-form button[type=submit]").prop('disabled', true);
+                    return;
+                }
+                
+                // Get min/max from gateway object directly, not from data attributes
+                minAmount = parseFloat(gateway.min_limit || 0);
+                maxAmount = parseFloat(gateway.max_limit || 999999999);
 
                 let processingFeeInfo =
-                    `${parseFloat(gateway.percent_charge).toFixed(2)}% with ${parseFloat(gateway.fixed_charge).toFixed(2)} {{ __(gs('cur_text')) }} charge for processing fees`
+                    `${parseFloat(gateway.percent_charge || 0).toFixed(2)}% with ${parseFloat(gateway.fixed_charge || 0).toFixed(2)} {{ __(gs('cur_text')) }} charge for processing fees`
                 $(".proccessing-fee-info").attr("data-bs-original-title", processingFeeInfo);
 
                 calculation();
             }
 
+            // Call gatewayChange on page load to initialize
             gatewayChange();
 
             $(".more-gateway-option").on("click", function(e) {
@@ -232,15 +246,19 @@
             });
 
             function calculation() {
-                if (!gateway) return;
+                if (!gateway) {
+                    $(".withdraw-form button[type=submit]").attr('disabled', true);
+                    return;
+                }
+                
                 $(".gateway-limit").text(minAmount + " - " + maxAmount);
                 let percentCharge = 0;
                 let fixedCharge = 0;
                 let totalPercentCharge = 0;
 
                 if (amount) {
-                    percentCharge = parseFloat(gateway.percent_charge);
-                    fixedCharge = parseFloat(gateway.fixed_charge);
+                    percentCharge = parseFloat(gateway.percent_charge || 0);
+                    fixedCharge = parseFloat(gateway.fixed_charge || 0);
                     totalPercentCharge = parseFloat(amount / 100 * percentCharge);
                 }
 
@@ -249,13 +267,21 @@
 
                 $(".final-amount").text(totalAmount.toFixed(2));
                 $(".processing-fee").text(totalCharge.toFixed(2));
-                $("input[name=currency]").val(gateway.currency);
-                $(".gateway-currency").text(gateway.currency);
+                
+                if (gateway.currency) {
+                    $("input[name=currency]").val(gateway.currency);
+                    $(".gateway-currency").text(gateway.currency);
+                }
 
-                if (amount < Number(gateway.min_limit) || amount > Number(gateway.max_limit)) {
-                    $(".withdraw-form button[type=submit]").attr('disabled', true);
+                // Enable button if amount is within limits
+                let minLimit = parseFloat(gateway.min_limit || 0);
+                let maxLimit = parseFloat(gateway.max_limit || 999999999);
+                
+                // Check if amount is valid and within limits
+                if (amount && !isNaN(amount) && amount > 0 && amount >= minLimit && amount <= maxLimit) {
+                    $(".withdraw-form button[type=submit]").prop('disabled', false).removeClass('disabled');
                 } else {
-                    $(".withdraw-form button[type=submit]").removeAttr('disabled');
+                    $(".withdraw-form button[type=submit]").prop('disabled', true).addClass('disabled');
                 }
 
                 if (gateway.currency != "{{ gs('cur_text') }}") {

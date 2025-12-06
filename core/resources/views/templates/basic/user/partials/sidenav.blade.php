@@ -13,11 +13,27 @@
                     </a>
                 </li>
 
-                <li class="sidebar-menu-item {{ menuActive('user.listing*') }}">
-                    <a href="{{ route('user.listing.index') }}" class="nav-link">
+                <li class="sidebar-menu-item sidebar-dropdown {{ menuActive('user.listing*', 3) }}">
+                    <a href="javascript:void(0)" class="{{ menuActive('user.listing*', 3) }}">
                         <i class="menu-icon las la-store"></i>
                         <span class="menu-title">@lang('My Listings')</span>
                     </a>
+                    <div class="sidebar-submenu {{ menuActive('user.listing*', 2) }}">
+                        <ul>
+                            <li class="sidebar-menu-item {{ menuActive('user.listing.create') }}">
+                                <a href="{{ route('user.listing.create') }}" class="nav-link">
+                                    <i class="menu-icon las la-dot-circle"></i>
+                                    <span class="menu-title">@lang('Create Listing')</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-menu-item {{ menuActive('user.listing.index') }}">
+                                <a href="{{ route('user.listing.index') }}" class="nav-link">
+                                    <i class="menu-icon las la-dot-circle"></i>
+                                    <span class="menu-title">@lang('All Listings')</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </li>
 
                 <li class="sidebar-menu-item {{ menuActive('user.bid*') }}">

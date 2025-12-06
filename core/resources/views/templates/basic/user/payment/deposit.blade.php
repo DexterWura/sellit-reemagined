@@ -119,8 +119,8 @@
                                         <div class="d-none crypto-message mb-3">
                                             @lang('Conversion with') <span class="gateway-currency"></span> @lang('and final value will Show on next step')
                                         </div>
-                                        <button type="submit" class="btn btn--base h-45 w-100 mt-3" disabled>
-                                            @lang('Confirm Deposit')
+                                        <button type="submit" class="btn btn--base w-100 mt-3" disabled>
+                                            <i class="las la-check-circle"></i> @lang('Confirm Deposit')
                                         </button>
                                         <div class="info-text pt-3">
                                             <p class="text">@lang('Ensuring your funds grow safely through our secure deposit process with world-class payment options.')</p>
@@ -261,9 +261,9 @@
                 $(".gateway-currency").text(gateway.currency);
 
                 if (amount < Number(gateway.min_amount) || amount > Number(gateway.max_amount)) {
-                    $(".deposit-form button[type=submit]").attr('disabled', true);
+                    $(".deposit-form button[type=submit]").prop('disabled', true).addClass('disabled');
                 } else {
-                    $(".deposit-form button[type=submit]").removeAttr('disabled');
+                    $(".deposit-form button[type=submit]").prop('disabled', false).removeClass('disabled');
                 }
 
                 if (gateway.currency != "{{ gs('cur_text') }}" && gateway.method.crypto != 1) {
