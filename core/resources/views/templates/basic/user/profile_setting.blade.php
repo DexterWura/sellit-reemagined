@@ -1,8 +1,6 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-    <section class="section bg--light">
-        <div class="container ">
-            <div class="row gy-4">
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="row gy-4">
                 <div class="col-lg-4">
                     <div class="card custom--card">
                         <div class="card-body">
@@ -77,7 +75,5 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </section>
+    </div>
 @endsection

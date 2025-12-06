@@ -1,324 +1,229 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-    <section class="section bg--light">
-        <div class="container">
-            <div class="row gy-4">
-                @php
-                    $kycContent = getContent('kyc.content', true);
-                @endphp
-                <div class="notice"></div>
-                @if (auth()->user()->kv == Status::KYC_UNVERIFIED && auth()->user()->kyc_rejection_reason)
-                    <div class="col-12">
-                        <div class="alert alert-danger mb-0">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h4 class="alert-heading text--danger m-0">@lang('KYC Verification Required')</h4>
-                                <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#kycRejectionReason">
-                                    @lang('Show Reason')
-                                </button>
-                            </div>
-                            <hr>
-                            <p class="mb-0">
-                                {{ __(@$kycContent->data_values->reject) }}
-                                <a href="{{ route('user.kyc.form') }}">
-                                    @lang('Click Here to Re-submit Documents')
-                                </a>
-                            </p>
-                        </div>
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    @php
+        $kycContent = getContent('kyc.content', true);
+    @endphp
+
+    {{-- KYC Alerts --}}
+    @if (auth()->user()->kv == Status::KYC_UNVERIFIED && auth()->user()->kyc_rejection_reason)
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-danger mb-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="alert-heading text--danger m-0">@lang('KYC Verification Required')</h4>
+                        <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#kycRejectionReason">
+                            @lang('Show Reason')
+                        </button>
                     </div>
-                @elseif(auth()->user()->kv == Status::KYC_UNVERIFIED)
-                    <div class="col-12">
-                        <div class="alert alert-info mb-0">
-                            <h4 class="alert-heading text--danger">@lang('KYC Verification Required')</h4>
-                            <hr>
-                            <p class="mb-0">
-                                {{ __(@$kycContent->data_values->required) }}
-                                <a href="{{ route('user.kyc.form') }}">
-                                    @lang('Click Here to Verify')
-                                </a>
-                            </p>
-                        </div>
-                    </div>
-                @elseif(auth()->user()->kv == Status::KYC_PENDING)
-                    <div class="col-12">
-                        <div class="alert alert-warning mb-0">
-                            <h4 class="alert-heading text--warning">@lang('KYC Verification Pending')</h4>
-                            <hr>
-                            <p class="mb-0">
-                                {{ __(@$kycContent->data_values->pending) }}
-                                <a href="{{ route('user.kyc.data') }}">@lang('See KYC Data')</a>
-                            </p>
-                        </div>
-                    </div>
-                @endif
-
-                {{-- Pending Escrow Actions Reminders --}}
-                @if(isset($pendingActions) && count($pendingActions) > 0)
-                    @foreach($pendingActions as $action)
-                        <div class="col-12">
-                            <div class="alert alert-{{ $action['priority'] == 'high' ? 'danger' : 'warning' }} mb-0">
-                                <div class="d-flex justify-content-between align-items-center flex-wrap">
-                                    <div class="flex-grow-1">
-                                        <h4 class="alert-heading text--{{ $action['priority'] == 'high' ? 'danger' : 'warning' }} m-0">
-                                            @if($action['type'] == 'escrow_accept_buyer')
-                                                @lang('Action Required: Accept Escrow')
-                                            @elseif($action['type'] == 'escrow_accept_seller')
-                                                @lang('Action Required: Accept Escrow')
-                                            @elseif($action['type'] == 'escrow_payment_required')
-                                                @lang('Payment Required')
-                                            @elseif($action['type'] == 'milestones_pending_approval' || $action['type'] == 'milestones_pending_approval_seller')
-                                                @lang('Milestones Pending Approval')
-                                            @elseif($action['type'] == 'milestones_ready_payment')
-                                                @lang('Milestones Ready for Payment')
-                                            @else
-                                                @lang('Action Required')
-                                            @endif
-                                        </h4>
-                                    </div>
-                                </div>
-                                <hr>
-                                <p class="mb-2">
-                                    <strong>{{ $action['listing_title'] }}</strong>
-                                </p>
-                                <p class="mb-0">
-                                    {{ $action['message'] }}
-                                    <a href="{{ $action['link'] }}" class="fw-bold">
-                                        {{ $action['linkText'] }}
-                                    </a>
-                                </p>
-                            </div>
-                        </div>
-                    @endforeach
-                @endif
-
-
-                <div class="col-lg-8 col-xl-9">
-
-
-                    <div class="d-flex flex-wrap gap-4">
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ showAmount($data['balance']) }} </h6>
-                                <div class="dash-card__icon icon icon--circle icon--md"><i class="la la-wallet"></i></div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Balance')</h5>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['pendingDeposit'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md"><i class="la la-pause-circle"></i></div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Pending Deposits')</h5>
-                                <a href="{{ route('user.deposit.history', 'pending') }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['pendingWithdrawals'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md"><i class="fa fa-pause-circle"></i></div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Pending Withdrawals')</h5>
-                                <a href="{{ route('user.withdraw.history', 'pending') }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        {{-- Marketplace Statistics (Primary) --}}
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['my_listings'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="las la-store"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('My Listings')</h5>
-                                <a href="{{ route('user.listing.index') }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['active_listings'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="las la-check-circle"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Active Listings')</h5>
-                                <a href="{{ route('user.listing.index', ['status' => Status::LISTING_ACTIVE]) }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['sold_listings'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="las la-check-double"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Sold Listings')</h5>
-                                <a href="{{ route('user.listing.index', ['status' => Status::LISTING_SOLD]) }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ showAmount($data['total_sales_value']) }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="las la-dollar-sign"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Total Sales Value')</h5>
-                                <a href="{{ route('user.listing.index', ['status' => Status::LISTING_SOLD]) }}">@lang('View Details')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['my_bids'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="las la-gavel"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('My Bids')</h5>
-                                <a href="{{ route('user.bid.index') }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['winning_bids'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="las la-trophy"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Winning Bids')</h5>
-                                <a href="{{ route('user.bid.index', ['status' => Status::BID_WINNING]) }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['my_offers'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="las la-handshake"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('My Offers')</h5>
-                                <a href="{{ route('user.offer.index') }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['watchlist_items'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="las la-heart"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Watchlist Items')</h5>
-                                <a href="{{ route('user.watchlist.index') }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['signed_ndas'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="las la-file-signature"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Signed NDAs')</h5>
-                                <a href="{{ route('user.nda.index') }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ number_format($data['total_listing_views']) }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="las la-eye"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Total Views')</h5>
-                                <a href="{{ route('user.listing.index') }}">@lang('View Details')</a>
-                            </div>
-                        </div>
-
-                        {{-- Escrow (Secondary) --}}
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['active_escrows'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="las la-handshake"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Active Escrows')</h5>
-                                <a href="{{ route('user.escrow.index', 'accepted') }}">@lang('View All')</a>
-                            </div>
-                        </div>
-
-                        <div class="dash-card">
-                            <div class="dash-card__header">
-                                <h6 class="dash-card__value">{{ $data['completed_escrows'] }}</h6>
-                                <div class="dash-card__icon icon icon--circle icon--md">
-                                    <i class="las la-check-double"></i>
-                                </div>
-                            </div>
-                            <div class="dash-card__body">
-                                <h5 class="dash-card__title">@lang('Completed Escrows')</h5>
-                                <a href="{{ route('user.escrow.index', 'completed') }}">@lang('View All')</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-lg-4 col-xl-3">
-                    <div class="transaction--card">
-                        <div class="body">
-                            <h6 class="title">@lang('Latest Transactions')</h6>
-                            <div class="list-group list-group-flush">
-                                @forelse($transactions as $trx)
-                                    <li class="list-group-item">
-                                        @if ($trx->trx_type == '+')
-                                            <span class="d-block fw-md text--success">+{{ showAmount($trx->amount) }}</span>
-                                        @else
-                                            <span class="d-block fw-md text--danger">-{{ showAmount($trx->amount) }}</span>
-                                        @endif
-                                        <a href="{{ route('user.transactions') }}?search={{ $trx->trx }}">
-                                            <small>
-                                                {{ __($trx->details) }}
-                                            </small>
-                                        </a>
-                                    </li>
-                                @empty
-                                    <li class="list-group-item">@lang('No transaction yet')</li>
-                                @endforelse
-                            </div>
-                        </div>
-                    </div>
-
+                    <hr>
+                    <p class="mb-0">
+                        {{ __(@$kycContent->data_values->reject) }}
+                        <a href="{{ route('user.kyc.form') }}">
+                            @lang('Click Here to Re-submit Documents')
+                        </a>
+                    </p>
                 </div>
             </div>
-
         </div>
+    @elseif(auth()->user()->kv == Status::KYC_UNVERIFIED)
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-info mb-0">
+                    <h4 class="alert-heading text--danger">@lang('KYC Verification Required')</h4>
+                    <hr>
+                    <p class="mb-0">
+                        {{ __(@$kycContent->data_values->required) }}
+                        <a href="{{ route('user.kyc.form') }}">
+                            @lang('Click Here to Verify')
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    @elseif(auth()->user()->kv == Status::KYC_PENDING)
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-warning mb-0">
+                    <h4 class="alert-heading text--warning">@lang('KYC Verification Pending')</h4>
+                    <hr>
+                    <p class="mb-0">
+                        {{ __(@$kycContent->data_values->pending) }}
+                        <a href="{{ route('user.kyc.data') }}">@lang('See KYC Data')</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    @endif
 
-    </section>
+    {{-- Pending Escrow Actions Reminders --}}
+    @if(isset($pendingActions) && count($pendingActions) > 0)
+        @foreach($pendingActions as $action)
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-{{ $action['priority'] == 'high' ? 'danger' : 'warning' }} mb-0">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
+                            <div class="flex-grow-1">
+                                <h4 class="alert-heading text--{{ $action['priority'] == 'high' ? 'danger' : 'warning' }} m-0">
+                                    @if($action['type'] == 'escrow_accept_buyer')
+                                        @lang('Action Required: Accept Escrow')
+                                    @elseif($action['type'] == 'escrow_accept_seller')
+                                        @lang('Action Required: Accept Escrow')
+                                    @elseif($action['type'] == 'escrow_payment_required')
+                                        @lang('Payment Required')
+                                    @elseif($action['type'] == 'milestones_pending_approval' || $action['type'] == 'milestones_pending_approval_seller')
+                                        @lang('Milestones Pending Approval')
+                                    @elseif($action['type'] == 'milestones_ready_payment')
+                                        @lang('Milestones Ready for Payment')
+                                    @else
+                                        @lang('Action Required')
+                                    @endif
+                                </h4>
+                            </div>
+                        </div>
+                        <hr>
+                        <p class="mb-2">
+                            <strong>{{ $action['listing_title'] }}</strong>
+                        </p>
+                        <p class="mb-0">
+                            {{ $action['message'] }}
+                            <a href="{{ $action['link'] }}" class="fw-bold">
+                                {{ $action['linkText'] }}
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        @endforeach
+    @endif
+
+    {{-- Financial Overview --}}
+    <div class="row gy-4">
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget style="6" link="{{ route('user.deposit.index') }}" icon="las la-wallet" title="Balance" value="{{ showAmount($data['balance']) }}"
+                bg="primary" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget style="6" link="{{ route('user.deposit.history', 'pending') }}" icon="las la-pause-circle" title="Pending Deposits"
+                value="{{ $data['pendingDeposit'] }}" bg="warning" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget style="6" link="{{ route('user.withdraw.history', 'pending') }}" icon="las la-pause-circle" title="Pending Withdrawals"
+                value="{{ $data['pendingWithdrawals'] }}" bg="danger" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget style="6" link="{{ route('user.transactions') }}" icon="las la-exchange-alt" title="Transactions"
+                value="{{ $transactions->count() }}" bg="info" />
+        </div>
+    </div>
+
+    {{-- Marketplace Statistics (Primary) --}}
+    <div class="row gy-4 mt-2">
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="primary" icon="las la-store" link="{{ route('user.listing.index') }}" style="7" type="2"
+                title="My Listings" value="{{ number_format($data['my_listings']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="success" icon="las la-check-circle" link="{{ route('user.listing.index', ['status' => Status::LISTING_ACTIVE]) }}" style="7" type="2"
+                title="Active Listings" value="{{ number_format($data['active_listings']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="info" icon="las la-check-double" link="{{ route('user.listing.index', ['status' => Status::LISTING_SOLD]) }}" style="7" type="2"
+                title="Sold Listings" value="{{ number_format($data['sold_listings']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="success" icon="las la-dollar-sign" link="{{ route('user.listing.index', ['status' => Status::LISTING_SOLD]) }}" style="7" type="2"
+                title="Total Sales Value" value="{{ showAmount($data['total_sales_value']) }}" />
+        </div>
+    </div>
+
+    <div class="row gy-4 mt-2">
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="primary" icon="las la-gavel" link="{{ route('user.bid.index') }}" style="7" type="2"
+                title="My Bids" value="{{ number_format($data['my_bids']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="warning" icon="las la-trophy" link="{{ route('user.bid.index', ['status' => Status::BID_WINNING]) }}" style="7" type="2"
+                title="Winning Bids" value="{{ number_format($data['winning_bids']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="info" icon="las la-handshake" link="{{ route('user.offer.index') }}" style="7" type="2"
+                title="My Offers" value="{{ number_format($data['my_offers']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="danger" icon="las la-heart" link="{{ route('user.watchlist.index') }}" style="7" type="2"
+                title="Watchlist Items" value="{{ number_format($data['watchlist_items']) }}" />
+        </div>
+    </div>
+
+    <div class="row gy-4 mt-2">
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="success" icon="las la-eye" link="{{ route('user.listing.index') }}" style="7" type="2"
+                title="Total Views" value="{{ number_format($data['total_listing_views']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="primary" icon="las la-file-signature" link="{{ route('user.nda.index') }}" style="7" type="2"
+                title="Signed NDAs" value="{{ number_format($data['signed_ndas']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="info" icon="las la-shopping-cart" link="{{ route('user.escrow.index', 'accepted') }}" style="7" type="2"
+                title="Active Escrows" value="{{ number_format($data['active_escrows']) }}" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget bg="success" icon="las la-check-double" link="{{ route('user.escrow.index', 'completed') }}" style="7" type="2"
+                title="Completed Escrows" value="{{ number_format($data['completed_escrows']) }}" />
+        </div>
+    </div>
+
+    {{-- Latest Transactions --}}
+    <div class="row mb-none-30 mt-30">
+        <div class="col-xl-12 mb-30">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">@lang('Latest Transactions')</h5>
+                    <div class="table-responsive">
+                        <table class="table table--responsive--lg">
+                            <thead>
+                                <tr>
+                                    <th>@lang('Date')</th>
+                                    <th>@lang('Transaction ID')</th>
+                                    <th>@lang('Amount')</th>
+                                    <th>@lang('Details')</th>
+                                    <th>@lang('Balance')</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($transactions as $trx)
+                                    <tr>
+                                        <td>
+                                            <span>{{ showDateTime($trx->created_at, 'd M, Y h:i A') }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold">{{ $trx->trx }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold @if($trx->trx_type == '+') text--success @else text--danger @endif">
+                                                {{ $trx->trx_type == '+' ? '+' : '-' }}{{ showAmount($trx->amount) }} {{ __($general->cur_text) }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span>{{ __($trx->details) }}</span>
+                                        </td>
+                                        <td>
+                                            <span>{{ showAmount($trx->post_balance) }} {{ __($general->cur_text) }}</span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td class="text-muted text-center" colspan="100%">{{ __($emptyMessage) }}</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     @if (auth()->user()->kv == Status::KYC_UNVERIFIED && auth()->user()->kyc_rejection_reason)
         <div class="modal fade custom--modal" id="kycRejectionReason">
@@ -338,32 +243,3 @@
         </div>
     @endif
 @endsection
-
-@push('style')
-    <style>
-        a {
-            color: #68a3f9;
-            text-decoration: none;
-        }
-
-        .transaction--card {
-            background-color: #fff;
-            border-radius: 5px;
-            border: 1px solid #f3f3f3;
-            box-shadow: 0 0 5px 10px hsl(var(--black)/.01)
-        }
-
-        .transaction--card .title {
-            padding: 1rem;
-            border-bottom: 1px solid #f3f3f3;
-        }
-
-        .transaction--card .list-group-item {
-            border-bottom: 1px solid hsl(var(--border)/.3);
-        }
-
-        .transaction--card .list-group-item:last-child {
-            border-radius: 0 0 5px 5px;
-        }
-    </style>
-@endpush

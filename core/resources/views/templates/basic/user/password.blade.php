@@ -1,10 +1,8 @@
-@extends($activeTemplate . 'layouts.frontend')
+@extends($activeTemplate . 'user.layouts.app')
 
-@section('content')
-    <section class="section bg--light">
-        <div class="container">
-            <div class="row justify-content-center ">
-                <div class="col-md-8">
+@section('panel')
+    <div class="row justify-content-center">
+        <div class="col-md-8">
 
                     <div class="card custom--card">
                         <div class="card-body">
@@ -29,10 +27,8 @@
                             </form>
                         </div>
                     </div>
-                </div>
-            </div>
         </div>
-    </section>
+    </div>
 @endsection
 
 @if (gs('secure_password'))

@@ -1,8 +1,6 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-    <section class="section bg--light">
-        <div class="container">
-            <div class="row justify-content-center gy-4">
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="row justify-content-center gy-4">
                 @if (!auth()->user()->ts)
                     <div class="col-md-6">
                         <div class="card custom--card">
@@ -75,9 +73,7 @@
                         </div>
                     @endif
                 </div>
-            </div>
-        </div>
-    </section>
+    </div>
 @endsection
 
 @push('style')

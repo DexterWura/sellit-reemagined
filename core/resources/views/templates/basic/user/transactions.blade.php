@@ -1,9 +1,7 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-    <section class="section bg--light">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-md-12">
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="row justify-content-center">
+        <div class="col-md-12">
                     <div class="show-filter mb-3 text-end">
                         <button type="button" class="btn btn--base showFilterBtn btn-sm">
                             <i class="las la-filter"></i>
@@ -98,10 +96,8 @@
                     @endif
 
 
-                </div>
-            </div>
         </div>
-    </section>
+    </div>
 @endsection
 
 @push('style-lib')

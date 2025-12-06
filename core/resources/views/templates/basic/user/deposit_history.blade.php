@@ -1,9 +1,7 @@
-@extends($activeTemplate . 'layouts.frontend')
-@section('content')
-    <section class="section bg--light">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-md-12">
+@extends($activeTemplate . 'user.layouts.app')
+@section('panel')
+    <div class="row justify-content-center">
+        <div class="col-md-12">
                     <div class="d-flex justify-content-end mb-3">
                         <x-search-form btn="btn--base" />
                     </div>
@@ -96,10 +94,8 @@
                         {{ $deposits->links() }}
                     </div>
                     @endif
-                </div>
-            </div>
         </div>
-    </section>
+    </div>
 
     {{-- APPROVE MODAL --}}
     <div id="detailModal" class="modal fade " tabindex="-1" role="dialog">
