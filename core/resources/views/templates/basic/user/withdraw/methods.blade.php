@@ -15,7 +15,7 @@
                                     <div class="payment-system-list is-scrollable gateway-option-list">
                                         @foreach ($withdrawMethod as $data)
                                             <label for="{{ titleToKey($data->name) }}"
-                                                class="payment-item @if ($loop->index > 4) d-none @endif gateway-option">
+                                                class="payment-item @if ($loop->index > 4) d-none @endif gateway-option @if (old('method_code') == $data->id || ($loop->first && !old('method_code'))) active @endif">
                                                 <div class="payment-item__info">
                                                     <span class="payment-item__check"></span>
                                                     <span class="payment-item__name">{{ __($data->name) }}</span>
@@ -108,9 +108,15 @@
                                                 </p>
                                             </div>
                                         </div>
-                                        <button type="submit" class="btn btn--base w-100 mt-3 fw-bold" disabled>
-                                            <i class="las la-check-circle"></i> @lang('Confirm Withdraw')
-                                        </button>
+                                        @if($withdrawMethod->count() > 0)
+                                            <button type="submit" class="btn btn--base w-100 mt-3 fw-bold" id="confirmWithdrawBtn" disabled>
+                                                <i class="las la-check-circle"></i> @lang('Confirm Withdraw')
+                                            </button>
+                                        @else
+                                            <button type="button" class="btn btn--base w-100 mt-3 fw-bold" disabled>
+                                                <i class="las la-ban"></i> @lang('No Methods Available')
+                                            </button>
+                                        @endif
                                         <div class="info-text pt-3">
                                             <p class="text">@lang('Safely withdraw your funds using our highly secure process and various withdrawal method')</p>
                                         </div>
@@ -223,7 +229,7 @@
                 let gatewayElement = $('.gateway-input:checked');
                 
                 if (!gatewayElement.length) {
-                    $(".withdraw-form button[type=submit]").prop('disabled', true);
+                    $(".withdraw-form button[type=submit]").prop('disabled', true).addClass('disabled');
                     return;
                 }
                 
@@ -232,7 +238,7 @@
                 gateway = gatewayElement.data('gateway');
                 
                 if (!gateway) {
-                    $(".withdraw-form button[type=submit]").prop('disabled', true);
+                    $(".withdraw-form button[type=submit]").prop('disabled', true).addClass('disabled');
                     return;
                 }
                 
@@ -248,7 +254,11 @@
             }
 
             // Call gatewayChange on page load to initialize
-            gatewayChange();
+            if ($('.gateway-input:checked').length) {
+                gatewayChange();
+            } else {
+                $(".withdraw-form button[type=submit]").prop('disabled', true).addClass('disabled');
+            }
 
             $(".more-gateway-option").on("click", function(e) {
                 let paymentList = $(".gateway-option-list");
@@ -261,7 +271,7 @@
 
             function calculation() {
                 if (!gateway) {
-                    $(".withdraw-form button[type=submit]").attr('disabled', true);
+                    $(".withdraw-form button[type=submit]").prop('disabled', true).addClass('disabled');
                     return;
                 }
                 

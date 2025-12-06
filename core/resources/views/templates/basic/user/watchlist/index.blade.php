@@ -1,10 +1,6 @@
 @extends($activeTemplate . 'user.layouts.app')
 @section('panel')
-    <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="mb-0">@lang('My Watchlist')</h4>
-        </div>
-        
-        @if($watchlist->count() > 0)
+    @if($watchlist->count() > 0)
             <div class="row g-4">
                 @foreach($watchlist as $watch)
                     @if($watch->listing)
