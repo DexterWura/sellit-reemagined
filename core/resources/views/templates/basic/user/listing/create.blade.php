@@ -768,21 +768,20 @@
 @push('style')
 <link rel="stylesheet" href="{{ asset('assets/templates/basic/css/listing-form.css') }}">
 <style>
-    /* Ensure Continue and Submit buttons use site base color */
     .btn--base.btn-next,
     .btn--base#submitListingBtn {
-        background: rgb(var(--base)) !important;
-        color: hsl(var(--white)) !important;
+        background: #{{ gs('base_color', '4bea76') }} !important;
+        color: #fff !important;
         font-weight: 600 !important;
         border: none !important;
     }
     
     .btn--base.btn-next:hover,
     .btn--base#submitListingBtn:hover {
-        background: rgb(var(--base)) !important;
+        background: #{{ gs('base_color', '4bea76') }} !important;
         opacity: 0.9;
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(var(--base-rgb, 70, 52, 255), 0.3);
+        box-shadow: 0 4px 12px rgba(75, 234, 118, 0.3);
     }
     
     .btn--base.btn-next:disabled,

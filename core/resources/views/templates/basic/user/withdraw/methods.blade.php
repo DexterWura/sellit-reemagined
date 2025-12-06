@@ -171,19 +171,18 @@
         color: rgb(var(--base));
     }
     
-    /* Ensure Confirm Withdraw button uses site base color */
     .withdraw-form button[type=submit].btn--base {
-        background: rgb(var(--base)) !important;
-        color: hsl(var(--white)) !important;
+        background: #{{ gs('base_color', '4bea76') }} !important;
+        color: #fff !important;
         font-weight: 600 !important;
         border: none !important;
     }
     
     .withdraw-form button[type=submit].btn--base:hover:not(:disabled) {
-        background: rgb(var(--base)) !important;
+        background: #{{ gs('base_color', '4bea76') }} !important;
         opacity: 0.9;
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(var(--base-rgb, 70, 52, 255), 0.3);
+        box-shadow: 0 4px 12px rgba(75, 234, 118, 0.3);
     }
 </style>
 @endpush
