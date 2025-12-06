@@ -516,7 +516,6 @@ class EscrowController extends Controller
         $escrow->status       = Status::ESCROW_DISPUTED;
         $escrow->disputer_id  = auth()->id();
         $escrow->dispute_note = trim($request->dispute_reason);
-        $escrow->disputed_at  = now();
         $escrow->save();
 
         // Log dispute creation
