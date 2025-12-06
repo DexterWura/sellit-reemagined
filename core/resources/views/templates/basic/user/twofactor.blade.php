@@ -50,7 +50,7 @@
                                         <label class="form-label">@lang('Google Authenticatior OTP')</label>
                                         <input type="text" class="form-control form--control" name="code" required>
                                     </div>
-                                    <button type="submit" class="btn btn--base h-45 w-100">@lang('Submit')</button>
+                                    <button type="submit" class="btn btn--base h-45 w-100 fw-bold">@lang('Submit')</button>
                                 </div>
                             </form>
                         </div>
@@ -67,7 +67,7 @@
                                         <label class="form-label">@lang('Google Authenticatior OTP')</label>
                                         <input type="text" class="form-control form--control" name="code" required>
                                     </div>
-                                    <button type="submit" class="btn btn--base h-45 w-100">@lang('Submit')</button>
+                                    <button type="submit" class="btn btn--base h-45 w-100 fw-bold">@lang('Submit')</button>
                                 </div>
                             </form>
                         </div>
@@ -80,6 +80,20 @@
     <style>
         .copied::after {
             background-color: #{{ gs('base_color') }};
+        }
+        
+        .btn--base {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            color: #fff !important;
+            font-weight: 600 !important;
+            border: none !important;
+        }
+        
+        .btn--base:hover {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(75, 234, 118, 0.3);
         }
     </style>
 @endpush

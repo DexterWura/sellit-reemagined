@@ -425,12 +425,18 @@ class OfferController extends Controller
 
                 DB::commit();
 
+                // Refresh offer to get latest data including escrow_id
+                $offer->refresh();
+
                 // Notify seller (outside transaction)
                 notify($offer->seller, 'COUNTER_OFFER_ACCEPTED', [
                     'listing_title' => $listing->title,
                     'amount' => showAmount($finalAmount),
                     'buyer' => $user->username,
                 ]);
+                
+                // Send database notification to seller
+                $offer->seller->notify(new \App\Notifications\CounterOfferAccepted($offer, $listing));
 
                 $notify[] = ['success', 'Counter offer accepted. Escrow has been created.'];
                 return redirect()->route('user.escrow.details', $escrow->id)->withNotify($notify);

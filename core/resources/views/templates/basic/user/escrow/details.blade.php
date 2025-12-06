@@ -152,6 +152,13 @@
                                 </div>
 
                                 <div class="list-group-item">
+                                    <small class="text-muted">@lang('Paid Amount')</small>
+                                    <span class="fw-bold text--success">
+                                        {{ showAmount($escrow->paid_amount) }}
+                                    </span>
+                                </div>
+
+                                <div class="list-group-item">
                                     <small class="text-muted">@lang('Rest Amount')</small>
                                     <span>
                                         {{ showAmount($escrow->restAmount()) }}
@@ -174,6 +181,23 @@
                             </div>
 
                         </div>
+
+                        @if ($escrow->seller_id == auth()->user()->id && $escrow->status == Status::ESCROW_ACCEPTED && $escrow->restAmount() <= 0)
+                            <div class="card-footer bg-white border-top">
+                                <div class="alert alert-info mb-0">
+                                    <div class="d-flex align-items-center">
+                                        <i class="las la-check-circle fs-4 me-3 text--success"></i>
+                                        <div>
+                                            <h6 class="mb-1 fw-bold">@lang('Payment Received - Awaiting Release')</h6>
+                                            <p class="mb-0 small">
+                                                @lang('The buyer has paid the full amount of') <strong>{{ showAmount($escrow->amount + $escrow->buyer_charge) }}</strong>. 
+                                                @lang('The funds are held in escrow and will be released to you once the buyer confirms the transaction is complete.')
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
 
                         @if ($escrow->status == Status::ESCROW_ACCEPTED || $escrow->status == Status::ESCROW_NOT_ACCEPTED)
                             @php
@@ -275,7 +299,7 @@
                                     <div class="msg-option__group ">
                                         <input type="text" class="form-control msg-option__input" name="message" autocomplete="off"
                                             placeholder="@lang('Send Message')">
-                                        <button type="submit" class="btn bg--base msg-option__button reloadButton rounded-pill">
+                                        <button type="submit" class="btn msg-option__button reloadButton rounded-pill fw-bold" style="background: #{{ gs('base_color', '4bea76') }} !important; color: #fff !important; border: none !important;">
                                             <i class="lab la-telegram-plane"></i>
                                         </button>
                                     </div>
@@ -306,7 +330,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn--base h-45 w-100">@lang('Submit')</button>
+                        <button type="submit" class="btn btn--base h-45 w-100 fw-bold">@lang('Submit')</button>
                     </div>
                 </form>
             </div>
@@ -355,7 +379,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn--secondary" data-bs-dismiss="modal">@lang('Cancel')</button>
-                            <button type="submit" class="btn btn--base">@lang('Pay Now')</button>
+                            <button type="submit" class="btn btn--base fw-bold">@lang('Pay Now')</button>
                         </div>
                     </form>
                 </div>
@@ -375,6 +399,47 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+        
+        .msg-option__button {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            color: #fff !important;
+            border: none !important;
+            font-weight: 600 !important;
+        }
+        
+        .msg-option__button:hover {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(75, 234, 118, 0.3);
+        }
+        
+        #actionModal button[type=submit].btn--base,
+        #payFullModal button[type=submit].btn--base {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            color: #fff !important;
+            font-weight: 600 !important;
+            border: none !important;
+        }
+        
+        #actionModal button[type=submit].btn--base:hover,
+        #payFullModal button[type=submit].btn--base:hover {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(75, 234, 118, 0.3);
+        }
+        
+        .btn--base {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            color: #fff !important;
+            font-weight: 600 !important;
+        }
+        
+        .btn--base:hover {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            opacity: 0.9;
         }
     </style>
 @endpush

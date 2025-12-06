@@ -196,7 +196,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn--base w-100 h-45">@lang('Submit')</button>
+                        <button type="submit" class="btn btn--base w-100 h-45 fw-bold">@lang('Submit')</button>
                     </div>
                 </form>
             </div>
@@ -251,7 +251,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn--base h-45 w-100">@lang('Submit')</button>
+                        <button type="submit" class="btn btn--base h-45 w-100 fw-bold">@lang('Submit')</button>
                     </div>
                 </form>
             </div>
@@ -291,6 +291,20 @@
     <style>
         span.select2.select2-container{
             width: 100% !important;
+        }
+        
+        .btn--base {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            color: #fff !important;
+            font-weight: 600 !important;
+            border: none !important;
+        }
+        
+        .btn--base:hover {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(75, 234, 118, 0.3);
         }
     </style>
 @endpush

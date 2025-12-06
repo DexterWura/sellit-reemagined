@@ -10,7 +10,7 @@
                             @csrf
                             <x-viser-form identifierValue="kyc" identifier="act" />
                             
-                                <button class="btn btn--base w-100" type="submit">@lang('Submit')</button>
+                                <button class="btn btn--base w-100 fw-bold" type="submit">@lang('Submit')</button>
                          
                         </form>
                     </div>
@@ -20,6 +20,24 @@
     </div>
 </section>
 @endsection
+
+@push('style')
+    <style>
+        .btn--base {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            color: #fff !important;
+            font-weight: 600 !important;
+            border: none !important;
+        }
+        
+        .btn--base:hover {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(75, 234, 118, 0.3);
+        }
+    </style>
+@endpush
 
 @push('style-lib')
     <link rel="stylesheet" href="{{ asset('assets/global/css/select2.min.css') }}">
