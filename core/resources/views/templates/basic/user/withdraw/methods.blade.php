@@ -108,7 +108,7 @@
                                                 </p>
                                             </div>
                                         </div>
-                                        <button type="submit" class="btn btn--primary w-100 mt-3 fw-bold" disabled>
+                                        <button type="submit" class="btn btn--base w-100 mt-3 fw-bold" disabled>
                                             <i class="las la-check-circle"></i> @lang('Confirm Withdraw')
                                         </button>
                                         <div class="info-text pt-3">
@@ -169,6 +169,21 @@
     .payment-item.active .payment-item__name {
         font-weight: 600;
         color: rgb(var(--base));
+    }
+    
+    /* Ensure Confirm Withdraw button uses site base color */
+    .withdraw-form button[type=submit].btn--base {
+        background: rgb(var(--base)) !important;
+        color: hsl(var(--white)) !important;
+        font-weight: 600 !important;
+        border: none !important;
+    }
+    
+    .withdraw-form button[type=submit].btn--base:hover:not(:disabled) {
+        background: rgb(var(--base)) !important;
+        opacity: 0.9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(var(--base-rgb, 70, 52, 255), 0.3);
     }
 </style>
 @endpush

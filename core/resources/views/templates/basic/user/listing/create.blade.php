@@ -89,7 +89,7 @@
                                     </div>
                                     
                                     <div class="step-actions mt-4 d-flex justify-content-end">
-                                        <button type="button" class="btn btn--base btn-next" data-step="2" id="step1ContinueBtn">
+                                        <button type="button" class="btn btn--base btn-next fw-bold" data-step="2" id="step1ContinueBtn">
                                             @lang('Continue') <i class="las la-arrow-right ms-2"></i>
                                         </button>
                                     </div>
@@ -351,7 +351,7 @@
                                         <button type="button" class="btn btn-outline--secondary btn-prev" data-step="1">
                                             <i class="las la-arrow-left me-2"></i> @lang('Back')
                                         </button>
-                                        <button type="button" class="btn btn--base btn-next" data-step="3" id="step2ContinueBtn">
+                                        <button type="button" class="btn btn--base btn-next fw-bold" data-step="3" id="step2ContinueBtn">
                                             @lang('Continue') <i class="las la-arrow-right ms-2"></i>
                                         </button>
                                     </div>
@@ -426,7 +426,7 @@
                                         <button type="button" class="btn btn-outline--secondary btn-prev" data-step="2">
                                             <i class="las la-arrow-left me-2"></i> @lang('Back')
                                         </button>
-                                        <button type="button" class="btn btn--base btn-next" data-step="4" id="step3ContinueBtn">
+                                        <button type="button" class="btn btn--base btn-next fw-bold" data-step="4" id="step3ContinueBtn">
                                             @lang('Continue') <i class="las la-arrow-right ms-2"></i>
                                         </button>
                                     </div>
@@ -542,7 +542,7 @@
                                         <button type="button" class="btn btn-outline--secondary btn-prev" data-step="3">
                                             <i class="las la-arrow-left me-2"></i> @lang('Back')
                                         </button>
-                                        <button type="button" class="btn btn--base btn-next" data-step="5">
+                                        <button type="button" class="btn btn--base btn-next fw-bold" data-step="5">
                                             @lang('Continue') <i class="las la-arrow-right ms-2"></i>
                                         </button>
                                     </div>
@@ -673,7 +673,7 @@
                                         <button type="button" class="btn btn-outline--secondary btn-prev" data-step="4">
                                             <i class="las la-arrow-left me-2"></i> @lang('Back')
                                         </button>
-                                        <button type="button" class="btn btn--base btn-next" data-step="6">
+                                        <button type="button" class="btn btn--base btn-next fw-bold" data-step="6">
                                             @lang('Continue') <i class="las la-arrow-right ms-2"></i>
                                         </button>
                                     </div>
@@ -767,6 +767,30 @@
 
 @push('style')
 <link rel="stylesheet" href="{{ asset('assets/templates/basic/css/listing-form.css') }}">
+<style>
+    /* Ensure Continue and Submit buttons use site base color */
+    .btn--base.btn-next,
+    .btn--base#submitListingBtn {
+        background: rgb(var(--base)) !important;
+        color: hsl(var(--white)) !important;
+        font-weight: 600 !important;
+        border: none !important;
+    }
+    
+    .btn--base.btn-next:hover,
+    .btn--base#submitListingBtn:hover {
+        background: rgb(var(--base)) !important;
+        opacity: 0.9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(var(--base-rgb, 70, 52, 255), 0.3);
+    }
+    
+    .btn--base.btn-next:disabled,
+    .btn--base#submitListingBtn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+</style>
 @endpush
 
 @push('script')
