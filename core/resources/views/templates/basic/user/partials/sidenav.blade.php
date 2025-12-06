@@ -1,7 +1,8 @@
 @php
-    $sidenavPath = resource_path('views/' . $activeTemplate . 'user/partials/sidenav.json');
-    $sidenav = file_exists($sidenavPath) ? file_get_contents($sidenavPath) : '{}';
-    $sideBarLinks = json_decode($sidenav);
+    $sideBarLinks = json_decode($sidenav ?? '{}', false);
+    if (!$sideBarLinks || !is_object($sideBarLinks)) {
+        $sideBarLinks = (object)[];
+    }
 @endphp
 
 <div class="sidebar bg--dark">
@@ -12,6 +13,7 @@
         </div>
         <div class="sidebar__menu-wrapper">
             <ul class="sidebar__menu">
+                @if($sideBarLinks && is_object($sideBarLinks))
                 @foreach($sideBarLinks as $key => $data)
                     @if (@$data->header)
                         <li class="sidebar__menu-header">{{ __($data->header) }}</li>
@@ -76,6 +78,7 @@
                         </li>
                     @endif
                 @endforeach
+                @endif
             </ul>
         </div>
         <div class="version-info text-center text-uppercase">

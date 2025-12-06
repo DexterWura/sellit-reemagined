@@ -1,5 +1,11 @@
 @extends($activeTemplate . 'user.layouts.master')
 @section('content')
+@php
+    // Convert templates.basic. to templates/basic/
+    $templatePath = str_replace('.', '/', rtrim($activeTemplate, '.'));
+    $sidenavPath = resource_path('views/' . $templatePath . 'user/partials/sidenav.json');
+    $sidenav = file_exists($sidenavPath) ? file_get_contents($sidenavPath) : '{}';
+@endphp
     <!-- page-wrapper start -->
     <div class="page-wrapper default-version">
         @include($activeTemplate . 'user.partials.sidenav')
