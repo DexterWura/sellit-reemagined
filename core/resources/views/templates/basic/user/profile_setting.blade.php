@@ -69,7 +69,7 @@
 
                                 </div>
 
-                                <button type="submit" class="btn btn--base h-45 w-100">@lang('Submit')</button>
+                                <button type="submit" class="btn btn--base h-45 w-100 fw-bold">@lang('Submit')</button>
 
                             </form>
                         </div>
@@ -77,3 +77,21 @@
                 </div>
     </div>
 @endsection
+
+@push('style')
+    <style>
+        .register button[type=submit].btn--base {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            color: #fff !important;
+            font-weight: 600 !important;
+            border: none !important;
+        }
+        
+        .register button[type=submit].btn--base:hover {
+            background: #{{ gs('base_color', '4bea76') }} !important;
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(75, 234, 118, 0.3);
+        }
+    </style>
+@endpush
