@@ -203,15 +203,6 @@ class Listing extends Model
         return $this->hasOne(Bid::class)->orderBy('amount', 'desc');
     }
 
-    public function domainVerification()
-    {
-        return $this->hasOne(DomainVerification::class);
-    }
-
-    public function socialMediaVerification()
-    {
-        return $this->hasOne(SocialMediaVerification::class);
-    }
 
     public function highestBidder()
     {

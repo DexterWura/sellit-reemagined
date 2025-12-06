@@ -21,7 +21,7 @@ class ListingController extends Controller
         $user = auth()->user();
 
         $listings = Listing::where('user_id', $user->id)
-            ->with(['listingCategory', 'images', 'domainVerification'])
+            ->with(['listingCategory', 'images'])
             ->when($request->status, function ($q, $status) {
                 return $q->where('status', $status);
             })

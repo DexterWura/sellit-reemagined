@@ -70,7 +70,6 @@ class ListingController extends Controller
             'questions.asker',
             'escrow',
             'winner',
-            'domainVerification',
         ])->findOrFail($id);
 
         return view('admin.listing.details', compact('pageTitle', 'listing'));
