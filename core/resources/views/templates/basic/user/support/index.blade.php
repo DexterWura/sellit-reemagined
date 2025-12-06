@@ -7,7 +7,10 @@
                             <i class="las la-plus"></i> @lang('New Ticket')
                         </a>
                     </div>
-                    <table class="table custom--table table-responsive--md">
+            <div class="card b-radius--10">
+                <div class="card-body p-0">
+                    <div class="table-responsive--md table-responsive">
+                        <table class="table table--light style--two">
                         <thead>
                             <tr>
                                 <th>@lang('Subject')</th>
@@ -50,12 +53,14 @@
                             @endforelse
                         </tbody>
                     </table>
-                </div>
-                @if ($supports->hasPages())
-                    <div class="col-md-12">
-                        {{ $supports->links() }}
                     </div>
-                @endif
+                </div>
+            </div>
+            @if ($supports->hasPages())
+                <div class="col-md-12">
+                    {{ $supports->links() }}
+                </div>
+            @endif
         </div>
     </div>
 @endsection

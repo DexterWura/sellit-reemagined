@@ -216,6 +216,18 @@ class UserController extends Controller
 
     }
 
+    public function notificationRead($id)
+    {
+        $notification = auth()->user()->notifications()->where('id', $id)->first();
+        
+        if ($notification) {
+            $notification->markAsRead();
+            return response()->json(['success' => true]);
+        }
+        
+        return response()->json(['success' => false], 404);
+    }
+
     public function userData()
     {
         $user = auth()->user();

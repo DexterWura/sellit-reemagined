@@ -208,5 +208,8 @@ Route::middleware('auth')->name('user.')->group(function () {
             Route::post('manual', 'manualDepositUpdate')->name('manual.update');
             Route::any('/{type?}', 'deposit')->name('index');
         });
+        
+        // Notifications
+        Route::post('notification/read/{id}', 'UserController@notificationRead')->name('notification.read');
     });
 });

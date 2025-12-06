@@ -177,11 +177,10 @@
     {{-- Latest Transactions --}}
     <div class="row mb-none-30 mt-30">
         <div class="col-xl-12 mb-30">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">@lang('Latest Transactions')</h5>
-                    <div class="table-responsive">
-                        <table class="table table--responsive--lg">
+            <div class="card b-radius--10">
+                <div class="card-body p-0">
+                    <div class="table-responsive--md table-responsive">
+                        <table class="table table--light style--two">
                             <thead>
                                 <tr>
                                     <th>@lang('Date')</th>

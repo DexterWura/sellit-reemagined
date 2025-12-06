@@ -225,6 +225,9 @@ class BidController extends Controller
                     'bidder' => $user->username,
                     'current_highest' => showAmount($listing->current_bid),
                 ]);
+                
+                // Send database notification
+                $listing->seller->notify(new \App\Notifications\NewBidReceived($listing, showAmount($amount), $user->username));
 
                 // Notify watchlist users (outside transaction)
                 $watchlistUsers = Watchlist::where('listing_id', $listing->id)

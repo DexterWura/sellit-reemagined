@@ -274,6 +274,13 @@ class EscrowController extends Controller
         $message->conversation_id = $conversation->id;
         $message->message         = $request->message;
         $message->save();
+        
+        // Notify the other party in the escrow
+        $escrow = $conversation->escrow;
+        $otherUser = $escrow->buyer_id == auth()->id() ? $escrow->seller : $escrow->buyer;
+        if ($otherUser) {
+            $otherUser->notify(new \App\Notifications\EscrowMessageReceived($escrow, $message, auth()->user()));
+        }
 
         return [
             'created_diff' => $message->created_at->diffForHumans(),

@@ -49,7 +49,10 @@
                         </div>
                     </div>
 
-                    <table class="table custom--table table-responsive--md">
+            <div class="card b-radius--10">
+                <div class="card-body p-0">
+                    <div class="table-responsive--md table-responsive">
+                        <table class="table table--light style--two">
                         <thead>
                             <tr>
                                 <th>@lang('Trx')</th>
@@ -86,16 +89,17 @@
                                     </td>
                                 </tr>
                             @endforelse
-                        </tbody>
-                    </table>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-                    @if ($transactions->hasPages())
-                        <div class="mt-3">
-                            {{ paginateLinks($transactions) }}
-                        </div>
-                    @endif
-
-
+            @if ($transactions->hasPages())
+                <div class="mt-3">
+                    {{ paginateLinks($transactions) }}
+                </div>
+            @endif
         </div>
     </div>
 @endsection

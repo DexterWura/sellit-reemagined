@@ -52,10 +52,12 @@
                     <div class="dropdown-menu__body @if(blank($userNotifications)) d-flex justify-content-center align-items-center @endif">
                         @forelse($userNotifications as $notification)
                             <a href="{{ $notification->data['click_url'] ?? '#' }}"
-                                class="dropdown-menu__item">
+                                class="dropdown-menu__item"
+                                onclick="markNotificationAsRead('{{ $notification->id }}')">
                                 <div class="navbar-notifi">
                                     <div class="navbar-notifi__right">
                                         <h6 class="notifi__title">{{ __($notification->data['title'] ?? 'Notification') }}</h6>
+                                        <p class="notifi__message mb-1">{{ __($notification->data['message'] ?? '') }}</p>
                                         <span class="time"><i class="far fa-clock"></i>
                                             {{ diffForHumans($notification->created_at) }}</span>
                                     </div>
@@ -111,4 +113,18 @@
     </div>
 </nav>
 <!-- navbar-wrapper end -->
+
+@push('script')
+<script>
+    function markNotificationAsRead(notificationId) {
+        fetch('{{ route("user.notification.read", ":id") }}'.replace(':id', notificationId), {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json',
+            },
+        }).catch(err => console.error('Error marking notification as read:', err));
+    }
+</script>
+@endpush
 

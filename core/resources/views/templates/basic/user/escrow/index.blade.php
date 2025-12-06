@@ -2,12 +2,15 @@
 @section('panel')
     <div class="row justify-content-center">
         <div class="col-md-12">
-                    <div class="alert alert-info mb-4">
-                        <i class="las la-info-circle"></i> 
-                        <strong>@lang('Note'):</strong> 
-                        @lang('Payment escrow is automatically created when you purchase a listing, win an auction, or have an offer accepted.')
-                    </div>
-                    <table class="table custom--table table-responsive--lg escrow-table">
+            <div class="alert alert-info mb-4">
+                <i class="las la-info-circle"></i> 
+                <strong>@lang('Note'):</strong> 
+                @lang('Payment escrow is automatically created when you purchase a listing, win an auction, or have an offer accepted.')
+            </div>
+            <div class="card b-radius--10">
+                <div class="card-body p-0">
+                    <div class="table-responsive--md table-responsive">
+                        <table class="table table--light style--two">
                         <thead>
                             <tr>
                                 <th>@lang('Listing')</th>
@@ -69,14 +72,16 @@
                                     </td>
                                 </tr>
                             @endforelse
-                        </tbody>
-                    </table>
-                </div>
-                @if ($escrows->hasPages())
-                    <div class="mt-3">
-                        {{ $escrows->links() }}
+                            </tbody>
+                        </table>
                     </div>
-                @endif
+                </div>
+            </div>
+            @if ($escrows->hasPages())
+                <div class="mt-3">
+                    {{ $escrows->links() }}
+                </div>
+            @endif
         </div>
     </div>
 @endsection

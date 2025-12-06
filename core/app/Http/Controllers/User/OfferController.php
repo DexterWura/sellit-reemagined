@@ -147,6 +147,10 @@ class OfferController extends Controller
         notify($listing->seller, 'NEW_OFFER_RECEIVED', [
             'listing_title' => $listing->title,
             'offer_amount' => showAmount($request->amount),
+        ]);
+        
+        // Send database notification
+        $listing->seller->notify(new \App\Notifications\NewOfferReceived($offer, $listing));
             'asking_price' => showAmount($listing->asking_price),
             'buyer' => $user->username,
             'message' => $request->message ?? 'No message',
@@ -328,6 +332,9 @@ class OfferController extends Controller
             'counter_amount' => showAmount($request->counter_amount),
             'message' => $request->counter_message ?? 'No message',
         ]);
+        
+        // Send database notification
+        $offer->buyer->notify(new \App\Notifications\CounterOfferReceived($offer, $offer->listing));
 
         $notify[] = ['success', 'Counter offer sent'];
         return back()->withNotify($notify);

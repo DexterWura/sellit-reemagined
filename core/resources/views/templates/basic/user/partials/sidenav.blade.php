@@ -27,11 +27,27 @@
                     </a>
                 </li>
 
-                <li class="sidebar-menu-item {{ menuActive('user.offer*') }}">
-                    <a href="{{ route('user.offer.index') }}" class="nav-link">
+                <li class="sidebar-menu-item sidebar-dropdown {{ menuActive('user.offer*', 3) }}">
+                    <a href="javascript:void(0)" class="{{ menuActive('user.offer*', 3) }}">
                         <i class="menu-icon las la-handshake"></i>
                         <span class="menu-title">@lang('My Offers')</span>
                     </a>
+                    <div class="sidebar-submenu {{ menuActive('user.offer*', 2) }}">
+                        <ul>
+                            <li class="sidebar-menu-item {{ menuActive('user.offer.index') }}">
+                                <a href="{{ route('user.offer.index') }}" class="nav-link">
+                                    <i class="menu-icon las la-dot-circle"></i>
+                                    <span class="menu-title">@lang('Offers Made')</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-menu-item {{ menuActive('user.offer.received') }}">
+                                <a href="{{ route('user.offer.received') }}" class="nav-link">
+                                    <i class="menu-icon las la-dot-circle"></i>
+                                    <span class="menu-title">@lang('Received Offers')</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </li>
 
                 <li class="sidebar-menu-item {{ menuActive('user.watchlist*') }}">
@@ -55,11 +71,27 @@
                     </a>
                 </li>
 
-                <li class="sidebar-menu-item {{ menuActive('user.deposit*') }}">
-                    <a href="{{ route('user.deposit.history') }}" class="nav-link">
+                <li class="sidebar-menu-item sidebar-dropdown {{ menuActive('user.deposit*', 3) }}">
+                    <a href="javascript:void(0)" class="{{ menuActive('user.deposit*', 3) }}">
                         <i class="menu-icon las la-file-invoice-dollar"></i>
                         <span class="menu-title">@lang('Deposits')</span>
                     </a>
+                    <div class="sidebar-submenu {{ menuActive('user.deposit*', 2) }}">
+                        <ul>
+                            <li class="sidebar-menu-item {{ menuActive('user.deposit.index') }}">
+                                <a href="{{ route('user.deposit.index') }}" class="nav-link">
+                                    <i class="menu-icon las la-dot-circle"></i>
+                                    <span class="menu-title">@lang('Deposit Now')</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-menu-item {{ menuActive('user.deposit.history') }}">
+                                <a href="{{ route('user.deposit.history') }}" class="nav-link">
+                                    <i class="menu-icon las la-dot-circle"></i>
+                                    <span class="menu-title">@lang('Deposit History')</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </li>
 
                 <li class="sidebar-menu-item {{ menuActive('user.withdraw*') }}">

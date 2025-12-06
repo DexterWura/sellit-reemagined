@@ -6,7 +6,10 @@
                         <x-search-form btn="btn--base" />
                     </div>
 
-                    <table class="table custom--table   table-responsive--md">
+            <div class="card b-radius--10">
+                <div class="card-body p-0">
+                    <div class="table-responsive--md table-responsive">
+                        <table class="table table--light style--two">
                         <thead>
                             <tr>
                                 <th>@lang('Gateway | Transaction')</th>
@@ -69,15 +72,16 @@
                             @endforelse
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </div>
             @if ($withdraws->hasPages())
-                <div class=" mt-3">
+                <div class="mt-3">
                     {{ $withdraws->links() }}
                 </div>
             @endif
         </div>
-    </section>
+    </div>
     {{-- APPROVE MODAL --}}
     <div id="detailModal" class="modal fade " tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">

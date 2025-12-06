@@ -1,14 +1,15 @@
 @extends($activeTemplate . 'user.layouts.app')
 @section('panel')
-    <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="mb-0">@lang('My Listings')</h4>
-            <a href="{{ route('user.listing.create') }}" class="btn btn--base">
-                <i class="las la-plus"></i> @lang('Create Listing')
-            </a>
-        </div>
-        
-        <!-- Filters -->
-        <div class="card mb-4">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <a href="{{ route('user.listing.create') }}" class="btn btn--base">
+                    <i class="las la-plus"></i> @lang('Create Listing')
+                </a>
+            </div>
+            
+            <!-- Filters -->
+            <div class="card mb-4">
             <div class="card-body">
                 <form action="" method="GET" class="row g-3">
                     <div class="col-md-3">
@@ -42,10 +43,11 @@
             </div>
         </div>
         
-        <!-- Listings Table -->
-        <div class="card">
-            <div class="card-body p-0">
-                <table class="table table-responsive--lg custom--table">
+            <!-- Listings Table -->
+            <div class="card b-radius--10">
+                <div class="card-body p-0">
+                    <div class="table-responsive--md table-responsive">
+                        <table class="table table--light style--two">
                     <thead>
                         <tr>
                             <th>@lang('Listing')</th>
@@ -141,15 +143,18 @@
                                 </td>
                             </tr>
                         @endforelse
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
             </div>
+            
+            @if($listings->hasPages())
+                <div class="mt-4">
+                    {{ $listings->links() }}
+                </div>
+            @endif
         </div>
-        
-        @if($listings->hasPages())
-            <div class="mt-4">
-                {{ $listings->links() }}
-            </div>
-        @endif
+    </div>
 @endsection
 

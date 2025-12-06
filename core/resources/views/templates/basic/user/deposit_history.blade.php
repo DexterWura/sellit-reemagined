@@ -86,14 +86,15 @@
                             @endforelse
                         </tbody>
                     </table>
-
-
-                    @if ($deposits->hasPages())
-                    <div class="mt-3">
-
-                        {{ $deposits->links() }}
                     </div>
-                    @endif
+                </div>
+            </div>
+
+            @if ($deposits->hasPages())
+                <div class="mt-3">
+                    {{ $deposits->links() }}
+                </div>
+            @endif
         </div>
     </div>
 
