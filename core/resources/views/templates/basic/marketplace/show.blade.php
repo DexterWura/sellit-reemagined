@@ -475,7 +475,7 @@
             <!-- Sidebar -->
             <div class="col-lg-4">
                 <!-- Price Card -->
-                <div class="price-card card shadow-sm mb-4 sticky-top" style="top: 20px;">
+                <div class="price-card card shadow-sm mb-4">
                     <div class="card-body">
                         @if($listing->sale_type === 'auction')
                             <div class="auction-info">
