@@ -1,7 +1,12 @@
 @php
     $user = auth()->user();
-    $userNotifications = $user->unreadNotifications()->latest()->take(10)->get();
-    $userNotificationCount = $user->unreadNotifications()->count();
+    try {
+        $userNotifications = $user->unreadNotifications()->latest()->take(10)->get();
+        $userNotificationCount = $user->unreadNotifications()->count();
+    } catch (\Exception $e) {
+        $userNotifications = collect();
+        $userNotificationCount = 0;
+    }
 @endphp
 
 <!-- navbar-wrapper start -->
