@@ -143,10 +143,23 @@
     .stat-item {
         padding: 10px;
     }
+    .search-form .input-group {
+        border: 2px solid #dee2e6 !important;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
     .search-form .form-control,
     .search-form .form-select {
         border: none;
         padding: 15px 20px;
+        background: transparent;
+    }
+    .search-form .form-control:focus,
+    .search-form .form-select:focus {
+        border: none;
+        box-shadow: none;
+        outline: none;
     }
     .search-form .btn {
         padding: 15px 30px;
