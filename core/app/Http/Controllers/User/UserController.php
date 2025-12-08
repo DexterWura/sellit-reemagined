@@ -450,19 +450,8 @@ class UserController extends Controller
                 // Check if there are milestones
                 $milestones = $escrow->milestones;
                 if ($milestones->count() > 0) {
-                    // Check for milestones pending approval
-                    $pendingMilestones = $milestones->where('approval_status', 'pending');
-                    if ($pendingMilestones->count() > 0) {
-                        $actions[] = [
-                            'type' => 'milestones_pending_approval',
-                            'message' => 'You have ' . $pendingMilestones->count() . ' milestone(s) pending your approval.',
-                            'link' => route('user.escrow.milestone.index', $escrow->id),
-                            'linkText' => 'Review Milestones',
-                            'priority' => 'high',
-                            'escrow_id' => $escrow->id,
-                            'listing_title' => $escrow->listing ? ($escrow->listing->title ?? $escrow->listing->domain_name ?? 'N/A') : 'N/A',
-                        ];
-                    }
+                    // Milestones pending approval notifications are now shown in top bar notifications
+                    // (removed from dashboard actions)
 
                     // Check for milestones ready for payment
                     $readyMilestones = $milestones->filter(function($m) {
@@ -494,22 +483,6 @@ class UserController extends Controller
                 }
             }
 
-            // 4. Escrow accepted - seller has milestones pending approval
-            if ($escrow->status == Status::ESCROW_ACCEPTED && $isSeller) {
-                $milestones = $escrow->milestones;
-                $pendingMilestones = $milestones->where('approval_status', 'pending');
-                if ($pendingMilestones->count() > 0) {
-                    $actions[] = [
-                        'type' => 'milestones_pending_approval_seller',
-                        'message' => 'You have ' . $pendingMilestones->count() . ' milestone(s) pending your approval.',
-                        'link' => route('user.escrow.milestone.index', $escrow->id),
-                        'linkText' => 'Review Milestones',
-                        'priority' => 'medium',
-                        'escrow_id' => $escrow->id,
-                        'listing_title' => $escrow->listing ? ($escrow->listing->title ?? $escrow->listing->domain_name ?? 'N/A') : 'N/A',
-                    ];
-                }
-            }
         }
 
         return $actions;

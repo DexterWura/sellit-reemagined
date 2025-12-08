@@ -148,12 +148,27 @@ class MilestoneController extends Controller
             // Notify the other party
             $otherParty = $isSeller ? $escrow->buyer : $escrow->seller;
             $isPending = $hasApprovalStatus && $milestone->approval_status === 'pending';
+            
+            // Send email notification (legacy)
             notify($otherParty, 'MILESTONE_CREATED', [
                 'escrow_number' => $escrow->escrow_number,
                 'milestone_note' => $milestone->note,
                 'milestone_amount' => showAmount($milestone->amount),
                 'action_required' => $isPending ? 'Please review and approve this milestone' : null,
             ]);
+
+            // Send database notification for top bar if milestone needs approval
+            if ($isPending) {
+                // Count all pending milestones for this escrow
+                $pendingMilestones = $escrow->milestones()->where('approval_status', 'pending')->count();
+                $listingTitle = $escrow->listing ? $escrow->listing->title : null;
+                
+                $otherParty->notify(new \App\Notifications\MilestonesPendingApproval(
+                    $escrow,
+                    $pendingMilestones,
+                    $listingTitle
+                ));
+            }
 
             $notify[] = ['success', 'Milestone created successfully. ' . ($isPending ? 'Waiting for ' . ($isSeller ? 'buyer' : 'seller') . ' approval.' : 'Milestone is approved and ready.')];
             return back()->withNotify($notify);
@@ -216,13 +231,29 @@ class MilestoneController extends Controller
 
             DB::commit();
 
-            // Notify buyer
+            // Notify buyer (email notification)
             notify($escrow->buyer, 'MILESTONES_GENERATED', [
                 'escrow_number' => $escrow->escrow_number,
                 'template_name' => $template->name,
                 'milestone_count' => count($milestones),
                 'action_required' => 'Please review and approve the proposed milestones',
             ]);
+
+            // Send database notification for top bar if milestones need approval
+            $hasApprovalStatus = \Illuminate\Support\Facades\Schema::hasColumn('milestones', 'approval_status');
+            if ($hasApprovalStatus) {
+                // Reload milestones to check approval status
+                $escrow->refresh();
+                $pendingMilestones = $escrow->milestones()->where('approval_status', 'pending')->count();
+                if ($pendingMilestones > 0) {
+                    $listingTitle = $escrow->listing ? $escrow->listing->title : null;
+                    $escrow->buyer->notify(new \App\Notifications\MilestonesPendingApproval(
+                        $escrow,
+                        $pendingMilestones,
+                        $listingTitle
+                    ));
+                }
+            }
 
             $notify[] = ['success', 'Milestones generated from template. Buyer has been notified to review.'];
             return back()->withNotify($notify);
