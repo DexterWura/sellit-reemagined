@@ -64,28 +64,42 @@
                                 @endif
                             </h6>
 
-                            @if ($escrow->status != Status::ESCROW_NOT_ACCEPTED && $escrow->buyer_id == auth()->user()->id)
+                            @if ($escrow->status != Status::ESCROW_NOT_ACCEPTED)
                                 @php
                                     $hasMilestones = $escrow->milestones->count() > 0;
-                                    $totalAmount = $escrow->amount + $escrow->buyer_charge;
-                                    $remainingAmount = $totalAmount - $escrow->paid_amount;
-                                    
-                                    $hasFundedMilestones = $hasMilestones && $escrow->milestones->where('payment_status', \App\Constants\Status::MILESTONE_FUNDED)->count() > 0;
-                                    $canPayFull = $remainingAmount > 0 && !$hasFundedMilestones;
+                                    $isBuyer = $escrow->buyer_id == auth()->user()->id;
+                                    $isSeller = $escrow->seller_id == auth()->user()->id;
                                 @endphp
-                                @if($canPayFull)
-                                    <button type="button" class="btn btn-sm btn--dark" data-bs-toggle="modal" data-bs-target="#payFullModal">
-                                        <i class="las la-money-bill-wave"></i> @lang('Pay Full Amount')
-                                    </button>
-                                @endif
-                                @if(!$hasMilestones)
-                                    <a href="{{ route('user.escrow.milestone.index', $escrow->id) }}" class="btn btn-sm btn--dark">
-                                        <i class="las la-tasks"></i> @lang('Set Up Milestones')
-                                    </a>
-                                @else
-                                    <a href="{{ route('user.escrow.milestone.index', $escrow->id) }}" class="btn btn-sm btn--dark">
-                                        <i class="las la-list"></i> @lang('View Milestones')
-                                    </a>
+                                
+                                @if($isBuyer)
+                                    @php
+                                        $totalAmount = $escrow->amount + $escrow->buyer_charge;
+                                        $remainingAmount = $totalAmount - $escrow->paid_amount;
+                                        
+                                        $hasFundedMilestones = $hasMilestones && $escrow->milestones->where('payment_status', \App\Constants\Status::MILESTONE_FUNDED)->count() > 0;
+                                        $canPayFull = $remainingAmount > 0 && !$hasFundedMilestones;
+                                    @endphp
+                                    @if($canPayFull)
+                                        <button type="button" class="btn btn-sm btn--dark" data-bs-toggle="modal" data-bs-target="#payFullModal">
+                                            <i class="las la-money-bill-wave"></i> @lang('Pay Full Amount')
+                                        </button>
+                                    @endif
+                                    @if(!$hasMilestones)
+                                        <a href="{{ route('user.escrow.milestone.index', $escrow->id) }}" class="btn btn-sm btn--dark">
+                                            <i class="las la-tasks"></i> @lang('Set Up Milestones')
+                                        </a>
+                                    @else
+                                        <a href="{{ route('user.escrow.milestone.index', $escrow->id) }}" class="btn btn-sm btn--dark">
+                                            <i class="las la-list"></i> @lang('View Milestones')
+                                        </a>
+                                    @endif
+                                @elseif($isSeller)
+                                    {{-- Seller can view milestones to approve/reject them --}}
+                                    @if($hasMilestones)
+                                        <a href="{{ route('user.escrow.milestone.index', $escrow->id) }}" class="btn btn-sm btn--dark">
+                                            <i class="las la-list"></i> @lang('View Milestones')
+                                        </a>
+                                    @endif
                                 @endif
                             @endif
                         </div>
