@@ -61,7 +61,7 @@ class CronjobController extends Controller
             }
         }
 
-        // Also check cache for schedule:run indicator
+        // Also check cache for schedule:run indicator (set by web route or console)
         $scheduleRunCache = \Illuminate\Support\Facades\Cache::get('schedule:run:last');
         if ($scheduleRunCache) {
             $scheduleRunTime = \Carbon\Carbon::parse($scheduleRunCache);
@@ -74,8 +74,17 @@ class CronjobController extends Controller
             }
         }
 
-        // Generate the cron command
-        $cronCommand = '* * * * * cd ' . base_path() . ' && php artisan schedule:run >> /dev/null 2>&1';
+        // Generate the cron command using domain URL (web-based trigger)
+        $domain = url('/');
+        
+        // Main command with curl (silent mode - no output)
+        $cronCommand = '* * * * * curl -s ' . $domain . '/cron > /dev/null 2>&1';
+        
+        // Alternative command using wget (silent mode - no output)
+        $cronCommandWget = '* * * * * wget -q -O - ' . $domain . '/cron > /dev/null 2>&1';
+        
+        // Command with logging (for debugging - optional)
+        $cronCommandWithLog = '* * * * * curl -s ' . $domain . '/cron >> ' . storage_path('logs/cron.log') . ' 2>&1';
 
         return view('admin.setting.cronjob', compact(
             'pageTitle',
@@ -87,7 +96,9 @@ class CronjobController extends Controller
             'pendingAuctions',
             'cronJobActive',
             'cronJobLastRun',
-            'cronCommand'
+            'cronCommand',
+            'cronCommandWget',
+            'cronCommandWithLog'
         ));
     }
 

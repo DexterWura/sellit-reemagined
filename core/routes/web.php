@@ -6,6 +6,21 @@ Route::get('/clear', function () {
     \Illuminate\Support\Facades\Artisan::call('optimize:clear');
 });
 
+// Cron job trigger route (web-based)
+Route::get('/cron', function () {
+    // Set cache indicator for cron detection
+    \Illuminate\Support\Facades\Cache::put('schedule:run:last', now()->toIso8601String(), now()->addMinutes(10));
+    
+    // Run the scheduler
+    \Illuminate\Support\Facades\Artisan::call('schedule:run');
+    
+    return response()->json([
+        'success' => true,
+        'message' => 'Scheduler executed successfully',
+        'timestamp' => now()->toIso8601String()
+    ]);
+})->name('cron.trigger');
+
 
 // User Support Ticket
 Route::controller('TicketController')->prefix('ticket')->name('ticket.')->group(function () {
