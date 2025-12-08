@@ -19,6 +19,38 @@
                 </div>
                 @endif
                 <div class="col-md-12">
+                    @php
+                        $user = auth()->user();
+                        $isSeller = $escrow->seller_id == $user->id;
+                        $isBuyer = $escrow->buyer_id == $user->id;
+                        $hasApprovalStatus = \Illuminate\Support\Facades\Schema::hasColumn('milestones', 'approval_status');
+                        $pendingMilestones = $escrow->milestones->filter(function($m) use ($hasApprovalStatus, $isSeller, $isBuyer) {
+                            if ($hasApprovalStatus) {
+                                return $m->approval_status === 'pending';
+                            }
+                            return !($m->approved_by_seller && $m->approved_by_buyer);
+                        });
+                        $needsUserApproval = $pendingMilestones->filter(function($m) use ($isSeller, $isBuyer) {
+                            return ($isSeller && !$m->approved_by_seller) || ($isBuyer && !$m->approved_by_buyer);
+                        });
+                    @endphp
+                    
+                    @if($needsUserApproval->count() > 0)
+                    <div class="alert alert-info mb-4">
+                        <div class="d-flex align-items-start">
+                            <i class="las la-info-circle fs-4 me-2 mt-1"></i>
+                            <div>
+                                <strong>@lang('Action Required'):</strong>
+                                @if($isBuyer)
+                                    <p class="mb-0">@lang('You have') {{ $needsUserApproval->count() }} @lang('milestone(s) created by the seller that need your approval. Please review and approve or reject them below.')</p>
+                                @else
+                                    <p class="mb-0">@lang('You have') {{ $needsUserApproval->count() }} @lang('milestone(s) created by the buyer that need your approval. Please review and approve or reject them below.')</p>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+                    
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         @if ($escrow->status == Status::ESCROW_ACCEPTED && $escrow->restAmount() && $escrow->buyer_id == auth()->id())
                             <button class="btn btn--base btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#newModal">
@@ -126,12 +158,17 @@
                                                 <td>
                                                     <div class="button--group">
                                                         @if($canApprove)
-                                                            <form action="{{ route('user.escrow.milestone.approve', $milestone->id) }}" method="POST" class="d-inline">
+                                                            <form action="{{ route('user.escrow.milestone.approve', $milestone->id) }}" method="POST" class="d-inline" onsubmit="return confirm('@lang('Are you sure you want to approve this milestone?')');">
                                                                 @csrf
                                                                 <button type="submit" class="btn btn-sm btn-outline--success" title="@lang('Approve Milestone')">
                                                                     <i class="las la-check"></i> @lang('Approve')
                                                                 </button>
                                                             </form>
+                                                            @if($needsSellerApproval)
+                                                                <small class="d-block text-muted mt-1" style="font-size: 0.75rem;">@lang('Your approval needed')</small>
+                                                            @elseif($needsBuyerApproval)
+                                                                <small class="d-block text-muted mt-1" style="font-size: 0.75rem;">@lang('Your approval needed')</small>
+                                                            @endif
                                                         @endif
                                                         
                                                         @if($canReject)
