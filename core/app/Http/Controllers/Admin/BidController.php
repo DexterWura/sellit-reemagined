@@ -174,6 +174,8 @@ class BidController extends Controller
                     'listing_title' => $listing->title,
                     'winning_bid' => showAmount($winningBid->amount),
                     'escrow_number' => $escrow->escrow_number,
+                    'escrow_id' => $escrow->id,
+                    'action_required' => 'You can pay the full amount or set up milestones for this escrow',
                 ]);
 
                 // Send database notification to winner for dashboard

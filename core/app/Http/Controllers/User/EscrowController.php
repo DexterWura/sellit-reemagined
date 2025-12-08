@@ -766,10 +766,17 @@ class EscrowController extends Controller
                 ->with(['seller', 'milestones'])
                 ->findOrFail($id);
 
-            // Check if escrow has milestones
-            if ($escrow->milestones->count() > 0) {
-                $notify[] = ['error', 'This escrow has milestones. Please pay through milestones or delete milestones first.'];
+            // Check if escrow has funded milestones (can't pay full if any milestone is already funded)
+            $fundedMilestones = $escrow->milestones->where('payment_status', Status::MILESTONE_FUNDED);
+            if ($fundedMilestones->count() > 0) {
+                $notify[] = ['error', 'Cannot pay full amount because some milestones have already been paid. Please continue paying through milestones.'];
                 return back()->withNotify($notify);
+            }
+            
+            // If milestones exist but none are funded, delete them when paying full
+            if ($escrow->milestones->count() > 0) {
+                // Delete all unfunded milestones when paying full
+                $escrow->milestones()->delete();
             }
 
             $totalAmount = $escrow->amount + $escrow->buyer_charge;

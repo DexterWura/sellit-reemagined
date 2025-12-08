@@ -47,30 +47,55 @@ class CronjobController extends Controller
             ->count();
 
         // Detect if cron job is running
-        // Check if log file was updated in the last 5 minutes (cron runs every minute)
         $cronJobActive = false;
         $cronJobLastRun = null;
-        if ($logLastModified) {
-            $lastModifiedTime = \Carbon\Carbon::createFromTimestamp($logLastModified);
-            $minutesSinceLastUpdate = now()->diffInMinutes($lastModifiedTime);
-            
-            // If log was updated in last 5 minutes, cron is likely active
-            if ($minutesSinceLastUpdate <= 5) {
-                $cronJobActive = true;
-                $cronJobLastRun = $lastModifiedTime;
+        
+        // Method 1: Check file-based timestamp (most reliable)
+        $timestampFile = storage_path('logs/.cron-last-run');
+        if (file_exists($timestampFile)) {
+            try {
+                $timestampContent = trim(file_get_contents($timestampFile));
+                if ($timestampContent) {
+                    $lastRunTime = \Carbon\Carbon::parse($timestampContent);
+                    $minutesSinceLastRun = now()->diffInMinutes($lastRunTime, false);
+                    
+                    // If cron ran in the last 5 minutes, it's active
+                    if ($minutesSinceLastRun >= 0 && $minutesSinceLastRun <= 5) {
+                        $cronJobActive = true;
+                        $cronJobLastRun = $lastRunTime;
+                    }
+                }
+            } catch (\Exception $e) {
+                // Ignore parse errors
             }
         }
-
-        // Also check cache for schedule:run indicator (set by web route or console)
-        $scheduleRunCache = \Illuminate\Support\Facades\Cache::get('schedule:run:last');
-        if ($scheduleRunCache) {
-            $scheduleRunTime = \Carbon\Carbon::parse($scheduleRunCache);
-            $minutesSinceScheduleRun = now()->diffInMinutes($scheduleRunTime);
-            if ($minutesSinceScheduleRun <= 5) {
-                $cronJobActive = true;
-                if (!$cronJobLastRun || $scheduleRunTime->gt($cronJobLastRun)) {
-                    $cronJobLastRun = $scheduleRunTime;
+        
+        // Method 2: Check cache for schedule:run indicator
+        if (!$cronJobActive) {
+            try {
+                $scheduleRunCache = \Illuminate\Support\Facades\Cache::get('schedule:run:last');
+                if ($scheduleRunCache) {
+                    $scheduleRunTime = \Carbon\Carbon::parse($scheduleRunCache);
+                    $minutesSinceScheduleRun = now()->diffInMinutes($scheduleRunTime, false);
+                    if ($minutesSinceScheduleRun >= 0 && $minutesSinceScheduleRun <= 5) {
+                        $cronJobActive = true;
+                        $cronJobLastRun = $scheduleRunTime;
+                    }
                 }
+            } catch (\Exception $e) {
+                // Cache might not be available
+            }
+        }
+        
+        // Method 3: Check if log file was updated in the last 5 minutes (fallback)
+        if (!$cronJobActive && $logLastModified) {
+            $lastModifiedTime = \Carbon\Carbon::createFromTimestamp($logLastModified);
+            $minutesSinceLastUpdate = now()->diffInMinutes($lastModifiedTime, false);
+            
+            // If log was updated in last 5 minutes, cron is likely active
+            if ($minutesSinceLastUpdate >= 0 && $minutesSinceLastUpdate <= 5) {
+                $cronJobActive = true;
+                $cronJobLastRun = $lastModifiedTime;
             }
         }
 

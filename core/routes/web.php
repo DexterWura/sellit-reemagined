@@ -8,8 +8,22 @@ Route::get('/clear', function () {
 
 // Cron job trigger route (web-based)
 Route::get('/cron', function () {
+    $timestamp = now()->toIso8601String();
+    
     // Set cache indicator for cron detection
-    \Illuminate\Support\Facades\Cache::put('schedule:run:last', now()->toIso8601String(), now()->addMinutes(10));
+    try {
+        \Illuminate\Support\Facades\Cache::put('schedule:run:last', $timestamp, now()->addMinutes(10));
+    } catch (\Exception $e) {
+        // Cache might not be available, continue anyway
+    }
+    
+    // Also set a file-based timestamp for detection (more reliable)
+    $timestampFile = storage_path('logs/.cron-last-run');
+    try {
+        file_put_contents($timestampFile, $timestamp);
+    } catch (\Exception $e) {
+        // File write might fail, continue anyway
+    }
     
     // Run the scheduler
     \Illuminate\Support\Facades\Artisan::call('schedule:run');
@@ -17,7 +31,7 @@ Route::get('/cron', function () {
     return response()->json([
         'success' => true,
         'message' => 'Scheduler executed successfully',
-        'timestamp' => now()->toIso8601String()
+        'timestamp' => $timestamp
     ]);
 })->name('cron.trigger');
 

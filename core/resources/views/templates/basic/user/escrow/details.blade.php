@@ -37,6 +37,22 @@
                 </div>
                 @endif
 
+                @if($escrow->listing && $escrow->listing->sale_type == 'auction' && $escrow->milestones->count() == 0 && $escrow->status == Status::ESCROW_ACCEPTED)
+                <div class="col-md-12 mb-3">
+                    <div class="alert alert-info d-flex align-items-center mb-0">
+                        <i class="las la-info-circle fs-4 me-2"></i>
+                        <div>
+                            <strong>@lang('Payment Options Available'):</strong>
+                            @if($escrow->buyer_id == auth()->user()->id)
+                                @lang('You can either pay the full amount now or set up milestones to pay in stages. Choose the option that works best for you.')
+                            @else
+                                @lang('The buyer can either pay the full amount or set up milestones. You can also create milestones if needed.')
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endif
+
                 <div class="col-md-6">
                     <div class="card custom--card">
                         <div class="card-header bg--base d-flex flex-wrap align-items-center justify-content-between">
@@ -53,7 +69,9 @@
                                     $hasMilestones = $escrow->milestones->count() > 0;
                                     $totalAmount = $escrow->amount + $escrow->buyer_charge;
                                     $remainingAmount = $totalAmount - $escrow->paid_amount;
-                                    $canPayFull = !$hasMilestones && $remainingAmount > 0;
+                                    
+                                    $hasFundedMilestones = $hasMilestones && $escrow->milestones->where('payment_status', \App\Constants\Status::MILESTONE_FUNDED)->count() > 0;
+                                    $canPayFull = $remainingAmount > 0 && !$hasFundedMilestones;
                                 @endphp
                                 @if($canPayFull)
                                     <button type="button" class="btn btn-sm btn--dark" data-bs-toggle="modal" data-bs-target="#payFullModal">
@@ -340,7 +358,11 @@
     <x-confirmation-modal />
 
     {{-- Pay Full Amount Modal --}}
-    @if($escrow->status == Status::ESCROW_ACCEPTED && $escrow->buyer_id == auth()->user()->id && $escrow->milestones->count() == 0)
+    @if($escrow->status == Status::ESCROW_ACCEPTED && $escrow->buyer_id == auth()->user()->id)
+        @php
+            $hasFundedMilestones = $escrow->milestones->where('payment_status', \App\Constants\Status::MILESTONE_FUNDED)->count() > 0;
+        @endphp
+        @if(!$hasFundedMilestones)
         @php
             $totalAmount = $escrow->amount + $escrow->buyer_charge;
             $remainingAmount = $totalAmount - $escrow->paid_amount;
