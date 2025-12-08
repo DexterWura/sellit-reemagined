@@ -439,12 +439,106 @@
             @json(@$chart['user_country_counter']->keys()),
             @json(@$chart['user_country_counter']->flatten())
         );
+
+        // Deposit & Withdraw Report Chart
+        let dwChart = barChart(
+            document.querySelector("#dwChartArea"),
+            @json(__(gs('cur_text'))),
+            [{
+                name: 'Deposited',
+                data: []
+            },
+            {
+                name: 'Withdrawn',
+                data: []
+            }],
+            []
+        );
+
+        // Transaction Report Chart
+        let transactionChart = barChart(
+            document.querySelector("#transactionChartArea"),
+            @json(__(gs('cur_text'))),
+            [{
+                name: 'Plus Transactions',
+                data: []
+            },
+            {
+                name: 'Minus Transactions',
+                data: []
+            }],
+            []
+        );
+
+        // Function to fetch and update Deposit & Withdraw chart
+        const dwChartData = (startDate, endDate) => {
+            const data = {
+                start_date: startDate.format('YYYY-MM-DD'),
+                end_date: endDate.format('YYYY-MM-DD')
+            }
+
+            const url = @json(route('admin.chart.deposit.withdraw'));
+
+            $.get(url, data,
+                function(response, status) {
+                    if (status == 'success') {
+                        dwChart.updateSeries(response.data);
+                        dwChart.updateOptions({
+                            xaxis: {
+                                categories: response.created_on,
+                            }
+                        });
+                    }
+                }
+            );
+        }
+
+        // Function to fetch and update Transaction chart
+        const transactionChartData = (startDate, endDate) => {
+            const data = {
+                start_date: startDate.format('YYYY-MM-DD'),
+                end_date: endDate.format('YYYY-MM-DD')
+            }
+
+            const url = @json(route('admin.chart.transaction'));
+
+            $.get(url, data,
+                function(response, status) {
+                    if (status == 'success') {
+                        transactionChart.updateSeries(response.data);
+                        transactionChart.updateOptions({
+                            xaxis: {
+                                categories: response.created_on,
+                            }
+                        });
+                    }
+                }
+            );
+        }
+
+        // Initialize date pickers for Deposit & Withdraw and Transaction charts
+        $('#dwDatePicker').daterangepicker(dateRangeOptions, (start, end) => changeDatePickerText('#dwDatePicker span', start, end));
+        $('#trxDatePicker').daterangepicker(dateRangeOptions, (start, end) => changeDatePickerText('#trxDatePicker span', start, end));
+
+        changeDatePickerText('#dwDatePicker span', start, end);
+        changeDatePickerText('#trxDatePicker span', start, end);
+
+        // Load initial chart data
+        dwChartData(start, end);
+        transactionChartData(start, end);
+
+        // Update charts when date range changes
+        $('#dwDatePicker').on('apply.daterangepicker', (event, picker) => dwChartData(picker.startDate, picker.endDate));
+        $('#trxDatePicker').on('apply.daterangepicker', (event, picker) => transactionChartData(picker.startDate, picker.endDate));
     </script>
 @endpush
 @push('style')
     <style>
         .apexcharts-menu {
             min-width: 120px !important;
+        }
+        #dwChartArea, #transactionChartArea {
+            min-height: 380px;
         }
     </style>
 @endpush
