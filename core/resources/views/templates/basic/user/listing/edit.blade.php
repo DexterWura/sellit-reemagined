@@ -249,6 +249,19 @@
 </section>
 @endsection
 
+@push('style')
+<style>
+    /* Fix form label colors - ensure all labels are visible with black text */
+    .form-label {
+        color: #000000 !important;
+    }
+    
+    label.form-label {
+        color: #000000 !important;
+    }
+</style>
+@endpush
+
 @push('script')
 <script>
     $(document).ready(function() {

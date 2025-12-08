@@ -255,3 +255,12 @@
     background-color: rgba(0, 123, 255, 0.05);
 }
 
+/* Form Label Color Fix - Ensure labels are visible with black text */
+.form-label {
+    color: #000000 !important;
+}
+
+label.form-label {
+    color: #000000 !important;
+}
+

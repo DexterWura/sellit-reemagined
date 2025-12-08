@@ -36,6 +36,15 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(75, 234, 118, 0.3);
         }
+        
+        /* Fix form label colors - ensure all labels are visible with black text */
+        .form-label {
+            color: #000000 !important;
+        }
+        
+        label.form-label {
+            color: #000000 !important;
+        }
     </style>
 @endpush
 

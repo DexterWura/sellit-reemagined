@@ -1288,3 +1288,12 @@ button .spinner-border {
   border-radius: 4px;
   word-break: break-all;
 }
+
+/* Fix form label colors - ensure all labels are visible with black text */
+.form-label {
+  color: #000000 !important;
+}
+
+label.form-label {
+  color: #000000 !important;
+}

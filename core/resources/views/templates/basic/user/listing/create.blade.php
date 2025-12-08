@@ -789,6 +789,15 @@
         opacity: 0.6;
         cursor: not-allowed;
     }
+    
+    /* Fix form label colors - ensure all labels are visible with black text */
+    .form-label {
+        color: #000000 !important;
+    }
+    
+    label.form-label {
+        color: #000000 !important;
+    }
 </style>
 @endpush
 
