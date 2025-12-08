@@ -337,10 +337,10 @@ Route::middleware('admin')->group(function () {
     // Cronjob Management
     Route::controller('CronjobController')->prefix('setting')->name('setting.cronjob.')->group(function () {
         Route::get('cronjob', 'index')->name('index');
-        Route::post('cronjob/update', 'update');
-        Route::post('cronjob/run', 'runAuctionProcessing');
-        Route::post('cronjob/clear-logs', 'clearLogs');
-        Route::get('cronjob/status', 'getStatus');
+        Route::post('cronjob/update', 'update')->name('update');
+        Route::post('cronjob/run', 'runAuctionProcessing')->name('run');
+        Route::post('cronjob/clear-logs', 'clearLogs')->name('clear.logs');
+        Route::get('cronjob/status', 'getStatus')->name('status');
     });
 
 
