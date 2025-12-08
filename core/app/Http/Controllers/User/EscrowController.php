@@ -21,7 +21,7 @@ use Illuminate\Validation\ValidationException;
 class EscrowController extends Controller
 {
 
-    public function index($type = null)
+    public function index(Request $request, $type = null)
     {
         $pageTitle = 'My Purchases';
         
@@ -36,7 +36,28 @@ class EscrowController extends Controller
         ->whereIn('id', $userListingEscrowIds)
         ->with('seller', 'buyer', 'listing');
 
-        if ($type) {
+        // Filter by status
+        $status = $request->get('status');
+        if ($status) {
+            switch ($status) {
+                case 'accepted':
+                    $escrows = $escrows->accepted();
+                    break;
+                case 'not_accepted':
+                    $escrows = $escrows->notAccepted();
+                    break;
+                case 'completed':
+                    $escrows = $escrows->completed();
+                    break;
+                case 'disputed':
+                    $escrows = $escrows->disputed();
+                    break;
+                case 'cancelled':
+                    $escrows = $escrows->canceled();
+                    break;
+            }
+        } elseif ($type) {
+            // Support legacy type parameter for backward compatibility
             try {
                 $escrows = $escrows->$type();
             } catch (Exception $e) {
@@ -44,7 +65,30 @@ class EscrowController extends Controller
             }
         }
 
+        // Filter by role (buying or selling)
+        $role = $request->get('role');
+        if ($role == 'buying') {
+            $escrows = $escrows->where('buyer_id', auth()->id());
+        } elseif ($role == 'selling') {
+            $escrows = $escrows->where('seller_id', auth()->id());
+        }
+
+        // Search filter
+        $search = $request->get('search');
+        if ($search) {
+            $escrows = $escrows->where(function($query) use ($search) {
+                $query->where('escrow_number', 'like', "%{$search}%")
+                      ->orWhere('title', 'like', "%{$search}%")
+                      ->orWhereHas('listing', function($q) use ($search) {
+                          $q->where('title', 'like', "%{$search}%")
+                            ->orWhere('listing_number', 'like', "%{$search}%");
+                      });
+            });
+        }
+
         $escrows = $escrows->orderBy('id', 'desc')->with('category')->paginate(getPaginate());
+        $escrows->appends($request->all());
+        
         return view('Template::user.escrow.index', compact('pageTitle', 'escrows'));
     }
 

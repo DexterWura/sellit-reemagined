@@ -7,6 +7,49 @@
                 <strong>@lang('Note'):</strong> 
                 @lang('Payment escrow is automatically created when you purchase a listing, win an auction, or have an offer accepted.')
             </div>
+
+            {{-- Filter Section --}}
+            <div class="card b-radius--10 mb-4">
+                <div class="card-body">
+                    <form action="{{ route('user.escrow.index') }}" method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">@lang('Status')</label>
+                            <select name="status" class="form-select form--select">
+                                <option value="">@lang('All Statuses')</option>
+                                <option value="accepted" {{ request('status') == 'accepted' ? 'selected' : '' }}>@lang('Accepted')</option>
+                                <option value="not_accepted" {{ request('status') == 'not_accepted' ? 'selected' : '' }}>@lang('Not Accepted')</option>
+                                <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>@lang('Completed')</option>
+                                <option value="disputed" {{ request('status') == 'disputed' ? 'selected' : '' }}>@lang('Disputed')</option>
+                                <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>@lang('Cancelled')</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">@lang('Role')</label>
+                            <select name="role" class="form-select form--select">
+                                <option value="">@lang('All')</option>
+                                <option value="buying" {{ request('role') == 'buying' ? 'selected' : '' }}>@lang('Buying')</option>
+                                <option value="selling" {{ request('role') == 'selling' ? 'selected' : '' }}>@lang('Selling')</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">@lang('Search')</label>
+                            <input type="text" name="search" class="form-control form--control" placeholder="@lang('Search by escrow number, listing title...')" value="{{ request('search') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn--base w-100">
+                                    <i class="las la-filter"></i> @lang('Filter')
+                                </button>
+                                <a href="{{ route('user.escrow.index') }}" class="btn btn--secondary w-100" title="@lang('Reset')">
+                                    <i class="las la-redo-alt"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <div class="card b-radius--10">
                 <div class="card-body p-0">
                     <div class="table-responsive--md table-responsive">
