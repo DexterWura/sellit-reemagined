@@ -37,49 +37,29 @@
                 @endif
 
                 <div class="mb-4">
-                    <label class="form-label fw-bold">@lang('cPanel Cron Job Command (Recommended - Using curl)')</label>
-                    <div class="input-group mb-2">
+                    <label class="form-label fw-bold">@lang('cPanel Cron Job Command')</label>
+                    <div class="input-group">
                         <input type="text" class="form-control" id="cronCommand" value="{{ $cronCommand }}" readonly>
                         <button class="btn btn--primary" type="button" id="copyCronCommand" onclick="copyCronCommand()">
                             <i class="las la-copy"></i> @lang('Copy')
                         </button>
                     </div>
-                    <small class="text-muted d-block mb-3">@lang('Silent mode - no output (recommended for production)')</small>
-                    
-                    <label class="form-label fw-bold mt-3">@lang('Alternative Command (Using wget)')</label>
-                    <div class="input-group mb-2">
-                        <input type="text" class="form-control" id="cronCommandWget" value="{{ $cronCommandWget }}" readonly>
-                        <button class="btn btn--primary" type="button" id="copyCronCommandWget" onclick="copyCronCommandWget()">
-                            <i class="las la-copy"></i> @lang('Copy')
-                        </button>
-                    </div>
-                    <small class="text-muted d-block mb-3">@lang('Silent mode - no output (use if curl is not available)')</small>
-                    
-                    <label class="form-label fw-bold mt-3">@lang('Command with Logging (For Debugging)')</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="cronCommandWithLog" value="{{ $cronCommandWithLog }}" readonly>
-                        <button class="btn btn--primary" type="button" id="copyCronCommandWithLog" onclick="copyCronCommandWithLog()">
-                            <i class="las la-copy"></i> @lang('Copy')
-                        </button>
-                    </div>
-                    <small class="text-muted d-block mb-3">@lang('Logs output to file - useful for troubleshooting')</small>
-                    
                     <small class="form-text text-muted mt-2">
                         <i class="las la-info-circle"></i>
-                        @lang('Copy one of the commands above and add it to your cPanel Cron Jobs. Set it to run every minute (* * * * *). The command uses your domain URL and works in ALL environments (production, staging, development).')
+                        @lang('For cPanel: Copy this command and paste it in the "Command" field. Set the schedule to run every minute (* * * * *). For standard cron: Use the full command below.')
                     </small>
-                </div>
-
-                <div class="alert alert-info">
-                    <h6 class="alert-heading"><i class="las la-question-circle"></i> @lang('How to Set Up Cron Job in cPanel:')</h6>
-                    <ol class="mb-0 ps-3">
-                        <li>@lang('Log in to your cPanel account')</li>
-                        <li>@lang('Navigate to "Cron Jobs" or "Advanced" → "Cron Jobs"')</li>
-                        <li>@lang('Select "Standard" cron job type')</li>
-                        <li>@lang('Set the time to run every minute:') <code>* * * * *</code></li>
-                        <li>@lang('Paste the command above into the "Command" field')</li>
-                        <li>@lang('Click "Add New Cron Job"')</li>
-                    </ol>
+                    
+                    <label class="form-label fw-bold mt-3">@lang('Full Cron Command (For Standard Cron)')</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="cronCommandFull" value="{{ $cronCommandFull }}" readonly>
+                        <button class="btn btn--primary" type="button" id="copyCronCommandFull" onclick="copyCronCommandFull()">
+                            <i class="las la-copy"></i> @lang('Copy')
+                        </button>
+                    </div>
+                    <small class="form-text text-muted mt-2">
+                        <i class="las la-info-circle"></i>
+                        @lang('Use this full command if you\'re adding it directly to crontab (includes schedule).')
+                    </small>
                 </div>
             </div>
         </div>
@@ -333,39 +313,15 @@
             }
         }
         
-        // Copy cron command function (wget)
-        function copyCronCommandWget() {
-            const commandInput = document.getElementById('cronCommandWget');
+        // Copy cron command function (full)
+        function copyCronCommandFull() {
+            const commandInput = document.getElementById('cronCommandFull');
             commandInput.select();
-            commandInput.setSelectionRange(0, 99999); // For mobile devices
+            commandInput.setSelectionRange(0, 99999);
             
             try {
                 document.execCommand('copy');
-                const btn = document.getElementById('copyCronCommandWget');
-                const originalHtml = btn.innerHTML;
-                btn.innerHTML = '<i class="las la-check"></i> @lang("Copied!")';
-                btn.classList.add('btn--success');
-                btn.classList.remove('btn--primary');
-                
-                setTimeout(function() {
-                    btn.innerHTML = originalHtml;
-                    btn.classList.remove('btn--success');
-                    btn.classList.add('btn--primary');
-                }, 2000);
-            } catch (err) {
-                alert('@lang("Failed to copy command. Please copy manually.")');
-            }
-        }
-        
-        // Copy cron command function (with logging)
-        function copyCronCommandWithLog() {
-            const commandInput = document.getElementById('cronCommandWithLog');
-            commandInput.select();
-            commandInput.setSelectionRange(0, 99999); // For mobile devices
-            
-            try {
-                document.execCommand('copy');
-                const btn = document.getElementById('copyCronCommandWithLog');
+                const btn = document.getElementById('copyCronCommandFull');
                 const originalHtml = btn.innerHTML;
                 btn.innerHTML = '<i class="las la-check"></i> @lang("Copied!")';
                 btn.classList.add('btn--success');
@@ -383,8 +339,7 @@
         
         // Make functions global
         window.copyCronCommand = copyCronCommand;
-        window.copyCronCommandWget = copyCronCommandWget;
-        window.copyCronCommandWithLog = copyCronCommandWithLog;
+        window.copyCronCommandFull = copyCronCommandFull;
         
         // Auto-refresh pending count
         function refreshStatus() {

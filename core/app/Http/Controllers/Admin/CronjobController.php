@@ -76,15 +76,10 @@ class CronjobController extends Controller
 
         // Generate the cron command using domain URL (web-based trigger)
         $domain = url('/');
-        
-        // Main command with curl (silent mode - no output)
-        $cronCommand = '* * * * * curl -s ' . $domain . '/cron > /dev/null 2>&1';
-        
-        // Alternative command using wget (silent mode - no output)
-        $cronCommandWget = '* * * * * wget -q -O - ' . $domain . '/cron > /dev/null 2>&1';
-        
-        // Command with logging (for debugging - optional)
-        $cronCommandWithLog = '* * * * * curl -s ' . $domain . '/cron >> ' . storage_path('logs/cron.log') . ' 2>&1';
+        // Full command with schedule (for standard cron)
+        $cronCommandFull = '* * * * * curl -s ' . $domain . '/cron';
+        // Command only (for cPanel - schedule is set separately)
+        $cronCommand = 'curl -s ' . $domain . '/cron';
 
         return view('admin.setting.cronjob', compact(
             'pageTitle',
@@ -97,8 +92,7 @@ class CronjobController extends Controller
             'cronJobActive',
             'cronJobLastRun',
             'cronCommand',
-            'cronCommandWget',
-            'cronCommandWithLog'
+            'cronCommandFull'
         ));
     }
 
