@@ -142,6 +142,13 @@
         "subtitle": "Insert the robots.txt content here to enhance bot web crawlers and instruct them on how to interact with certain areas of the website.",
         "icon": "las la-robot",
         "route_name": "admin.setting.robot"
+    },
+    "cronjob_management": {
+        "keyword": ["cronjob", "cron job", "scheduled tasks", "automated tasks", "cron", "scheduler", "task scheduler", "automation", "auction processing", "background jobs", "queue", "scheduled jobs"],
+        "title": "Cronjob Management",
+        "subtitle": "Manage automated tasks and scheduled jobs including auction processing.",
+        "icon": "las la-clock",
+        "route_name": "admin.setting.cronjob.index"
     }
 
 }

@@ -786,6 +786,7 @@
             "admin.setting.custom.css",
             "admin.setting.sitemap",
             "admin.setting.robot",
+            "admin.setting.cronjob.*",
             "admin.setting.notification.global.email",
             "admin.setting.notification.global.sms",
             "admin.setting.notification.global.push",

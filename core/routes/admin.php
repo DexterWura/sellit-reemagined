@@ -324,6 +324,16 @@ Route::middleware('admin')->group(function () {
         //Custom CSS
         Route::get('robot', 'robot')->name('setting.robot');
         Route::post('robot', 'robotSubmit');
+    });
+
+    // Cronjob Management
+    Route::controller('CronjobController')->prefix('setting')->name('setting.cronjob.')->group(function () {
+        Route::get('cronjob', 'index')->name('index');
+        Route::post('cronjob/update', 'update');
+        Route::post('cronjob/run', 'runAuctionProcessing');
+        Route::post('cronjob/clear-logs', 'clearLogs');
+        Route::get('cronjob/status', 'getStatus');
+    });
 
         //Cookie
         Route::get('cookie', 'cookie')->name('setting.cookie');

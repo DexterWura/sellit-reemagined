@@ -31,6 +31,13 @@ class ProcessEndingAuctions extends Command
      */
     public function handle()
     {
+        // Check if auction processing is enabled
+        $general = gs();
+        if (($general->auction_processing_enabled ?? 1) == 0) {
+            $this->info('Auction processing is disabled in settings.');
+            return 0;
+        }
+
         $minutes = (int) $this->option('minutes');
         $checkOnly = $this->option('check-only');
 
