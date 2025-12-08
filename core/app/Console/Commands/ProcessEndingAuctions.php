@@ -35,10 +35,19 @@ class ProcessEndingAuctions extends Command
         $checkOnly = $this->option('check-only');
 
         // Find auctions that have ended or are ending soon
+        // Also include auctions that ended in the past but haven't been processed yet
         $endingAuctions = Listing::where('sale_type', 'auction')
             ->where('status', Status::LISTING_ACTIVE)
             ->whereNotNull('auction_end')
-            ->where('auction_end', '<=', now()->addMinutes($minutes))
+            ->where(function($query) use ($minutes) {
+                // Auctions ending soon (within the specified minutes)
+                $query->where('auction_end', '<=', now()->addMinutes($minutes))
+                      // OR auctions that have already ended but haven't been processed
+                      ->orWhere(function($q) {
+                          $q->where('auction_end', '<=', now())
+                            ->where('auction_end', '>=', now()->subDays(7)); // Only check last 7 days to avoid processing very old auctions
+                      });
+            })
             ->get();
 
         if ($endingAuctions->isEmpty()) {
@@ -62,14 +71,18 @@ class ProcessEndingAuctions extends Command
             // If auction has already ended, process immediately
             if ($listing->auction_end->isPast()) {
                 try {
-                    ProcessAuctionEnd::dispatch($listing->id);
+                    // Process immediately instead of just dispatching to queue
+                    // This ensures auctions are processed even if queue worker isn't running
+                    $job = new ProcessAuctionEnd($listing->id);
+                    $job->handle();
                     $processed++;
-                    $this->info("  ✓ Dispatched job for ended auction: {$listing->listing_number}");
+                    $this->info("  ✓ Processed ended auction: {$listing->listing_number}");
                 } catch (\Exception $e) {
-                    $this->error("  ✗ Failed to dispatch job for {$listing->listing_number}: " . $e->getMessage());
-                    Log::error('Failed to dispatch auction processing job', [
+                    $this->error("  ✗ Failed to process {$listing->listing_number}: " . $e->getMessage());
+                    Log::error('Failed to process auction', [
                         'listing_id' => $listing->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
                     ]);
                 }
             } else {
