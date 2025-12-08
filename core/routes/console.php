@@ -24,6 +24,11 @@ if (app()->environment(['local', 'staging', 'development'])) {
         ->appendOutputTo(storage_path('logs/migration-auto.log'));
 }
 
+// Set cache indicator when schedule runs (for cron detection)
+Schedule::call(function () {
+    \Illuminate\Support\Facades\Cache::put('schedule:run:last', now()->toIso8601String(), now()->addMinutes(10));
+})->everyMinute();
+
 // Process ending auctions - run every minute (if enabled)
 Schedule::command('auctions:process-ending --minutes=5')
     ->everyMinute()

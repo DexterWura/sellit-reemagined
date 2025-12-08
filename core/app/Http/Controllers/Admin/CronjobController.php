@@ -46,6 +46,37 @@ class CronjobController extends Controller
             ->where('auction_end', '<=', now())
             ->count();
 
+        // Detect if cron job is running
+        // Check if log file was updated in the last 5 minutes (cron runs every minute)
+        $cronJobActive = false;
+        $cronJobLastRun = null;
+        if ($logLastModified) {
+            $lastModifiedTime = \Carbon\Carbon::createFromTimestamp($logLastModified);
+            $minutesSinceLastUpdate = now()->diffInMinutes($lastModifiedTime);
+            
+            // If log was updated in last 5 minutes, cron is likely active
+            if ($minutesSinceLastUpdate <= 5) {
+                $cronJobActive = true;
+                $cronJobLastRun = $lastModifiedTime;
+            }
+        }
+
+        // Also check cache for schedule:run indicator
+        $scheduleRunCache = \Illuminate\Support\Facades\Cache::get('schedule:run:last');
+        if ($scheduleRunCache) {
+            $scheduleRunTime = \Carbon\Carbon::parse($scheduleRunCache);
+            $minutesSinceScheduleRun = now()->diffInMinutes($scheduleRunTime);
+            if ($minutesSinceScheduleRun <= 5) {
+                $cronJobActive = true;
+                if (!$cronJobLastRun || $scheduleRunTime->gt($cronJobLastRun)) {
+                    $cronJobLastRun = $scheduleRunTime;
+                }
+            }
+        }
+
+        // Generate the cron command
+        $cronCommand = '* * * * * cd ' . base_path() . ' && php artisan schedule:run >> /dev/null 2>&1';
+
         return view('admin.setting.cronjob', compact(
             'pageTitle',
             'cronjobSettings',
@@ -53,7 +84,10 @@ class CronjobController extends Controller
             'logSize',
             'logLastModified',
             'recentLogs',
-            'pendingAuctions'
+            'pendingAuctions',
+            'cronJobActive',
+            'cronJobLastRun',
+            'cronCommand'
         ));
     }
 
