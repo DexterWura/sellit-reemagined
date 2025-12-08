@@ -344,11 +344,23 @@ class PaymentController extends Controller
                                 'new_paid_amount' => $escrow->paid_amount
                             ]);
 
+                            // Reload escrow to get updated data
+                            $escrow->refresh();
+                            $totalAmount = $escrow->amount + $escrow->buyer_charge;
+                            $listingTitle = $escrow->listing ? $escrow->listing->title : null;
+
                             notify($escrow->seller, 'ESCROW_FULLY_PAID', [
                                 'escrow_number' => $escrow->escrow_number,
                                 'amount' => showAmount($remainingAmount, currencyFormat: false),
                                 'currency' => gs()->cur_text,
                             ]);
+
+                            // Notify buyer to release funds (database notification for top bar)
+                            $user->notify(new \App\Notifications\PaymentCompleteReleaseReminder(
+                                $escrow,
+                                showAmount($totalAmount),
+                                $listingTitle
+                            ));
                         } else {
                             \Log::warning('Insufficient balance for escrow payment after deposit', [
                                 'escrow_id' => $escrow->id,

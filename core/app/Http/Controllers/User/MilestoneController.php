@@ -566,7 +566,28 @@ class MilestoneController extends Controller
 
                 DB::commit();
 
-                $notify[] = ['success', 'Milestone amount paid successfully'];
+                // Check if this was the last milestone (all milestones are now funded)
+                $escrow->refresh();
+                $allMilestonesFunded = $escrow->milestones()
+                    ->where('payment_status', '!=', \App\Constants\Status::MILESTONE_FUNDED)
+                    ->count() == 0;
+                
+                $totalAmount = $escrow->amount + $escrow->buyer_charge;
+                $isFullyPaid = $escrow->paid_amount >= $totalAmount;
+
+                // If all milestones are funded and escrow is fully paid, remind buyer to release
+                if ($allMilestonesFunded && $isFullyPaid) {
+                    $listingTitle = $escrow->listing ? $escrow->listing->title : null;
+                    $user->notify(new \App\Notifications\PaymentCompleteReleaseReminder(
+                        $escrow,
+                        showAmount($totalAmount),
+                        $listingTitle
+                    ));
+                    $notify[] = ['success', 'Milestone amount paid successfully. All payments are complete. Please remember to release the funds to the seller once the transaction is complete.'];
+                } else {
+                    $notify[] = ['success', 'Milestone amount paid successfully'];
+                }
+                
                 return back()->withNotify($notify);
                 
             } catch (\Exception $e) {

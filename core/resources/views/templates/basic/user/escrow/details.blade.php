@@ -231,6 +231,23 @@
                             </div>
                         @endif
 
+                        @if ($escrow->buyer_id == auth()->user()->id && $escrow->status == Status::ESCROW_ACCEPTED && $escrow->restAmount() <= 0)
+                            <div class="card-footer bg-white border-top">
+                                <div class="alert alert-warning mb-0">
+                                    <div class="d-flex align-items-center">
+                                        <i class="las la-exclamation-circle fs-4 me-3 text--warning"></i>
+                                        <div>
+                                            <h6 class="mb-1 fw-bold">@lang('Payment Complete - Release Funds')</h6>
+                                            <p class="mb-0 small">
+                                                @lang('You have paid the full amount of') <strong>{{ showAmount($escrow->amount + $escrow->buyer_charge) }}</strong>. 
+                                                @lang('The funds are held in escrow. Please release the payment to the seller once the agreed arrangements are met and the transaction is complete.')
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
                         @if ($escrow->status == Status::ESCROW_ACCEPTED || $escrow->status == Status::ESCROW_NOT_ACCEPTED)
                             @php
                                 $hasSellerAndBuyer = $escrow->seller_id && $escrow->buyer_id;

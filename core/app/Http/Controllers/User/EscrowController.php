@@ -876,6 +876,11 @@ class EscrowController extends Controller
 
                 DB::commit();
 
+                // Reload escrow to get updated data
+                $escrow->refresh();
+                $totalAmount = $escrow->amount + $escrow->buyer_charge;
+                $listingTitle = $escrow->listing ? $escrow->listing->title : null;
+
                 // Notify seller
                 notify($escrow->seller, 'ESCROW_FULLY_PAID', [
                     'escrow_number' => $escrow->escrow_number,
@@ -883,7 +888,14 @@ class EscrowController extends Controller
                     'currency' => gs()->cur_text,
                 ]);
 
-                $notify[] = ['success', 'Payment completed successfully. You can now release payment when the transaction is complete.'];
+                // Notify buyer to release funds (database notification for top bar)
+                $user->notify(new \App\Notifications\PaymentCompleteReleaseReminder(
+                    $escrow,
+                    showAmount($totalAmount),
+                    $listingTitle
+                ));
+
+                $notify[] = ['success', 'Payment completed successfully. Please remember to release the funds to the seller once the transaction is complete.'];
                 return back()->withNotify($notify);
                 
             } catch (\Exception $e) {
