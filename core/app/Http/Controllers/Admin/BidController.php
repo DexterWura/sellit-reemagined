@@ -169,18 +169,36 @@ class BidController extends Controller
 
                 DB::commit();
 
-                // Notify winner (outside transaction)
+                // Notify winner (outside transaction) - both email and database notification
                 notify($winningBid->user, 'AUCTION_WON', [
                     'listing_title' => $listing->title,
                     'winning_bid' => showAmount($winningBid->amount),
+                    'escrow_number' => $escrow->escrow_number,
                 ]);
 
-                // Notify seller
+                // Send database notification to winner for dashboard
+                $winningBid->user->notify(new \App\Notifications\AuctionWon(
+                    $listing,
+                    showAmount($winningBid->amount),
+                    $escrow->escrow_number,
+                    $escrow->id
+                ));
+
+                // Notify seller (outside transaction) - both email and database notification
                 notify($listing->user, 'AUCTION_ENDED_SOLD', [
                     'listing_title' => $listing->title,
                     'final_price' => showAmount($winningBid->amount),
                     'winner' => $winningBid->user->username,
                 ]);
+
+                // Send database notification to seller for dashboard
+                $listing->seller->notify(new \App\Notifications\AuctionEndedSold(
+                    $listing,
+                    showAmount($winningBid->amount),
+                    $winningBid->user->username,
+                    $escrow->escrow_number,
+                    $escrow->id
+                ));
 
                 $notify[] = ['success', 'Auction processed successfully'];
                 return back()->withNotify($notify);

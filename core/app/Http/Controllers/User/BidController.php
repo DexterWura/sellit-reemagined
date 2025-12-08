@@ -435,7 +435,7 @@ class BidController extends Controller
         $bids = Bid::where('user_id', $user->id)
             ->where('status', Status::BID_WON)
             ->with(['listing.images', 'listing.seller', 'listing.escrow'])
-            ->orderBy('created_at', 'desc')
+            ->orderBy('updated_at', 'desc')
             ->paginate(getPaginate());
 
         return view('Template::user.bid.won', compact('pageTitle', 'bids'));
