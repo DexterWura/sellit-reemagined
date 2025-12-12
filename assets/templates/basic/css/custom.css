@@ -1305,3 +1305,243 @@ button .spinner-border {
 label.form-label {
   color: #000000 !important;
 }
+
+/* =============================================
+   DASHBOARD ALERT NOTIFICATIONS - Enhanced
+   ============================================= */
+.alert {
+  border-radius: 12px;
+  border: none;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  animation: slideInDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alert::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: currentColor;
+  opacity: 0.8;
+}
+
+.alert-heading {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alert-heading i {
+  font-size: 1.2rem;
+  opacity: 0.9;
+  transition: transform 0.2s ease;
+}
+
+.alert:hover .alert-heading i {
+  transform: scale(1.1);
+}
+
+.alert-heading::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.alert hr {
+  margin: 12px 0;
+  opacity: 0.2;
+  border: none;
+  border-top: 1px solid currentColor;
+}
+
+.alert p {
+  margin-bottom: 8px;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.alert p:last-child {
+  margin-bottom: 0;
+}
+
+.alert a {
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.alert a i {
+  transition: transform 0.2s ease;
+  font-size: 0.9em;
+}
+
+.alert a:hover {
+  border-bottom-color: currentColor;
+  transform: translateX(2px);
+}
+
+.alert a:hover i {
+  transform: translateX(3px);
+}
+
+/* Alert Danger (Payment Required, High Priority) */
+.alert-danger {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+  color: #dc2626;
+  border-left: 4px solid #dc2626;
+}
+
+.alert-danger .alert-heading {
+  color: #dc2626;
+}
+
+.alert-danger a {
+  color: #dc2626;
+}
+
+.alert-danger a:hover {
+  color: #b91c1c;
+}
+
+/* Alert Warning */
+.alert-warning {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  color: #d97706;
+  border-left: 4px solid #f59e0b;
+}
+
+.alert-warning .alert-heading {
+  color: #d97706;
+}
+
+.alert-warning a {
+  color: #d97706;
+}
+
+.alert-warning a:hover {
+  color: #b45309;
+}
+
+/* Alert Info */
+.alert-info {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #2563eb;
+  border-left: 4px solid #3b82f6;
+}
+
+.alert-info .alert-heading {
+  color: #2563eb;
+}
+
+.alert-info a {
+  color: #2563eb;
+}
+
+.alert-info a:hover {
+  color: #1d4ed8;
+}
+
+/* Alert Success */
+.alert-success {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  color: #16a34a;
+  border-left: 4px solid #22c55e;
+}
+
+.alert-success .alert-heading {
+  color: #16a34a;
+}
+
+.alert-success a {
+  color: #16a34a;
+}
+
+.alert-success a:hover {
+  color: #15803d;
+}
+
+/* Action Button in Alert */
+.alert .btn {
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.alert .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.alert .btn-outline-secondary {
+  border: 1.5px solid rgba(0, 0, 0, 0.2);
+  color: inherit;
+}
+
+.alert .btn-outline-secondary:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+  .alert {
+    padding: 16px 20px;
+    border-radius: 10px;
+  }
+  
+  .alert-heading {
+    font-size: 1rem;
+  }
+  
+  .alert p {
+    font-size: 0.9rem;
+  }
+  
+  .d-flex.justify-content-between {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .alert .btn {
+    width: 100%;
+  }
+}
+
+/* Smooth hover effect */
+.alert:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}

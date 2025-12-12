@@ -8,9 +8,12 @@
     @if (auth()->user()->kv == Status::KYC_UNVERIFIED && auth()->user()->kyc_rejection_reason)
         <div class="row">
             <div class="col-12">
-                <div class="alert alert-danger mb-0">
+                <div class="alert alert-danger mb-3">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="alert-heading text--danger m-0">@lang('KYC Verification Required')</h4>
+                        <h4 class="alert-heading text--danger m-0">
+                            <i class="las la-exclamation-circle me-2"></i>
+                            @lang('KYC Verification Required')
+                        </h4>
                         <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#kycRejectionReason">
                             @lang('Show Reason')
                         </button>
@@ -28,8 +31,11 @@
     @elseif(auth()->user()->kv == Status::KYC_UNVERIFIED)
         <div class="row">
             <div class="col-12">
-                <div class="alert alert-info mb-0">
-                    <h4 class="alert-heading text--danger">@lang('KYC Verification Required')</h4>
+                <div class="alert alert-info mb-3">
+                    <h4 class="alert-heading text--danger">
+                        <i class="las la-info-circle me-2"></i>
+                        @lang('KYC Verification Required')
+                    </h4>
                     <hr>
                     <p class="mb-0">
                         {{ __(@$kycContent->data_values->required) }}
@@ -43,8 +49,11 @@
     @elseif(auth()->user()->kv == Status::KYC_PENDING)
         <div class="row">
             <div class="col-12">
-                <div class="alert alert-warning mb-0">
-                    <h4 class="alert-heading text--warning">@lang('KYC Verification Pending')</h4>
+                <div class="alert alert-warning mb-3">
+                    <h4 class="alert-heading text--warning">
+                        <i class="las la-clock me-2"></i>
+                        @lang('KYC Verification Pending')
+                    </h4>
                     <hr>
                     <p class="mb-0">
                         {{ __(@$kycContent->data_values->pending) }}
@@ -60,21 +69,27 @@
         @foreach($pendingActions as $action)
             <div class="row">
                 <div class="col-12">
-                    <div class="alert alert-{{ $action['priority'] == 'high' ? 'danger' : 'warning' }} mb-0">
+                    <div class="alert alert-{{ $action['priority'] == 'high' ? 'danger' : 'warning' }} mb-3">
                         <div class="d-flex justify-content-between align-items-center flex-wrap">
                             <div class="flex-grow-1">
                                 <h4 class="alert-heading text--{{ $action['priority'] == 'high' ? 'danger' : 'warning' }} m-0">
                                     @if($action['type'] == 'escrow_accept_buyer')
+                                        <i class="las la-handshake me-2"></i>
                                         @lang('Action Required: Accept Escrow')
                                     @elseif($action['type'] == 'escrow_accept_seller')
+                                        <i class="las la-handshake me-2"></i>
                                         @lang('Action Required: Accept Escrow')
                                     @elseif($action['type'] == 'escrow_payment_required')
+                                        <i class="las la-credit-card me-2"></i>
                                         @lang('Payment Required')
                                     @elseif($action['type'] == 'milestones_pending_approval' || $action['type'] == 'milestones_pending_approval_seller')
+                                        <i class="las la-tasks me-2"></i>
                                         @lang('Milestones Pending Approval')
                                     @elseif($action['type'] == 'milestones_ready_payment')
+                                        <i class="las la-dollar-sign me-2"></i>
                                         @lang('Milestones Ready for Payment')
                                     @else
+                                        <i class="las la-exclamation-triangle me-2"></i>
                                         @lang('Action Required')
                                     @endif
                                 </h4>
@@ -87,7 +102,7 @@
                         <p class="mb-0">
                             {{ $action['message'] }}
                             <a href="{{ $action['link'] }}" class="fw-bold">
-                                {{ $action['linkText'] }}
+                                {{ $action['linkText'] }} <i class="las la-arrow-right ms-1"></i>
                             </a>
                         </p>
                     </div>
