@@ -660,6 +660,14 @@ button .spinner-border {
   align-items: center;
 }
 
+/* Desktop Hero Height */
+@media (min-width: 992px) {
+  .flippa-hero {
+    min-height: 850px;
+    padding: 180px 0 120px;
+  }
+}
+
 .hero-background {
   position: absolute;
   top: 0;
